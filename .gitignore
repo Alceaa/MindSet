@@ -38,10 +38,10 @@ build/
 .DS_Store
 
 
-###static###
-**/src/main/resources/static/node_modules
-**/src/main/resources/static/.pnp
-**/src/main/resources/static/.pnp.js
-**/src/main/resources/static/npm-debug.log*
-**/src/main/resources/static/yarn-debug.log*
-**/src/main/resources/static/yarn-error.log*
+###node and react###
+**/src/react/mindset/node_modules
+**/src/react/mindset/.pnp
+**/src/react/mindset/.pnp.js
+**/src/react/mindset/npm-debug.log*
+**/src/react/mindset/yarn-debug.log*
+**/src/react/mindset/yarn-error.log*

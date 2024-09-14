@@ -1,7 +1,7 @@
 package mindset.web.controllers;
 
-import mindset.web.models.Set;
-import mindset.web.repository.SetRepository;
+import mindset.models.Set;
+import mindset.repository.SetRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;

@@ -1,4 +1,4 @@
-package mindset.web.models;
+package mindset.models;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

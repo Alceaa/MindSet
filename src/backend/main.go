@@ -2,44 +2,53 @@ package main
 
 import (
 	"log"
-	"net/http"
-	"os"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/csrf"
 
 	"mindset/db"
-	"mindset/routes"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/joho/godotenv"
-	"github.com/rs/cors"
+	"mindset/utils"
 )
 
 var dbUrl *string
-var DB *pgx.Conn
 
 func init() {
-	if err := godotenv.Load(); err != nil {
+	config, err := utils.LoadEnv(".")
+	if err != nil {
 		log.Print("No .env file")
 	} else {
-		db_url, exists := os.LookupEnv("DATABASE_URL")
-		if exists {
-			dbUrl = &db_url
-		}
+		log.Print("Env loaded")
+		dbUrl = &config.DBUrl
 	}
 }
 
 func main() {
 	if dbUrl != nil {
-		DB = db.Open(*dbUrl)
+		db.Open(*dbUrl)
+	} else {
+		log.Print("No dbUrl in env file")
 	}
 
-	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000"},
+	app := fiber.New()
+
+	SetupRoutes(app)
+
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "http://localhost:3000",
+		AllowHeaders:     "Origin, Content-Type, Accept",
+		AllowMethods:     "GET, POST",
 		AllowCredentials: true,
-		Debug:            true,
-		AllowedMethods:   []string{"GET", "POST", "DELETE"},
+	}))
+
+	app.Use(func(c *fiber.Ctx) error {
+		if c.Is("json") {
+			return c.Next()
+		}
+		return c.SendString("Only JSON allowed!")
 	})
-	r := routes.SetupRoutes()
-	handler := cors.Default().Handler(r)
-	handler = c.Handler(handler)
-	log.Fatal(http.ListenAndServe(":8080", handler))
+
+	app.Use(csrf.New())
+
+	log.Fatal(app.Listen(":8080"))
 }

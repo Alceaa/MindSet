@@ -6,27 +6,36 @@ import (
 	"os"
 	"sync"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var c *pgx.Conn
-
-var once sync.Once
-
-func Open(url string) *pgx.Conn {
-	once.Do(func() {
-		c = connect(url)
-	})
-	return c
+type Postgres struct {
+	db *pgxpool.Pool
 }
 
-func connect(url string) *pgx.Conn {
-	conn, err := pgx.Connect(context.Background(), url)
+var (
+	pgInstance *Postgres
+	once       sync.Once
+)
 
-	if err != nil {
-		log.Printf("Unable to connect to database: %v\n", err)
-		os.Exit(1)
-	}
-	defer conn.Close(context.Background())
-	return conn
+func Open(url string) {
+	once.Do(func() {
+		conn, err := pgxpool.New(context.Background(), url)
+
+		if err != nil {
+			log.Printf("Unable to connect to database: %v\n", err)
+			os.Exit(1)
+		}
+		pgInstance = &Postgres{conn}
+		pgInstance.Ping(context.Background())
+		log.Printf("Connected to database")
+	})
+}
+
+func (pg *Postgres) Ping(ctx context.Context) error {
+	return pg.db.Ping(ctx)
+}
+
+func (pg *Postgres) Close() {
+	pg.db.Close()
 }

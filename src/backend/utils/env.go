@@ -12,9 +12,11 @@ type Env struct {
 	DBPassword string `mapstructure:"DATABASE_PASSWORD"`
 	DBUrl      string `mapstructure:"DATABSE_URL"`
 
-	JwtSecret    string        `mapstructure:"JWT_SECRET"`
-	JwtExpiresIn time.Duration `mapstructure:"JWT_EXPIRED_IN"`
-	JwtMaxAge    int           `mapstructure:"JWT_MAXAGE"`
+	JwtAccessSecret     string        `mapstructure:"JWT_ACCESS_SECRET"`
+	JwtRefreshSecret    string        `mapstructure:"JWT_REFRESH_SECRET"`
+	JwtAccessExpiresIn  time.Duration `mapstructure:"JWT_ACCESS_EXPIRED_IN"`
+	JwtRefreshExpiresIn time.Duration `mapstructure:"JWT_REFRESH_EXPIRES_IN"`
+	JwtMaxAge           int           `mapstructure:"JWT_MAXAGE"`
 }
 
 func LoadEnv(path string) (Env Env, err error) {

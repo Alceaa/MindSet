@@ -1,19 +1,19 @@
 import React from "react";
 import "../../../css/auth/auth.scss";
 import Header from '../../header.jsx'
-import { Link, Navigate, useNavigate} from "react-router-dom";
+import { Link, Navigate} from "react-router-dom";
 import getCSRF from '../../../utils/csrf.js';
 
-
-class Registration extends React.Component{
+class Login extends React.Component{
     constructor(props) {
         super(props);
         this.state = {
             redirect: false,
-        };
+        }
         this.handleInputChange = this.handleInputChange.bind(this);
         this.handleSubmit = this.handleSubmit.bind(this);
     }
+
 
     handleInputChange(event) {
         const value = event.target.value;
@@ -26,27 +26,23 @@ class Registration extends React.Component{
     
     async handleSubmit(event) {
         event.preventDefault();
-        if(this.state.password2 != this.state.password1){
-            this.setState({
-                error: "Пароли не совпадают"
-            })
-            return;
-        }
-        await fetch(process.env.REACT_APP_BASE_API_URL + "auth/registration",{
+        await fetch(process.env.REACT_APP_BASE_API_URL + "auth/login",{
             method: 'POST', 
             headers:{
-                'Content-Type': 'application/json',
-            }, 
+                'Content-Type': 'application/json', 
+            },
             credentials: 'include',
             body: JSON.stringify(
                 {
                     "username":this.state.login,
-                    "email":this.state.email,
-                    "password":this.state.password1,
+                    "password":this.state.password
                 }
             )}
         )
         .then((res) => {
+            this.setState({
+                isLoggedIn: true
+            })
             return res.json();
         })
         .then((data) => {
@@ -56,15 +52,20 @@ class Registration extends React.Component{
                     redirect: true
                 })
             }
-            Object.values(data).forEach((value) => {
+            if(data.error != null){
                 this.setState({
-                    error: value
+                    error: data.error
                 })
-            });
+            }
         })
     }
 
     componentDidMount(){
+        // getCSRF().then((csrf) =>{
+        //     this.setState({
+        //         csrftoken: csrf
+        //     })
+        // })
         if(localStorage.getItem("isLogged") === "true"){
             this.setState({
                 redirect: true
@@ -81,28 +82,20 @@ class Registration extends React.Component{
                 <Header />
                 <div className={ "baseContainer" }>
                     <div className={ "formContainer" }>
-                        <h2 className={ "formTitle" }>Регистрация</h2>
+                        <h2 className={ "formTitle" }>Вход</h2>
                         <form onSubmit={this.handleSubmit}>
                             <label>
-                                Почта:
-                                <input name="email" type="email" value={this.state.email || ''} onChange={this.handleInputChange} required/>
-                            </label>
-                            <label>
-                                Имя пользователя:
-                                <input name="login" type="text" value={this.state.login || ''} onChange={this.handleInputChange} required/>
+                                Имя пользователя или почта:
+                                <input name="login" type="text" onChange={this.handleInputChange} required/>
                             </label>
                             <label>
                                 Пароль:
-                                <input name="password1" type="password" onChange={this.handleInputChange} required/>
-                            </label>
-                            <label>
-                                Повторите пароль:
-                                <input name="password2" type="password" onChange={this.handleInputChange} required/>
+                                <input name="password" type="password" onChange={this.handleInputChange} required/>
                             </label>
                             <div name="error" className={ "errorMessage" }>{this.state.error}</div>
                             <div className={ "bottomContainer" }>
-                                <Link className={ "link" } to={'/../signin/'}>Уже есть аккаунт</Link>
-                                <input type="submit" value="Зарегистрироваться"/>
+                                <Link className={ "link" } to={'/../signup/'}>Создать аккаунт</Link>
+                                <input type="submit" value="Войти"/>
                             </div>
                         </form>
                     </div>
@@ -112,5 +105,4 @@ class Registration extends React.Component{
     }
 }
 
-
-export default Registration;
+export default Login;

@@ -13,11 +13,7 @@ class Dashboard extends React.Component{
     }
 
     componentDidMount(){
-        getCSRF().then((csrf) =>{
-            this.setState({
-                csrftoken: csrf
-            })
-        })
+    
         if(localStorage.getItem("isLogged") === "false"){
             this.setState({
                 redirect: true

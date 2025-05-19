@@ -8,6 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/csrf"
 
 	"mindset/db"
+	"mindset/routes"
 	"mindset/utils"
 )
 
@@ -32,7 +33,7 @@ func main() {
 
 	app := fiber.New()
 
-	SetupRoutes(app)
+	routes.SetupRoutes(app)
 
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "http://localhost:3000",

@@ -1,44 +1,43 @@
-import React from "react";  
+import React, { useState } from 'react';
 import Header from '../header.jsx'
 import { Link, Navigate} from "react-router-dom";
-import getCSRF from '../../utils/csrf.js';
+import { AppBar, Tabs, Tab, Typography, Box } from '@mui/material';
+import Home from './home.jsx';
+import Sets from './sets.jsx';
 import "../../css/dashboard/dashboard.scss";
 
-class Dashboard extends React.Component{
-    constructor(props) {
-        super(props);
-        this.state = {
-            redirect: false,
-        };
-    }
-
-    componentDidMount(){
+const Dashboard = () => {
+    const [value, setValue] = React.useState(0);
     
-        if(localStorage.getItem("isLogged") === "false"){
-            this.setState({
-                redirect: true
-            })
-        }
-    }
+    const handleChange = (event, newValue) => {
+        setValue(newValue);
+    };
 
-    render(){
-        if (this.state.redirect){
-            return <Navigate to="../signin" />
+    const renderTabContent = () => {
+        switch (value) {
+        case 0:
+            return <Home />;
+        case 1:
+            return <Sets />;
+        default:
+            return <Home />;
         }
-        return(
-            <div>
-                <Header />
-                <div className={ "baseContainer" }>
-                    <div className={ "leftSideContainer" }>
-                        
-                    </div>
-                    <div className={ "rightSideContainer" }>
-                        
-                    </div>
-                </div>
-            </div>
-        )
-    }
+    };
+
+    return(
+        <div>
+            <Header/>
+            <Box className="tabsBox">
+                <Tabs value={value} onChange={handleChange} className="tabs">
+                    <Tab label="Домашняя страница" className="tab"/>
+                    <Tab label="Сеты" className="tab"/>
+                </Tabs>
+                <Box sx={{ p: 3 }} className="tabsContent">
+                    {renderTabContent()}
+                </Box>
+            </Box>
+        </div>
+    );
 }
 
 export default Dashboard;

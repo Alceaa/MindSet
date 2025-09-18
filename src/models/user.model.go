@@ -13,7 +13,6 @@ type User struct {
 type RegisterReg struct {
 	Login           string `json:"login" db:"login" validate:"required"`
 	Email           string `json:"email" db:"email" validate:"required"`
-	Name            string `json:"name" db:"name" validate:"required"`
 	Password        string `json:"password" validate:"required,min=8"`
 	PasswordConfirm string `json:"password_confirm" validate:"required,min=8"`
 }

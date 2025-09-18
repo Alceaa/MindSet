@@ -10,7 +10,7 @@ type Env struct {
 	DBUsername string `mapstructure:"DATABASE_USERNAME"`
 	DBName     string `mapstructure:"DATABASE_NAME"`
 	DBPassword string `mapstructure:"DATABASE_PASSWORD"`
-	DBUrl      string `mapstructure:"DATABSE_URL"`
+	DBUrl      string `mapstructure:"DATABASE_URL"`
 
 	JwtAccessSecret     string        `mapstructure:"JWT_ACCESS_SECRET"`
 	JwtRefreshSecret    string        `mapstructure:"JWT_REFRESH_SECRET"`
@@ -22,7 +22,7 @@ type Env struct {
 func LoadEnv(path string) (Env Env, err error) {
 	viper.AddConfigPath(path)
 	viper.SetConfigType("env")
-	viper.SetConfigName("mindset")
+	viper.SetConfigName(".env")
 
 	viper.AutomaticEnv()
 

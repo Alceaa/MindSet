@@ -9,16 +9,15 @@ import (
 )
 
 func CreateUser(ctx context.Context, user *models.User) error {
-	query := `INSERT INTO users (login, email, password, name, data_joined) VALUES 
-	(@login, @email, @password, @name, @data_joined)`
+	query := `INSERT INTO users (login, email, password,  date_joined) VALUES 
+	(@login, @email, @password, @date_joined) RETURNING id`
 	args := pgx.NamedArgs{
 		"login":       user.Login,
 		"email":       user.Email,
 		"password":    user.Password,
-		"name":        user.Name,
-		"data_joined": user.DateJoined,
+		"date_joined": user.DateJoined,
 	}
-	err := pgInstance.db.QueryRow(ctx, query, args)
+	err := pgInstance.db.QueryRow(ctx, query, args).Scan(&user.ID)
 	if err != nil {
 		return fmt.Errorf("Error while creating user: %w", err)
 	}
@@ -39,9 +38,9 @@ func GetUserByEmail(ctx context.Context, email string, user *models.User) error 
 }
 
 func GetUserByUsername(ctx context.Context, username string, user *models.User) error {
-	query := `SELECT * FROM users WHERE username = @username;`
+	query := `SELECT * FROM users WHERE login = @login;`
 	args := pgx.NamedArgs{
-		"username": username,
+		"login": username,
 	}
 	row := pgInstance.db.QueryRow(ctx, query, args)
 	err := row.Scan(&user)

@@ -33,11 +33,8 @@ func main() {
 
 	app := fiber.New()
 
-	routes.SetupRoutes(app)
-
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "http://localhost:3000",
-		AllowHeaders:     "Origin, Content-Type, Accept",
 		AllowMethods:     "GET, POST",
 		AllowCredentials: true,
 	}))
@@ -48,6 +45,8 @@ func main() {
 		}
 		return c.SendString("Only JSON allowed!")
 	})
+
+	routes.SetupRoutes(app)
 
 	app.Use(csrf.New())
 

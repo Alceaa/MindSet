@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import Login from './components/auth/login/login.jsx'
 import Registration from './components/auth/registration/registration.jsx'
 import Dashboard from "./components/dashboard/dashboard.jsx";
+import CreateSet from "./components/dashboard/sets/create.set.jsx";
 import {
     createBrowserRouter,
     RouterProvider,
@@ -30,6 +31,10 @@ const router = createBrowserRouter([
     {
         path: "logout/",
         element: <Logout />
+    },
+    {
+        path: "create-set/",
+        element: <CreateSet/>
     }
 ])
 

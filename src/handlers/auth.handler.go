@@ -39,11 +39,11 @@ func Register(c *fiber.Ctx) error {
 		Password:   string(hashedPassword),
 		DateJoined: time.Now().Format(time.DateTime),
 	}
-	err = db.CreateUser(c.Context(), &newUser)
+	user, err := db.CreateUser(c.Context(), &newUser)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "fail", "dev": err.Error()})
 	}
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "successful", "message": "Пользователь успешно создан"})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "successful", "message": "Пользователь успешно создан", "user": user})
 }
 
 func Login(c *fiber.Ctx) error {
@@ -61,7 +61,7 @@ func Login(c *fiber.Ctx) error {
 
 	var user *models.User
 	if strings.Contains(req.Login, "@") {
-		err := db.GetUserByEmail(c.Context(), req.Login, user)
+		user, err := db.GetUserByEmail(c.Context(), req.Login, user)
 		if user == nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": "Пользователь с такой почтой не найден", "dev": err})
 		}
@@ -69,7 +69,7 @@ func Login(c *fiber.Ctx) error {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": "Ошибка сервера, пожалуйста, повторите позже", "dev": err})
 		}
 	} else {
-		err := db.GetUserByUsername(c.Context(), req.Login, user)
+		user, err := db.GetUserByUsername(c.Context(), req.Login, user)
 		if user == nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "fail", "message": "Пользователь с таким именем не найден", "dev": err})
 		}

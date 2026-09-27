@@ -1,38 +1,39 @@
 import api from "./api";
-import Token from "./token";
-
-class AuthService{
-    register(login, email, password, password_confirm){
+class AuthService {
+    register(login, email, password, passwordConfirm) {
         return api
             .post("/auth/register", {
-                "login": login,
-                "email": email,
-                "password": password,
-                "password_confirm": password_confirm
-            });
+                login: login,
+                email: email,
+                password: password,
+                password_confirm: passwordConfirm,
+            })
+            .then((response) => response.data);
     }
 
-    login(login, password){
+    login(login, password) {
         return api
-            .post("/auth/login", {
-                "login": login,
-                "password": password
-            })
-            .then(response => {
-                if (response.data.access_token) {
-                    Token.setClient(response.data)
-                }
-                return response.data;
-            })
+            .post("/auth/login", { login: login, password: password }, { skipAuthRefresh: true })
+            .then((response) => response.data);
     }
 
-    logout(){
-        Token.removeClient();
+    logout() {
+        return api
+            .post("/auth/logout", null, { skipAuthRefresh: true })
+            .then((response) => response.data);
     }
 
-    getClient(){
-        return Token.getClient();
+    me() {
+        return api.get("/auth/me").then((response) => response.data);
+    }
+
+    refresh() {
+        return api
+            .post("/auth/refresh", null, { skipAuthRefresh: true })
+            .then((response) => response.data);
     }
 }
 
-export default new AuthService();
+const authService = new AuthService();
+
+export default authService;

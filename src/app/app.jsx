@@ -1,45 +1,90 @@
 import React from "react";
-import { createRoot } from 'react-dom/client';
-import Login from './components/auth/login/login.jsx'
-import Registration from './components/auth/registration/registration.jsx'
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import theme from "./theme";
+import { AuthProvider } from "./context/auth.context";
+import RequireAuth from "./components/routing/require.auth.jsx";
+import RedirectIfAuthed from "./components/routing/redirect.if.authed.jsx";
+import RootRedirect from "./components/routing/root.redirect.jsx";
+import NotFound from "./components/routing/not.found.jsx";
+import AppLayout from "./layouts/app.layout.jsx";
+import AuthLayout from "./layouts/auth.layout.jsx";
+import Login from "./components/auth/login/login.jsx";
+import Registration from "./components/auth/registration/registration.jsx";
+import Logout from "./components/auth/logout.jsx";
 import Dashboard from "./components/dashboard/dashboard.jsx";
 import CreateSet from "./components/dashboard/sets/create.set.jsx";
-import {
-    createBrowserRouter,
-    RouterProvider,
-    Navigate
-  } from "react-router-dom";
-import Logout from "./components/auth/logout.jsx";
 
 const router = createBrowserRouter([
     {
         path: "/",
-        element: <Navigate to="dashboard/"/>
+        element: <RootRedirect />,
     },
     {
-        path: "dashboard/",
-        element: <Dashboard />
+        element: <AuthLayout />,
+        children: [
+            {
+                path: "signin",
+                element: (
+                    <RedirectIfAuthed>
+                        <Login />
+                    </RedirectIfAuthed>
+                ),
+            },
+            {
+                path: "signup",
+                element: (
+                    <RedirectIfAuthed>
+                        <Registration />
+                    </RedirectIfAuthed>
+                ),
+            },
+        ],
     },
     {
-        path: "signin/",
-        element: <Login />
+        element: <AppLayout />,
+        children: [
+            {
+                path: "dashboard",
+                element: (
+                    <RequireAuth>
+                        <Dashboard />
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "sets/new",
+                element: (
+                    <RequireAuth>
+                        <CreateSet />
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "logout",
+                element: (
+                    <RequireAuth>
+                        <Logout />
+                    </RequireAuth>
+                ),
+            },
+        ],
     },
     {
-        path: "signup/",
-        element: <Registration />
+        path: "*",
+        element: <NotFound />,
     },
-    {
-        path: "logout/",
-        element: <Logout />
-    },
-    {
-        path: "create-set/",
-        element: <CreateSet/>
-    }
-])
+]);
 
-createRoot(document.getElementById('root')).render(
-    <React.StrictMode>
-        <RouterProvider router={router} />
-    </React.StrictMode>
+const App = () => (
+    <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AuthProvider>
+            <RouterProvider router={router} />
+        </AuthProvider>
+    </ThemeProvider>
 );
+
+export default App;
+

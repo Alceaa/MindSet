@@ -1,68 +1,138 @@
-import React, { useState } from 'react';
-import Header from '../../header.jsx'
-import authService from '../../../api/auth.service';
-import { Link, Navigate} from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../../context/auth.context";
+import parseApiError from "../../../utils/api.error";
+
+const EMPTY_FORM = {
+    login: "",
+    email: "",
+    password: "",
+    passwordConfirm: "",
+};
 
 const Registration = () => {
-    const [login, setLogin] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [passwordConfirm, setPasswordConfirm] = useState('');
-    const [error, setError] = useState('');
-    
-    const handleSubmit = async (e) =>{
-        e.preventDefault();
-        setError('');
-        try{
-            authService.register(login, email, password, passwordConfirm)
-            .then((response) => {
-                console.log(response);
-            }, (err) => {
-                console.log(err.response.data.dev);
-                if (err.response && err.response.status === 400) {
-                    setError(err.response.data.message || 'Ошибка входа');
-                } else {
-                    setError('Произошла ошибка. Попробуйте еще раз.');
-                }
-            });
-        } catch (error){
-            setError('Произошла ошибка. Попробуйте еще раз.');
+    const navigate = useNavigate();
+    const { register } = useAuth();
+
+    const [form, setForm] = useState(EMPTY_FORM);
+    const [fieldErrors, setFieldErrors] = useState({});
+    const [error, setError] = useState("");
+    const [pending, setPending] = useState(false);
+
+    const updateField = (field) => (event) =>
+        setForm((previous) => ({ ...previous, [field]: event.target.value }));
+
+    const handleSubmit = async (event) => {
+        event.preventDefault();
+        setError("");
+        setFieldErrors({});
+
+        if (form.password !== form.passwordConfirm) {
+            setFieldErrors({ password_confirm: "Пароли не совпадают" });
+            return;
+        }
+
+        setPending(true);
+        try {
+            await register(form.login, form.email, form.password, form.passwordConfirm);
+            navigate("/signin", { replace: true, state: { registered: true } });
+        } catch (err) {
+            const parsed = parseApiError(err);
+            setError(parsed.message);
+            setFieldErrors(parsed.fieldErrors);
+        } finally {
+            setPending(false);
         }
     };
 
-    return(
-        <div>
-                <Header />
-                <div className={ "baseContainer" }>
-                    <div className={ "formContainer" }>
-                        <h2 className={ "formTitle" }>Регистрация</h2>
-                        <form onSubmit={handleSubmit}>
-                            <label>
-                                Почта:
-                                <input name="email" type="email" value={email || ''} onChange={(e) => setEmail(e.target.value)} required/>
-                            </label>
-                            <label>
-                                Имя пользователя:
-                                <input name="login" type="text" value={login || ''} onChange={(e) => setLogin(e.target.value)} required/>
-                            </label>
-                            <label>
-                                Пароль:
-                                <input name="password1" type="password" onChange={(e) => setPassword(e.target.value)} required/>
-                            </label>
-                            <label>
-                                Повторите пароль:
-                                <input name="password2" type="password" onChange={(e) => setPasswordConfirm(e.target.value)} required/>
-                            </label>
-                            <div name="error" className={ "errorMessage" }>{error}</div>
-                            <div className={ "bottomContainer" }>
-                                <Link className={ "link" } to={'/../signin/'}>Уже есть аккаунт</Link>
-                                <input type="submit" value="Зарегистрироваться"/>
-                            </div>
-                        </form>
-                    </div>
+    return (
+        <div className="formCard">
+            <h1 className="formTitle">Регистрация</h1>
+            <p className="formSubtitle">
+                Логин от 3 до 32 символов, пароль — не короче 8 символов
+            </p>
+
+            {error && (
+                <div className="alert alertError" role="alert">
+                    {error}
                 </div>
-            </div>
+            )}
+
+            <form onSubmit={handleSubmit} noValidate>
+                <label className="field">
+                    <span className="fieldLabel">Имя пользователя</span>
+                    <input
+                        className={`input${fieldErrors.login ? " inputInvalid" : ""}`}
+                        name="login"
+                        type="text"
+                        value={form.login}
+                        onChange={updateField("login")}
+                        autoComplete="username"
+                        autoFocus
+                        required
+                    />
+                    {fieldErrors.login && <span className="fieldError">{fieldErrors.login}</span>}
+                </label>
+
+                <label className="field">
+                    <span className="fieldLabel">Почта</span>
+                    <input
+                        className={`input${fieldErrors.email ? " inputInvalid" : ""}`}
+                        name="email"
+                        type="email"
+                        value={form.email}
+                        onChange={updateField("email")}
+                        autoComplete="email"
+                        required
+                    />
+                    {fieldErrors.email && <span className="fieldError">{fieldErrors.email}</span>}
+                </label>
+
+                <label className="field">
+                    <span className="fieldLabel">Пароль</span>
+                    <input
+                        className={`input${fieldErrors.password ? " inputInvalid" : ""}`}
+                        name="password"
+                        type="password"
+                        value={form.password}
+                        onChange={updateField("password")}
+                        autoComplete="new-password"
+                        required
+                    />
+                    {fieldErrors.password && (
+                        <span className="fieldError">{fieldErrors.password}</span>
+                    )}
+                </label>
+
+                <label className="field">
+                    <span className="fieldLabel">Повторите пароль</span>
+                    <input
+                        className={`input${fieldErrors.password_confirm ? " inputInvalid" : ""}`}
+                        name="password_confirm"
+                        type="password"
+                        value={form.passwordConfirm}
+                        onChange={updateField("passwordConfirm")}
+                        autoComplete="new-password"
+                        required
+                    />
+                    {fieldErrors.password_confirm && (
+                        <span className="fieldError">{fieldErrors.password_confirm}</span>
+                    )}
+                </label>
+
+                <button className="btn btnPrimary btnBlock" type="submit" disabled={pending}>
+                    {pending ? "Создаём аккаунт..." : "Зарегистрироваться"}
+                </button>
+            </form>
+
+            <p className="formFooter">
+                Уже есть аккаунт?{" "}
+                <Link className="link" to="/signin">
+                    Войти
+                </Link>
+            </p>
+        </div>
     );
-}
+};
 
 export default Registration;

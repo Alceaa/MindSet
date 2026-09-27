@@ -1,57 +1,104 @@
-import React, { useState } from 'react';
-import setService from '../../../api/set.service';
-const CreateSet = () => {
-    const [title, setTitle] = useState('');
-    const [description, setDescription] = useState('');
-    const [error, setError] = useState('');
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import setService from "../../../api/set.service";
+import parseApiError from "../../../utils/api.error";
+import "../../../css/dashboard/dashboard.scss";
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        try{
-            setService.createSet(title, description)
-            .then((response) => {
-                console.log(response);
-            }, (err) => {
-                console.log(err.response.data.dev);
-                if (err.response && err.response.status === 400) {
-                    setError(err.response.data.message || 'Неверный формат запроса');
-                } else {
-                    setError('Произошла ошибка. Попробуйте еще раз.');
-                }
-            });
-        } catch (error){
-            setError('Произошла ошибка. Попробуйте еще раз.');
+const DESCRIPTION_LIMIT = 250;
+
+const CreateSet = () => {
+    const navigate = useNavigate();
+
+    const [title, setTitle] = useState("");
+    const [description, setDescription] = useState("");
+    const [fieldErrors, setFieldErrors] = useState({});
+    const [error, setError] = useState("");
+    const [pending, setPending] = useState(false);
+
+    const handleSubmit = async (event) => {
+        event.preventDefault();
+        setError("");
+        setFieldErrors({});
+        setPending(true);
+
+        try {
+            await setService.createSet(title, description);
+            navigate("/dashboard?tab=sets", { replace: true });
+        } catch (err) {
+            const parsed = parseApiError(err);
+            setError(parsed.message);
+            setFieldErrors(parsed.fieldErrors);
+        } finally {
+            setPending(false);
         }
-    } 
+    };
 
     return (
-        <div>
-        <h1>Создать новый сет</h1>
-        <form onSubmit={handleSubmit}>
-            <div>
-                <label>Название:</label>
-                <input 
-                    type="text" 
-                    value={title} 
-                    onChange={(e) => setTitle(e.target.value)} 
-                    required 
-                />
+        <div className="page">
+            <div className="pageHead">
+                <div>
+                    <h1 className="pageTitle">Новый сет</h1>
+                    <p className="pageSubtitle">Название и короткое описание заметки</p>
+                </div>
+                <Link className="btn btnGhost" to="/dashboard?tab=sets">
+                    Отмена
+                </Link>
             </div>
-            <div>
-                <label>Описание (до 250 символов):</label>
-                <input 
-                    type="textarea" 
-                    value={description} 
-                    onChange={(e) => setDescription(e.target.value)} 
-                    required 
-                />
+
+            <div className="card formCardInline">
+                {error && (
+                    <div className="alert alertError" role="alert">
+                        {error}
+                    </div>
+                )}
+
+                <form onSubmit={handleSubmit} noValidate>
+                    <label className="field">
+                        <span className="fieldLabel">Название</span>
+                        <input
+                            className={`input${fieldErrors.title ? " inputInvalid" : ""}`}
+                            name="title"
+                            type="text"
+                            value={title}
+                            onChange={(event) => setTitle(event.target.value)}
+                            placeholder="Например: Go — конкурентность"
+                            maxLength={100}
+                            autoFocus
+                            required
+                        />
+                        {fieldErrors.title && <span className="fieldError">{fieldErrors.title}</span>}
+                    </label>
+
+                    <label className="field">
+                        <span className="fieldLabel">
+                            Описание <span className="mutedText">(не обязательно)</span>
+                        </span>
+                        <textarea
+                            className={`input textarea${fieldErrors.description ? " inputInvalid" : ""}`}
+                            name="description"
+                            value={description}
+                            onChange={(event) => setDescription(event.target.value)}
+                            rows={4}
+                            maxLength={DESCRIPTION_LIMIT}
+                            placeholder="О чём этот сет"
+                        />
+                        <span className="fieldHint">
+                            {description.length} / {DESCRIPTION_LIMIT}
+                        </span>
+                        {fieldErrors.description && (
+                            <span className="fieldError">{fieldErrors.description}</span>
+                        )}
+                    </label>
+
+                    <div className="formActions">
+                        <button className="btn btnPrimary" type="submit" disabled={pending}>
+                            {pending ? "Создаём..." : "Создать сет"}
+                        </button>
+                    </div>
+                </form>
             </div>
-            <button type="submit">Создать</button>
-            <div name="error" className={ "errorMessage" }>{error}</div>
-        </form>
         </div>
     );
-}
+};
 
 export default CreateSet;

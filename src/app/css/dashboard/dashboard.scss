@@ -1,11 +1,65 @@
-.tabsBox{
 
+.tabsBox {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+    overflow: hidden;
 }
 
-.tab{
-    color:white;
+.tabsContent {
+    padding: var(--gap-lg);
 }
 
-.tabsContent{
+.setGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--gap);
+}
 
+.setCard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    padding: var(--gap-lg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface-muted);
+    transition: border-color 0.15s ease;
+}
+
+.setCard:hover {
+    border-color: #48a0f8;
+}
+
+.setTitle {
+    font-size: 15px;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+.setDescription {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 13px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+.setMeta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+    margin-top: auto;
+    padding-top: var(--gap-sm);
+    border-top: 1px solid var(--border);
+}
+
+@media (max-width: 640px) {
+    .tabsContent {
+        padding: var(--gap);
+    }
 }

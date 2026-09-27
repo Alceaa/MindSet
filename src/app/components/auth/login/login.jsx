@@ -1,58 +1,103 @@
-import React, { useState } from 'react';
-import Header from '../../header.jsx'
-import authService from '../../../api/auth.service';
-import { Link, Navigate} from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../../context/auth.context";
+import parseApiError from "../../../utils/api.error";
 
 const Login = () => {
-    const [login, setLogin] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    
-    const handleSubmit = async (e) =>{
-        e.preventDefault();
-        setError('');
-        try{
-            authService.login(login, password)
-            .then((response) => {
-                console.log(response);
-            }, (err) => {
-                console.log(err.response.data.dev);
-                if (err.response && err.response.status === 400) {
-                    setError(err.response.data.message || 'Ошибка входа');
-                } else {
-                    setError('Произошла ошибка. Попробуйте еще раз.');
-                }
-            });
-        } catch (error){
-            setError('Произошла ошибка. Попробуйте еще раз.');
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { login } = useAuth();
+
+    const [form, setForm] = useState({ login: "", password: "" });
+    const [fieldErrors, setFieldErrors] = useState({});
+    const [error, setError] = useState("");
+    const [pending, setPending] = useState(false);
+
+    const justRegistered = Boolean(location.state?.registered);
+
+    const updateField = (field) => (event) =>
+        setForm((previous) => ({ ...previous, [field]: event.target.value }));
+
+    const handleSubmit = async (event) => {
+        event.preventDefault();
+        setError("");
+        setFieldErrors({});
+        setPending(true);
+
+        try {
+            await login(form.login, form.password);
+            const redirectTo = location.state?.from?.pathname || "/dashboard";
+            navigate(redirectTo, { replace: true });
+        } catch (err) {
+            const parsed = parseApiError(err);
+            setError(parsed.message);
+            setFieldErrors(parsed.fieldErrors);
+        } finally {
+            setPending(false);
         }
     };
 
-    return(
-        <div>
-            <Header />
-            <div className={ "baseContainer" }>
-                <div className={ "formContainer" }>
-                    <h2 className={ "formTitle" }>Вход</h2>
-                    <form onSubmit={handleSubmit}>
-                        <label>
-                            Имя пользователя или почта:
-                            <input name="login" type="text" onChange={(e) => setLogin(e.target.value)} required/>
-                        </label>
-                        <label>
-                            Пароль:
-                            <input name="password" type="password" onChange={(e) => setPassword(e.target.value)} required/>
-                        </label>
-                        <div name="error" className={ "errorMessage" }>{error}</div>
-                        <div className={ "bottomContainer" }>
-                            <Link className={ "link" } to={'/../signup/'}>Создать аккаунт</Link>
-                            <input type="submit" value="Войти"/>
-                        </div>
-                    </form>
+    return (
+        <div className="formCard">
+            <h1 className="formTitle">Вход в MindSet</h1>
+            <p className="formSubtitle">Заметки-сеты, связанные между собой</p>
+
+            {justRegistered && (
+                <div className="alert alertSuccess" role="status">
+                    Аккаунт создан. Войдите с новыми данными.
                 </div>
-            </div>
+            )}
+            {error && (
+                <div className="alert alertError" role="alert">
+                    {error}
+                </div>
+            )}
+
+            <form onSubmit={handleSubmit} noValidate>
+                <label className="field">
+                    <span className="fieldLabel">Имя пользователя или почта</span>
+                    <input
+                        className={`input${fieldErrors.login ? " inputInvalid" : ""}`}
+                        name="login"
+                        type="text"
+                        value={form.login}
+                        onChange={updateField("login")}
+                        autoComplete="username"
+                        autoFocus
+                        required
+                    />
+                    {fieldErrors.login && <span className="fieldError">{fieldErrors.login}</span>}
+                </label>
+
+                <label className="field">
+                    <span className="fieldLabel">Пароль</span>
+                    <input
+                        className={`input${fieldErrors.password ? " inputInvalid" : ""}`}
+                        name="password"
+                        type="password"
+                        value={form.password}
+                        onChange={updateField("password")}
+                        autoComplete="current-password"
+                        required
+                    />
+                    {fieldErrors.password && (
+                        <span className="fieldError">{fieldErrors.password}</span>
+                    )}
+                </label>
+
+                <button className="btn btnPrimary btnBlock" type="submit" disabled={pending}>
+                    {pending ? "Входим..." : "Войти"}
+                </button>
+            </form>
+
+            <p className="formFooter">
+                Нет аккаунта?{" "}
+                <Link className="link" to="/signup">
+                    Зарегистрироваться
+                </Link>
+            </p>
         </div>
     );
-}
+};
 
 export default Login;

@@ -1,116 +1,67 @@
-.formContainer {
-    background-color: rgba(30, 30, 30, 0.9);
-    border-radius: 8px;
-    padding: 2rem;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    width: 90%;
-    max-width: 400px;
-}
 
-form {
+.authShell {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gap);
+    min-height: 100vh;
+    padding: var(--gap-lg);
+    background:
+        radial-gradient(1000px 380px at 50% -10%, rgba(47, 129, 247, 0.14), transparent 70%),
+        var(--bg-canvas);
+}
+
+.authBrand {
+    font-size: 18px;
+}
+
+.authHelp {
+    color: var(--text-faint);
+    font-size: 12px;
+}
+
+.formCard {
+    width: 100%;
+    max-width: 420px;
+    padding: var(--gap-xl);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+    box-shadow: var(--shadow);
+}
+
+.formCardNarrow {
+    max-width: 380px;
+}
+
+.formCardInline {
+    max-width: 640px;
+    box-shadow: none;
 }
 
 .formTitle {
+    font-size: 20px;
+    font-weight: 600;
     text-align: center;
-    margin-bottom: 1.5rem;
-    font-size: 1.5rem;
 }
 
-input[type="text"],
-input[type="password"],
-input[type="email"] {
-    width: calc(100% - 24px);
-    padding: 12px;
-    margin: 0.5rem 0;
-    border: 1px solid #444;
-    border-radius: 4px;
-    background-color: #222;
-    color: #fff;
-    transition: border-color 0.3s ease;
+.formSubtitle {
+    margin: var(--gap-xs) 0 var(--gap-lg);
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
 }
 
-input[type="text"]:focus,
-input[type="password"]:focus,
-input[type="email"]:focus {
-    border-color: #6b6bff;
-    outline: none;
+.formFooter {
+    margin-top: var(--gap-lg);
+    padding-top: var(--gap);
+    border-top: 1px solid var(--border-muted);
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
 }
 
-input[type="submit"] {
-    padding: 12px;
-    margin-top: 1rem;
-    border: none;
-    border-radius: 4px;
-    background-color: #6b6bff;
-    color: #fff;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    align-self: flex-end;
-}
-
-input[type="submit"]:hover {
-    background-color: #5757d7;
-}
-
-.bottomContainer {
-    display: flex; 
-    justify-content: space-between; 
-    align-items: center;
-    width: 100%;
-}
-
-
-.errorMessage {
-    color: #ff4c4c;
-    font-size: 0.9rem;
-    margin-top: 0.5rem;
-}
-
-.logout{
-    padding: 12px;
-    margin-top: 1rem;
-    border: none;
-    border-radius: 4px;
-    background-color: #ff4c4c;
-    color: white;
-    font-size: 0.9rem;
-    cursor: pointer;
-    text-decoration: none;
-    transition: background-color 0.3s ease;
-    align-self: flex-end;
-}
-
-.logout:hover {
-    background-color: darkred;
-}
-
-.message h1 {
-    font-size: 24px;
-    margin-bottom: 10px;
-}
-
-.message p {
-    font-size: 16px;
-    margin-bottom: 20px;
-}
-
-
-@media (max-width: 480px) {
-    .formContainer {
-        padding: 1.5rem;
-        width: 90%;
-        max-width: 350px;
-    }
-
-    .formTitle {
-        font-size: 1.25rem;
-    }
-
-    input[type="submit"] {
-        font-size: 0.9rem;
-        padding: 10px;
-    }
+.formCardNarrow .formActions {
+    flex-direction: column;
 }

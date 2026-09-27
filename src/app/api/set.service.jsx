@@ -1,11 +1,21 @@
 import api from "./api";
-class SetService{
-    createSet(title, description){
+
+class SetService {
+    getSets() {
+        return api.get("/sets").then((response) => response.data.sets);
+    }
+
+    getSet(id) {
+        return api.get(`/sets/${id}`).then((response) => response.data.set);
+    }
+
+    createSet(title, description) {
         return api
-            .post("create-set/", {
-                "title": title,
-                "description": description
-            })
+            .post("/sets", { title: title, description: description })
+            .then((response) => response.data.set);
     }
 }
-export default new SetService();
+
+const setService = new SetService();
+
+export default setService;

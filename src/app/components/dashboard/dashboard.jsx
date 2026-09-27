@@ -1,43 +1,49 @@
-import React, { useState } from 'react';
-import Header from '../header.jsx'
-import { Link, Navigate} from "react-router-dom";
-import { AppBar, Tabs, Tab, Typography, Box } from '@mui/material';
-import Home from './home.jsx';
-import Sets from './sets.jsx';
+import React from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import Box from "@mui/material/Box";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
+import { useAuth } from "../../context/auth.context";
+import Home from "./home.jsx";
+import Sets from "./sets.jsx";
 import "../../css/dashboard/dashboard.scss";
 
+const TAB_SETS = "sets";
 const Dashboard = () => {
-    const [value, setValue] = React.useState(0);
-    
-    const handleChange = (event, newValue) => {
-        setValue(newValue);
+    const { user } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeTab = searchParams.get("tab") === TAB_SETS ? 1 : 0;
+
+    const handleChange = (event, value) => {
+        setSearchParams(value === 1 ? { tab: TAB_SETS } : {}, { replace: true });
     };
 
-    const renderTabContent = () => {
-        switch (value) {
-        case 0:
-            return <Home />;
-        case 1:
-            return <Sets />;
-        default:
-            return <Home />;
-        }
-    };
+    return (
+        <div className="page">
+            <div className="pageHead">
+                <div>
+                    <h1 className="pageTitle">Привет, {user?.login}</h1>
+                    <p className="pageSubtitle">Ваши сеты и последние изменения</p>
+                </div>
+                <Link className="btn btnPrimary" to="/sets/new">
+                    Новый сет
+                </Link>
+            </div>
 
-    return(
-        <div>
-            <Header/>
             <Box className="tabsBox">
-                <Tabs value={value} onChange={handleChange} className="tabs">
-                    <Tab label="Домашняя страница" className="tab"/>
-                    <Tab label="Сеты" className="tab"/>
+                <Tabs
+                    value={activeTab}
+                    onChange={handleChange}
+                    variant="scrollable"
+                    allowScrollButtonsMobile
+                >
+                    <Tab label="Домашняя страница" />
+                    <Tab label="Сеты" />
                 </Tabs>
-                <Box sx={{ p: 3 }} className="tabsContent">
-                    {renderTabContent()}
-                </Box>
+                <Box className="tabsContent">{activeTab === 1 ? <Sets /> : <Home />}</Box>
             </Box>
         </div>
     );
-}
+};
 
 export default Dashboard;

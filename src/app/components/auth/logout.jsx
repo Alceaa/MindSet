@@ -1,36 +1,36 @@
-import Header from '../header.jsx'
-import authService from '../../api/auth.service';
-import { Link, Navigate} from "react-router-dom";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/auth.context";
 
 const Logout = () => {
-    const handleSubmit = async (e) =>{
-        e.preventDefault();
-        try{
-            authService.logout()
-            .then((response) => {
-                console.log(response);
-            }, (err) => {
-                console.log(err.response.data.dev);
-            });
-        } catch (error){
-           console.log(error);
-        }
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+    const [pending, setPending] = useState(false);
+
+    const handleLogout = async () => {
+        setPending(true);
+        await logout();
+        navigate("/signin", { replace: true });
     };
 
-    return(
-        <div>
-            <Header />
-                <div className={ "baseContainer" }>
-                    <div className={ "formContainer" }>
-                        <div className={ "message" }>
-                            <h1>Вы уверены, что хотите выйти?</h1>
-                            <p>Если вы выйдете, вам нужно будет снова войти в систему</p>
-                            <input type="button" className={ "logout" } value="Выйти" onClick={ handleSubmit }/>
-                        </div>
-                    </div>
-                </div>
+    return (
+        <div className="formCard formCardNarrow">
+            <h1 className="formTitle">Выйти из аккаунта?</h1>
+            <p className="formSubtitle">
+                {user ? `Вы выходите как ${user.login}. ` : ""}
+                Чтобы вернуться к заметкам, понадобится войти снова.
+            </p>
+
+            <div className="formActions">
+                <button className="btn btnDanger btnBlock" onClick={handleLogout} disabled={pending}>
+                    {pending ? "Выходим..." : "Выйти"}
+                </button>
+                <button className="btn btnGhost btnBlock" onClick={() => navigate(-1)}>
+                    Остаться
+                </button>
+            </div>
         </div>
     );
-}
+};
 
 export default Logout;

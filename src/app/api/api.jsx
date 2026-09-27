@@ -1,45 +1,51 @@
 import axios from "axios";
-import Token from "./token";
+
+export const AUTH_EVENTS = {
+    unauthorized: "mindset:unauthorized",
+};
 
 const instance = axios.create({
-    baseURL: process.env.REACT_APP_BASE_API_URL,
+    baseURL: process.env.REACT_APP_BASE_API_URL || "",
     withCredentials: true,
     headers: {
-    "Content-Type": "application/json",
-  },
-})
-
-instance.interceptors.request.use(
-    (config) => {
-        const token = Token.getAccessToken();
-        if (token){
-            config.headers["Authorization"] = 'Bearer ' + token;
-        }
-        return config;
+        "Content-Type": "application/json",
     },
-    (error) => {
-        return Promise.reject(error);
+});
+
+let refreshPromise = null;
+
+const refreshSession = () => {
+    if (!refreshPromise) {
+        refreshPromise = instance
+            .post("/auth/refresh", null, { skipAuthRefresh: true })
+            .finally(() => {
+                refreshPromise = null;
+            });
     }
-)
+    return refreshPromise;
+};
 
 instance.interceptors.response.use(
-    (res) => {
-        return res;
-    },
-    async (err) => {
-        if(err.config.url !== "auth/login" && err.response){
-            if(err.response.status === 401 && !err.config._retry){
-                err.config._retry = true;
-                try{
-                    await instance.post("/auth/refresh");
-                    return instance(err.config);
-                } catch (_error){
-                    return Promise.reject(_error)
-                }
+    (response) => response,
+    async (error) => {
+        const config = error.config || {};
+        const status = error.response?.status;
+
+        const canRetry = status === 401 && !config.skipAuthRefresh && !config._retried;
+
+        if (canRetry) {
+            config._retried = true;
+            try {
+                await refreshSession();
+                return instance.request(config);
+            } catch (refreshError) {
+                window.dispatchEvent(new Event(AUTH_EVENTS.unauthorized));
+                return Promise.reject(refreshError);
             }
         }
-        return Promise.reject(err);
+
+        return Promise.reject(error);
     }
-)
+);
 
 export default instance;

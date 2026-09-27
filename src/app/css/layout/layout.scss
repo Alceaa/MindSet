@@ -1,0 +1,109 @@
+
+.appShell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.appHeader {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 1px solid var(--border);
+    background-color: rgba(13, 17, 23, 0.85);
+    backdrop-filter: blur(8px);
+}
+
+.headerInner {
+    display: flex;
+    align-items: center;
+    gap: var(--gap);
+    max-width: 1200px;
+    height: var(--header-height);
+    margin: 0 auto;
+    padding: 0 var(--gap-lg);
+}
+
+.mainNav {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-xs);
+    margin-left: var(--gap-sm);
+}
+
+.navLink {
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.navLink:hover {
+    background-color: var(--bg-surface-muted);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.navLinkActive {
+    background-color: var(--bg-surface-muted);
+    color: var(--text);
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    margin-left: auto;
+}
+
+.userMenuHead {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-width: 240px;
+    padding: 8px 16px 12px;
+}
+
+.userMenuHead strong {
+    font-size: 14px;
+}
+
+.userMenuHead span {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-overflow: ellipsis;
+}
+
+.appMain {
+    flex: 1;
+}
+
+.appContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--gap-lg);
+}
+
+.appFooter {
+    padding: var(--gap);
+    border-top: 1px solid var(--border);
+    color: var(--text-faint);
+    font-size: 12px;
+    text-align: center;
+}
+
+@media (max-width: 640px) {
+    .headerInner {
+        gap: var(--gap-sm);
+        padding: 0 var(--gap);
+    }
+
+    .mainNav {
+        display: none;
+    }
+
+    .appContainer {
+        padding: var(--gap);
+    }
+}

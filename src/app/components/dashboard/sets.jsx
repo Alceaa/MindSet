@@ -1,26 +1,76 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Typography, List, ListItem } from '@mui/material';
-
+import React, { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import setService from "../../api/set.service";
+import parseApiError from "../../utils/api.error";
 const Sets = () => {
-  const [sets, setSets] = useState([]);
+    const [sets, setSets] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
-  useEffect(() => {
-  }, []);
+    const loadSets = useCallback(async () => {
+        setLoading(true);
+        setError("");
+        try {
+            setSets(await setService.getSets());
+        } catch (err) {
+            setError(parseApiError(err).message);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-  return (
-    <div>
-      <Typography variant="h4">Сеты</Typography>
-      <Link to="/create-set">
-        <button>Создать сет</button>
-      </Link>
-      <List>
-        {sets.map((set) => (
-          <ListItem key={set.id}>{set.name}</ListItem>
-        ))}
-      </List>
-    </div>
-  );
+    useEffect(() => {
+        loadSets();
+    }, [loadSets]);
+
+    if (loading) {
+        return <p className="mutedText">Загружаем сеты...</p>;
+    }
+
+    if (error) {
+        return (
+            <div className="alert alertError" role="alert">
+                {error}
+                <button className="btn btnGhost btnSmall" onClick={loadSets}>
+                    Повторить
+                </button>
+            </div>
+        );
+    }
+
+    if (sets.length === 0) {
+        return (
+            <div className="emptyState">
+                <h2>Сетов пока нет</h2>
+                <p className="mutedText">
+                    Создайте первый сет — это заметка, внутри которой можно будет связывать
+                    слова с другими сетами.
+                </p>
+                <Link className="btn btnPrimary" to="/sets/new">
+                    Создать сет
+                </Link>
+            </div>
+        );
+    }
+
+    return (
+        <div className="setGrid">
+            {sets.map((set) => (
+                <article className="setCard" key={set.id}>
+                    <h3 className="setTitle">{set.title}</h3>
+                    {set.description ? (
+                        <p className="setDescription">{set.description}</p>
+                    ) : (
+                        <p className="setDescription mutedText">Без описания</p>
+                    )}
+                    <div className="setMeta">
+                        <span className="badge">id {set.id}</span>
+                        <span className="listMeta">Изменён {set.last_activity}</span>
+                    </div>
+                </article>
+            ))}
+        </div>
+    );
 };
 
 export default Sets;

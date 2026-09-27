@@ -1,104 +1,467 @@
+
+:root {
+    --bg-canvas: #0d1117;
+    --bg-surface: #161b22;
+    --bg-surface-muted: #21262d;
+    --bg-inset: #010409;
+    --border: #30363d;
+    --border-muted: #21262d;
+
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --text-faint: #6e7681;
+
+    --accent: #2f81f7;
+    --accent-hover: #1f6feb;
+    --accent-soft: rgba(56, 139, 253, 0.15);
+    --success: #3fb950;
+    --danger: #f85149;
+    --danger-hover: #da3633;
+
+    --radius: 6px;
+    --radius-lg: 8px;
+    --gap-xs: 4px;
+    --gap-sm: 8px;
+    --gap: 16px;
+    --gap-lg: 24px;
+    --gap-xl: 32px;
+    --shadow: 0 8px 24px rgba(1, 4, 9, 0.5);
+    --header-height: 62px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
 body {
     margin: 0;
     padding: 0;
-    font-family: 'Arial', sans-serif;
-    background: linear-gradient(180deg, #1a1a1a, #333);
-    color: #fff;
-    height: 100vh;
+    min-height: 100%;
 }
 
-.baseContainer{
-    padding: 30px;
-    display: flex;
+body {
+    background-color: var(--bg-canvas);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial,
+        sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+#root {
+    min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+    margin: 0;
+    line-height: 1.3;
+}
+
+p {
+    margin: 0;
+}
+
+a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Бренд: используется и в шапке приложения, и на страницах входа */
+
+.brand,
+.authBrand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    color: var(--text);
+    font-weight: 600;
+}
+
+.brand:hover,
+.authBrand:hover {
+    text-decoration: none;
+}
+
+.brandMark {
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-    align-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius);
+    background-color: var(--accent);
+    color: #fff;
+    font-size: 12px;
+    letter-spacing: 0.5px;
 }
 
-/* header */
+.brandName {
+    font-size: 16px;
+}
 
-.header {
-    display: flex;
-    flex-direction: row;
+.link {
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.mutedText {
+    color: var(--text-muted);
+}
+
+.errorText {
+    color: var(--danger);
+}
+
+.badge {
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    background-color: rgba(30, 30, 30, 0.9);
-    padding: 1rem 2rem;
+    padding: 1px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background-color: var(--bg-surface-muted);
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+}
+
+
+/* Кнопки */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gap-sm);
+    padding: 8px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    line-height: 20px;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:hover {
+    background-color: #30363d;
+    text-decoration: none;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btnPrimary {
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.btnPrimary:hover {
+    background-color: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.btnGhost {
+    background-color: transparent;
+    color: var(--text);
+}
+
+.btnGhost:hover {
+    background-color: var(--bg-surface-muted);
+}
+
+.btnDanger {
+    background-color: var(--danger);
+    border-color: var(--danger);
+    color: #fff;
+}
+
+.btnDanger:hover {
+    background-color: var(--danger-hover);
+}
+
+.btnSmall {
+    padding: 5px 12px;
+    font-size: 13px;
+}
+
+.btnBlock {
+    width: 100%;
+}
+
+/* Формы */
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: var(--gap);
+}
+
+.fieldLabel {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    line-height: 20px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input::placeholder {
+    color: var(--text-faint);
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.inputInvalid {
+    border-color: var(--danger);
+}
+
+.textarea {
+    resize: vertical;
+    min-height: 96px;
+}
+
+.fieldError {
+    color: var(--danger);
+    font-size: 12px;
+}
+
+.fieldHint {
+    color: var(--text-faint);
+    font-size: 12px;
+    align-self: flex-end;
+}
+
+.formActions {
+    display: flex;
     flex-wrap: wrap;
-    border-bottom: 1px solid #bff8ff;
+    gap: var(--gap-sm);
 }
 
-.headerLeft {
+.actionColumn {
     display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between; 
+    flex-direction: column;
+    gap: var(--gap-sm);
 }
 
-.headerRight {
+/* Сообщения */
+
+.alert {
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 13px;
+    margin-bottom: var(--gap);
+}
+
+.alertError {
+    border-color: rgba(248, 81, 73, 0.4);
+    background-color: rgba(248, 81, 73, 0.1);
+    color: #ff7b72;
+}
+
+.alertSuccess {
+    border-color: rgba(63, 185, 80, 0.4);
+    background-color: rgba(63, 185, 80, 0.1);
+    color: #56d364;
+}
+
+/* Карточки и сетка */
+
+.card {
+    padding: var(--gap-lg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.cardTitle {
+    margin-bottom: var(--gap);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.cardGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--gap);
+}
+
+/* Страница */
+
+.page {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
+    gap: var(--gap-lg);
+}
+
+.pageHead {
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
+    gap: var(--gap);
 }
 
-.logo {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
+.pageTitle {
+    font-size: 20px;
+    font-weight: 600;
 }
 
-.nav{
-    padding-right: 10%;
+.pageSubtitle {
+    color: var(--text-muted);
+    font-size: 13px;
 }
 
-.navButton {
-    background-color: #6b6bff;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    padding: 10px 15px;
-    cursor: pointer;
-    margin-bottom: 0.5rem;
+/* Списки */
+
+.plainList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
 }
 
-.navButton:hover {
-    background-color: #5757d7;
+.plainList li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--gap);
+    padding-bottom: var(--gap-sm);
+    border-bottom: 1px solid var(--border-muted);
 }
 
-.searchInput{
-    padding-right: 5%;
-}
-.searchInput input{
-    padding: 10px;
-    border-radius: 4px;
-    border: 1px solid #444;
-    margin-right: 15px;
+.plainList li:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
 }
 
-.searchButton {
-    background-color: #6b6bff;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    padding: 10px 15px;
-    cursor: pointer;
+.listTitle {
+    font-weight: 500;
 }
 
-.searchButton:hover {
-    background-color: #5757d7;
+.listMeta {
+    color: var(--text-muted);
+    font-size: 12px;
+    white-space: nowrap;
 }
 
-@media (max-width: 768px) {
-    .header {
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+/* Пустое состояние */
+
+.emptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--gap-sm);
+    padding: var(--gap-xl) var(--gap-lg);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+    text-align: center;
+}
+
+.emptyState h2 {
+    font-size: 16px;
+}
+
+.emptyState p {
+    max-width: 460px;
+    margin-bottom: var(--gap-sm);
+}
+
+/* Загрузка */
+
+.loadingScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gap);
+    min-height: 60vh;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
     }
 }
 
-/* end header */
+/* Страница-заглушка (404) */
 
-.link {
-    font-size: 1rem;
-    color: #7fb1fb;
-    text-decoration: underline;
+.statusPage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: var(--gap-lg);
+}
+
+.statusCard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--gap-sm);
+    padding: var(--gap-xl);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+    text-align: center;
+}
+
+.statusCode {
+    color: var(--text-faint);
+    font-size: 40px;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.statusCard p {
+    max-width: 360px;
+    margin-bottom: var(--gap-sm);
+    color: var(--text-muted);
 }

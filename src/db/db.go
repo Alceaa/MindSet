@@ -2,46 +2,74 @@ package db
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
-	"os"
 	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+var (
+	ErrNotFound       = errors.New("record not found")
+	ErrNotInitialized = errors.New("database is not initialized")
+)
+
 type Postgres struct {
-	db      *pgxpool.Pool
-	context context.Context
+	db *pgxpool.Pool
 }
 
 var (
 	pgInstance *Postgres
 	once       sync.Once
+	openErr    error
 )
 
-func Open(url string) {
+// Open создаёт пул соединений ровно один раз за время жизни процесса.
+func Open(url string) error {
 	once.Do(func() {
-		context := context.Background()
-		conn, err := pgxpool.New(context, url)
+		ctx := context.Background()
 
+		conn, err := pgxpool.New(ctx, url)
 		if err != nil {
-			log.Printf("Unable to connect to database: %v\n", err)
-			os.Exit(1)
+			openErr = fmt.Errorf("unable to create connection pool: %w", err)
+			return
 		}
-		pgInstance = &Postgres{conn, context}
-		err = pgInstance.Ping(context)
-		if err != nil {
-			log.Printf("Unable to connect to database: %v\n", err)
-		} else {
-			log.Printf("Connected to database")
+
+		if err := conn.Ping(ctx); err != nil {
+			openErr = fmt.Errorf("unable to connect to database: %w", err)
+			conn.Close()
+			return
 		}
+
+		pgInstance = &Postgres{db: conn}
+		log.Print("Connected to database")
 	})
+	return openErr
 }
 
-func (pg *Postgres) Ping(ctx context.Context) error {
-	return pg.db.Ping(ctx)
+// Close закрывает пул. Вызывается при graceful shutdown.
+func Close() {
+	if pgInstance == nil || pgInstance.db == nil {
+		return
+	}
+	pgInstance.db.Close()
 }
 
-func (pg *Postgres) Close() {
-	pg.db.Close()
+// Health проверяет живое соединение с БД (используется в /health).
+func Health(ctx context.Context) error {
+	pool, err := pool()
+	if err != nil {
+		return err
+	}
+	return pool.Ping(ctx)
+}
+
+// pool возвращает пул или ошибку, если Open не выполнялся. Так вместо паники
+// при nil-указателе возвращается понятная ошибка.
+func pool() (*pgxpool.Pool, error) {
+	if pgInstance == nil || pgInstance.db == nil {
+		return nil, ErrNotInitialized
+	}
+	return pgInstance.db, nil
 }

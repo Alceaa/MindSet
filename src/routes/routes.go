@@ -5,17 +5,18 @@ import (
 	"mindset/middlewares"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gorilla/mux"
 )
 
-func SetupRoutes(app fiber.Router) *mux.Router {
-	r := mux.NewRouter()
+func SetupRoutes(app fiber.Router) {
+	auth := app.Group("/auth")
+	auth.Post("/register", handlers.Register)
+	auth.Post("/login", handlers.Login)
+	auth.Post("/refresh", middlewares.ValidateRefreshToken, handlers.Refresh)
+	auth.Post("/logout", handlers.Logout)
+	auth.Get("/me", middlewares.ValidateAccessToken, handlers.Me)
 
-	authRoutes := app.Group("/auth")
-	authRoutes.Post("/register", handlers.Register)
-	authRoutes.Post("/login", handlers.Login)
-	authRoutes.Get("/logout", middlewares.ValidateAccessToken, handlers.Logout)
-	authRoutes.Get("/refresh", middlewares.ValidateRefreshToken, handlers.Refresh)
-	//r.HandleFunc("/api/user", handlers.GetUser).Methods("POST")
-	return r
+	sets := app.Group("/sets", middlewares.ValidateAccessToken)
+	sets.Get("", handlers.GetSets)
+	sets.Post("", handlers.CreateSet)
+	sets.Get("/:id", handlers.GetSet)
 }

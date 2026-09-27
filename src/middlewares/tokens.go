@@ -1,102 +1,97 @@
 package middlewares
 
 import (
-	"context"
-	"fmt"
+	"errors"
+	"strconv"
+	"strings"
+
 	"mindset/db"
 	"mindset/models"
 	"mindset/utils"
-	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt"
 )
 
+// UserLocalKey — ключ, под которым пользователь лежит в контексте запроса.
+const UserLocalKey = "user"
+
+func CurrentUser(c *fiber.Ctx) (*models.User, bool) {
+	user, ok := c.Locals(UserLocalKey).(*models.User)
+	return user, ok && user != nil
+}
+
 func ValidateAccessToken(c *fiber.Ctx) error {
-	var access string
-	authorization := c.Get("Authorization")
-
-	if strings.HasPrefix(authorization, "Bearer ") {
-		access = strings.TrimPrefix(authorization, "Bearer ")
-	} else if c.Cookies("access_token") != "" {
-		access = c.Cookies("access_token")
+	token := accessTokenFromRequest(c)
+	if token == "" {
+		return utils.Fail(c, fiber.StatusUnauthorized, "Требуется авторизация", nil)
 	}
 
-	if access == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": "User is not logged in"})
-	}
-
-	config, _ := utils.LoadEnv(".")
-	tokenByte, err := jwt.Parse(access, func(jwtToken *jwt.Token) (interface{}, error) {
-		if _, ok := jwtToken.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
-		}
-
-		return []byte(config.JwtAccessSecret), nil
-	})
-
+	claims, err := utils.ParseAccessToken(token)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": fmt.Sprintf("invalidate access_token: %v", err)})
+		return utils.Fail(c, fiber.StatusUnauthorized, "Сессия истекла, войдите заново", err)
 	}
 
-	claims, ok := tokenByte.Claims.(jwt.MapClaims)
-	if !ok || !tokenByte.Valid {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": "invalid access_token claim"})
-
+	user, err := loadUserFromSubject(c, claims.Subject)
+	if err != nil {
+		return err
 	}
 
-	var user models.User
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	db.GetUserById(ctx, fmt.Sprint(claims["sub"]), &user)
-
-	if user.ID != claims["sub"] {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"status": "fail", "message": "the user belonging to this access_token no logger exists"})
-	}
-
-	c.Locals("user", user)
-
+	c.Locals(UserLocalKey, user)
 	return c.Next()
 }
 
 func ValidateRefreshToken(c *fiber.Ctx) error {
-	var refresh string
-	if c.Cookies("refresh_token") != "" {
-		refresh = c.Cookies("refresh_token")
-	} else {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": "User is not logged in"})
+	token := refreshTokenFromRequest(c)
+	if token == "" {
+		return utils.Fail(c, fiber.StatusUnauthorized, "Требуется авторизация", nil)
 	}
 
-	config, _ := utils.LoadEnv(".")
-	tokenByte, err := jwt.Parse(refresh, func(jwtToken *jwt.Token) (interface{}, error) {
-		if _, ok := jwtToken.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %s", jwtToken.Header["alg"])
-		}
-
-		return []byte(config.JwtRefreshSecret), nil
-	})
-
+	claims, err := utils.ParseRefreshToken(token)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": fmt.Sprintf("invalidate refresh_token: %v", err)})
+		return utils.Fail(c, fiber.StatusUnauthorized, "Сессия истекла, войдите заново", err)
 	}
 
-	claims, ok := tokenByte.Claims.(jwt.MapClaims)
-	if !ok || !tokenByte.Valid {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "fail", "message": "invalid refresh_token claim"})
-
+	user, err := loadUserFromSubject(c, claims.Subject)
+	if err != nil {
+		return err
 	}
 
-	var user models.User
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	db.GetUserById(ctx, fmt.Sprint(claims["sub"]), &user)
-
-	if user.ID != claims["sub"] {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"status": "fail", "message": "the user belonging to this refresh_token no logger exists"})
-	}
-
-	c.Locals("user", user)
-
+	c.Locals(UserLocalKey, user)
 	return c.Next()
+}
+
+func loadUserFromSubject(c *fiber.Ctx, subject string) (*models.User, error) {
+	userID, err := strconv.Atoi(subject)
+	if err != nil {
+		return nil, utils.Fail(c, fiber.StatusUnauthorized, "Некорректный токен", err)
+	}
+
+	user, err := db.GetUserById(c.Context(), userID)
+	switch {
+	case errors.Is(err, db.ErrNotFound):
+		return nil, utils.Fail(c, fiber.StatusUnauthorized, "Пользователь не найден, войдите заново", err)
+	case err != nil:
+		return nil, utils.Fail(c, fiber.StatusInternalServerError, "Ошибка сервера, повторите позже", err)
+	}
+	return user, nil
+}
+
+func accessTokenFromRequest(c *fiber.Ctx) string {
+	if header := c.Get(fiber.HeaderAuthorization); strings.HasPrefix(header, "Bearer ") {
+		return strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
+	}
+	return c.Cookies(utils.AccessTokenCookie)
+}
+
+func refreshTokenFromRequest(c *fiber.Ctx) string {
+	if cookie := c.Cookies(utils.RefreshTokenCookie); cookie != "" {
+		return cookie
+	}
+	var body struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := c.BodyParser(&body); err == nil && body.RefreshToken != "" {
+		return body.RefreshToken
+	}
+	return ""
 }

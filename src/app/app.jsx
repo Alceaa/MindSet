@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -15,6 +15,9 @@ import Registration from "./components/auth/registration/registration.jsx";
 import Logout from "./components/auth/logout.jsx";
 import Dashboard from "./components/dashboard/dashboard.jsx";
 import CreateSet from "./components/dashboard/sets/create.set.jsx";
+import LoadingScreen from "./components/common/loading.screen.jsx";
+
+const SetEditor = React.lazy(() => import("./components/dashboard/sets/set.editor.jsx"));
 
 const router = createBrowserRouter([
     {
@@ -58,6 +61,16 @@ const router = createBrowserRouter([
                 element: (
                     <RequireAuth>
                         <CreateSet />
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "sets/:id",
+                element: (
+                    <RequireAuth>
+                        <Suspense fallback={<LoadingScreen label="Загружаем редактор..." />}>
+                            <SetEditor />
+                        </Suspense>
                     </RequireAuth>
                 ),
             },

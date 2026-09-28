@@ -9,10 +9,16 @@ class SetService {
         return api.get(`/sets/${id}`).then((response) => response.data.set);
     }
 
-    createSet(title, description) {
-        return api
-            .post("/sets", { title: title, description: description })
-            .then((response) => response.data.set);
+    createSet(payload) {
+        return api.post("/sets", payload).then((response) => response.data.set);
+    }
+
+    updateSet(id, payload) {
+        return api.put(`/sets/${id}`, payload).then((response) => response.data.set);
+    }
+
+    deleteSet(id) {
+        return api.delete(`/sets/${id}`).then((response) => response.data);
     }
 }
 

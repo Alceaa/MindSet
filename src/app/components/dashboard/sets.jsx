@@ -56,7 +56,7 @@ const Sets = () => {
     return (
         <div className="setGrid">
             {sets.map((set) => (
-                <article className="setCard" key={set.id}>
+                <Link className="setCard" key={set.id} to={`/sets/${set.id}`}>
                     <h3 className="setTitle">{set.title}</h3>
                     {set.description ? (
                         <p className="setDescription">{set.description}</p>
@@ -67,7 +67,7 @@ const Sets = () => {
                         <span className="badge">id {set.id}</span>
                         <span className="listMeta">Изменён {set.last_activity}</span>
                     </div>
-                </article>
+                </Link>
             ))}
         </div>
     );

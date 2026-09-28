@@ -22,8 +22,12 @@ const CreateSet = () => {
         setPending(true);
 
         try {
-            await setService.createSet(title, description);
-            navigate("/dashboard?tab=sets", { replace: true });
+            const created = await setService.createSet({
+                title: title,
+                description: description,
+                content: "",
+            });
+            navigate(`/sets/${created.id}`, { replace: true });
         } catch (err) {
             const parsed = parseApiError(err);
             setError(parsed.message);

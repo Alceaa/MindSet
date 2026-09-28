@@ -10,15 +10,26 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// setColumns — явный список колонок с приведением дат к тексту 'YYYY-MM-DD'
-// и защитой от NULL в description.
 const setColumns = `id, user_id, title, coalesce(description, '') AS description,
+	coalesce(content, '') AS content,
+	to_char(date_created, 'YYYY-MM-DD') AS date_created,
+	to_char(last_activity, 'YYYY-MM-DD') AS last_activity`
+
+const setSummaryColumns = `id, user_id, title, coalesce(description, '') AS description,
 	to_char(date_created, 'YYYY-MM-DD') AS date_created,
 	to_char(last_activity, 'YYYY-MM-DD') AS last_activity`
 
 func scanSet(row pgx.Row) (*models.Set, error) {
 	var set models.Set
-	err := row.Scan(&set.ID, &set.UserID, &set.Title, &set.Description, &set.DateCreated, &set.LastActivity)
+	err := row.Scan(
+		&set.ID,
+		&set.UserID,
+		&set.Title,
+		&set.Description,
+		&set.Content,
+		&set.DateCreated,
+		&set.LastActivity,
+	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -28,21 +39,39 @@ func scanSet(row pgx.Row) (*models.Set, error) {
 	return &set, nil
 }
 
-// CreateSet создаёт сет и возвращает его вместе с датами, проставленными базой
-// (date_created/last_activity имеют DEFAULT CURRENT_DATE).
+func scanSetSummary(row pgx.Row) (*models.Set, error) {
+	var set models.Set
+	err := row.Scan(
+		&set.ID,
+		&set.UserID,
+		&set.Title,
+		&set.Description,
+		&set.DateCreated,
+		&set.LastActivity,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("scan set summary: %w", err)
+	}
+	return &set, nil
+}
+
 func CreateSet(ctx context.Context, set *models.Set) (*models.Set, error) {
 	conn, err := pool()
 	if err != nil {
 		return nil, err
 	}
 
-	query := `INSERT INTO sets (title, description, user_id) VALUES
-	(@title, @description, @user_id)
+	query := `INSERT INTO sets (title, description, content, user_id) VALUES
+	(@title, @description, @content, @user_id)
 	RETURNING ` + setColumns
 
 	created, err := scanSet(conn.QueryRow(ctx, query, pgx.NamedArgs{
 		"title":       set.Title,
 		"description": set.Description,
+		"content":     set.Content,
 		"user_id":     set.UserID,
 	}))
 	if err != nil {
@@ -51,14 +80,63 @@ func CreateSet(ctx context.Context, set *models.Set) (*models.Set, error) {
 	return created, nil
 }
 
-// GetSetsByUser возвращает сеты пользователя, свежие — первыми.
+func UpdateSet(ctx context.Context, set *models.Set) (*models.Set, error) {
+	conn, err := pool()
+	if err != nil {
+		return nil, err
+	}
+
+	query := `UPDATE sets SET
+	  title = @title,
+	  description = @description,
+	  content = @content,
+	  last_activity = CURRENT_DATE
+	WHERE id = @id AND user_id = @user_id
+	RETURNING ` + setColumns
+
+	updated, err := scanSet(conn.QueryRow(ctx, query, pgx.NamedArgs{
+		"id":          set.ID,
+		"user_id":     set.UserID,
+		"title":       set.Title,
+		"description": set.Description,
+		"content":     set.Content,
+	}))
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("update set: %w", err)
+	}
+	return updated, nil
+}
+
+func DeleteSet(ctx context.Context, id, userID int) error {
+	conn, err := pool()
+	if err != nil {
+		return err
+	}
+
+	tag, err := conn.Exec(
+		ctx,
+		`DELETE FROM sets WHERE id = @id AND user_id = @user_id`,
+		pgx.NamedArgs{"id": id, "user_id": userID},
+	)
+	if err != nil {
+		return fmt.Errorf("delete set: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func GetSetsByUser(ctx context.Context, userID int) ([]*models.Set, error) {
 	conn, err := pool()
 	if err != nil {
 		return nil, err
 	}
 
-	query := `SELECT ` + setColumns + `
+	query := `SELECT ` + setSummaryColumns + `
 	FROM sets
 	WHERE user_id = @user_id
 	ORDER BY last_activity DESC, id DESC`
@@ -71,7 +149,7 @@ func GetSetsByUser(ctx context.Context, userID int) ([]*models.Set, error) {
 
 	sets := make([]*models.Set, 0)
 	for rows.Next() {
-		set, err := scanSet(rows)
+		set, err := scanSetSummary(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -83,8 +161,6 @@ func GetSetsByUser(ctx context.Context, userID int) ([]*models.Set, error) {
 	return sets, nil
 }
 
-// GetSetByID возвращает сет пользователя. Чужие сеты считаются ненайденными,
-// чтобы не подтверждать их существование.
 func GetSetByID(ctx context.Context, id, userID int) (*models.Set, error) {
 	conn, err := pool()
 	if err != nil {

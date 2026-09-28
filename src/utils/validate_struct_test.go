@@ -108,8 +108,12 @@ func TestLoginRegRejectsEmptyCredentials(t *testing.T) {
 	}
 }
 
-func TestValidateSetTitleLength(t *testing.T) {
-	req := models.CreateSetReg{Title: "", Description: strings.Repeat("a", 300)}
+func TestValidateSetPayload(t *testing.T) {
+	req := models.SetPayload{
+		Title:       "",
+		Description: strings.Repeat("a", 300),
+		Content:     strings.Repeat("b", 200001),
+	}
 
 	fields := map[string]bool{}
 	for _, item := range ValidateStruct(req) {
@@ -121,6 +125,21 @@ func TestValidateSetTitleLength(t *testing.T) {
 	}
 	if !fields["description"] {
 		t.Error("слишком длинное описание не было отклонено")
+	}
+	if !fields["content"] {
+		t.Error("слишком большое содержимое не было отклонено")
+	}
+}
+
+func TestValidateSetPayloadAcceptsMarkdown(t *testing.T) {
+	req := models.SetPayload{
+		Title:       "Сет",
+		Description: "описание",
+		Content:     "# Заголовок\n\n- пункт\n- пункт\n\n```go\nfmt.Println(\"hi\")\n```\n",
+	}
+
+	if errors := ValidateStruct(req); len(errors) != 0 {
+		t.Fatalf("валидный markdown не прошёл валидацию: %v", errors)
 	}
 }
 

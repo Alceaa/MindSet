@@ -45,6 +45,7 @@ type apiSet struct {
 	UserID       int    `json:"user_id"`
 	Title        string `json:"title"`
 	Description  string `json:"description"`
+	Content      string `json:"content"`
 	DateCreated  string `json:"date_created"`
 	LastActivity string `json:"last_activity"`
 }
@@ -414,6 +415,121 @@ func TestAuthAndSetsFlow(t *testing.T) {
 	resp, body, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/sets", Cookies: otherCookies})
 	if resp.StatusCode != fiber.StatusOK || len(body.Sets) != 0 {
 		t.Fatalf("второй пользователь видит чужие сеты: %+v", body.Sets)
+	}
+
+	// --- 9.1 Содержимое сета: создание, чтение, обновление, удаление ---
+	markdown := "# Заголовок\n\nТекст с **разметкой** и [ссылкой](https://go.dev).\n\n- пункт\n- пункт\n"
+
+	resp, body, raw = call(t, app, callOptions{
+		Method:  fiber.MethodPost,
+		Path:    "/sets",
+		Cookies: authCookies,
+		Body: map[string]string{
+			"title":       "Сет с содержимым",
+			"description": "проверка markdown",
+			"content":     markdown,
+		},
+	})
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("создание сета с содержимым = %d (%s)", resp.StatusCode, raw)
+	}
+	if body.Set.Content != markdown {
+		t.Fatalf("содержимое не сохранилось при создании: %q", body.Set.Content)
+	}
+	contentSetID := body.Set.ID
+
+	resp, body, raw = call(t, app, callOptions{
+		Method:  fiber.MethodGet,
+		Path:    fmt.Sprintf("/sets/%d", contentSetID),
+		Cookies: authCookies,
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("чтение сета = %d (%s)", resp.StatusCode, raw)
+	}
+	if body.Set.Content != markdown {
+		t.Fatalf("содержимое не вернулось при чтении: %q", body.Set.Content)
+	}
+
+	updatedMarkdown := markdown + "\nДобавленный абзац с `кодом`.\n"
+	resp, body, raw = call(t, app, callOptions{
+		Method:  fiber.MethodPut,
+		Path:    fmt.Sprintf("/sets/%d", contentSetID),
+		Cookies: authCookies,
+		Body: map[string]string{
+			"title":       "Обновлённый заголовок",
+			"description": "обновлено",
+			"content":     updatedMarkdown,
+		},
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("обновление сета = %d (%s)", resp.StatusCode, raw)
+	}
+	if body.Set.Title != "Обновлённый заголовок" || body.Set.Content != updatedMarkdown {
+		t.Fatalf("обновление не применилось: %s", raw)
+	}
+
+	resp, body, _ = call(t, app, callOptions{
+		Method:  fiber.MethodPut,
+		Path:    fmt.Sprintf("/sets/%d", contentSetID),
+		Cookies: authCookies,
+		Body:    map[string]string{"title": "", "content": "текст"},
+	})
+	if resp.StatusCode != fiber.StatusBadRequest || !containsField(body.Errors, "title") {
+		t.Fatalf("обновление без названия: статус %d, ошибки %+v", resp.StatusCode, body.Errors)
+	}
+
+	resp, _, _ = call(t, app, callOptions{
+		Method:  fiber.MethodPut,
+		Path:    fmt.Sprintf("/sets/%d", contentSetID),
+		Cookies: otherCookies,
+		Body:    map[string]string{"title": "Захват", "content": "чужое"},
+	})
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Fatalf("изменение чужого сета = %d, ожидалось 404", resp.StatusCode)
+	}
+
+	resp, _, _ = call(t, app, callOptions{
+		Method:  fiber.MethodDelete,
+		Path:    fmt.Sprintf("/sets/%d", contentSetID),
+		Cookies: otherCookies,
+	})
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Fatalf("удаление чужого сета = %d, ожидалось 404", resp.StatusCode)
+	}
+
+	resp, _, raw = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/sets", Cookies: authCookies})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("список сетов = %d (%s)", resp.StatusCode, raw)
+	}
+	if strings.Contains(raw, `"content"`) {
+		t.Errorf("список сетов отдаёт содержимое, ожидалась только сводка: %s", raw)
+	}
+
+	resp, _, raw = call(t, app, callOptions{
+		Method:  fiber.MethodDelete,
+		Path:    fmt.Sprintf("/sets/%d", contentSetID),
+		Cookies: authCookies,
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("удаление сета = %d (%s)", resp.StatusCode, raw)
+	}
+
+	resp, _, _ = call(t, app, callOptions{
+		Method:  fiber.MethodGet,
+		Path:    fmt.Sprintf("/sets/%d", contentSetID),
+		Cookies: authCookies,
+	})
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Fatalf("удалённый сет всё ещё доступен: %d", resp.StatusCode)
+	}
+
+	resp, _, _ = call(t, app, callOptions{
+		Method:  fiber.MethodDelete,
+		Path:    fmt.Sprintf("/sets/%d", contentSetID),
+		Cookies: authCookies,
+	})
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Fatalf("повторное удаление = %d, ожидалось 404", resp.StatusCode)
 	}
 
 	// --- 10. Продление сессии ---

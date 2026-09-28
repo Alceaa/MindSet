@@ -39,9 +39,16 @@ psql "$DATABASE_URL" -f src/db/schema.sql
 ```
 
 * `users.login` и `users.email` — уникальные;
-* `sets.user_id` — владелец сета, `NOT NULL` + `ON DELETE CASCADE` (без этого сеты
-  не были привязаны к пользователю и были видны всем);
+* `sets.user_id` — владелец сета, `NOT NULL` + `ON DELETE CASCADE`;
+* `sets.content` — markdown-содержимое сета (`text NOT NULL DEFAULT ''`);
 * даты (`date_created`, `last_activity`, `date_joined`) имеют `DEFAULT CURRENT_DATE`.
+
+Схема применяется командой (её достаточно запустить один раз после `git pull`):
+
+```bash
+cd back/src
+go run ./cmd/migrate
+```
 
 ## Маршруты
 
@@ -53,9 +60,11 @@ psql "$DATABASE_URL" -f src/db/schema.sql
 | POST | `/auth/refresh` | по refresh-токену | Продление сессии |
 | POST | `/auth/logout` | публичный | Удаление cookie с токенами |
 | GET | `/auth/me` | по access-токену | Текущий пользователь |
-| GET | `/sets` | по access-токену | Список сетов пользователя |
+| GET | `/sets` | по access-токену | Список сетов (краткая сводка, без содержимого) |
 | POST | `/sets` | по access-токену | Создание сета |
-| GET | `/sets/:id` | по access-токену | Сет по id (чужие сеты → 404) |
+| GET | `/sets/:id` | по access-токену | Сет с содержимым (чужие сеты → 404) |
+| PUT | `/sets/:id` | по access-токену | Обновление сета, `last_activity = CURRENT_DATE` |
+| DELETE | `/sets/:id` | по access-токену | Удаление сета |
 
 Формат ответов:
 

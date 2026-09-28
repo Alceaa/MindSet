@@ -19,4 +19,6 @@ func SetupRoutes(app fiber.Router) {
 	sets.Get("", handlers.GetSets)
 	sets.Post("", handlers.CreateSet)
 	sets.Get("/:id", handlers.GetSet)
+	sets.Put("/:id", handlers.UpdateSet)
+	sets.Delete("/:id", handlers.DeleteSet)
 }

@@ -19,6 +19,7 @@ var fieldLabels = map[string]string{
 	"password_confirm": "Подтверждение пароля",
 	"title":            "Название",
 	"description":      "Описание",
+	"content":          "Содержимое",
 }
 
 func ValidateStruct[T any](payload T) []*models.ErrorResponse {

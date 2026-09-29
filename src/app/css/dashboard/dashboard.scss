@@ -98,7 +98,24 @@
 }
 
 .mdxEditorHost {
+    position: relative;
     display: block;
+}
+
+.toolbarWikilink {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.toolbarWikilink:hover {
+    background-color: #30363d;
 }
 
 .mdxEditorHost .mdxEditorTheme,

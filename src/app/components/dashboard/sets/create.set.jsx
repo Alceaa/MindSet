@@ -27,7 +27,7 @@ const CreateSet = () => {
                 description: description,
                 content: "",
             });
-            navigate(`/sets/${created.id}`, { replace: true });
+            navigate(`/sets/${created.set.id}`, { replace: true });
         } catch (err) {
             const parsed = parseApiError(err);
             setError(parsed.message);

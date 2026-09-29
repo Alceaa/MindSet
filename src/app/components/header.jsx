@@ -15,7 +15,10 @@ const Header = () => {
     const [searchParams] = useSearchParams();
     const [anchorEl, setAnchorEl] = useState(null);
 
+    // Вкладка дашборда хранится в query-параметре, поэтому подсветку навигации
+    // считаем по нему: NavLink без этого подсветил бы сразу обе ссылки.
     const isSetsTab = searchParams.get("tab") === "sets";
+    const isGraphTab = searchParams.get("tab") === "graph";
 
     const closeMenu = () => setAnchorEl(null);
 
@@ -35,7 +38,10 @@ const Header = () => {
 
                 {isAuthenticated && (
                     <nav className="mainNav">
-                        <Link className={`navLink${isSetsTab ? "" : " navLinkActive"}`} to="/dashboard">
+                        <Link
+                            className={`navLink${isSetsTab || isGraphTab ? "" : " navLinkActive"}`}
+                            to="/dashboard"
+                        >
                             Домашняя
                         </Link>
                         <Link
@@ -43,6 +49,12 @@ const Header = () => {
                             to="/dashboard?tab=sets"
                         >
                             Сеты
+                        </Link>
+                        <Link
+                            className={`navLink${isGraphTab ? " navLinkActive" : ""}`}
+                            to="/dashboard?tab=graph"
+                        >
+                            Граф
                         </Link>
                     </nav>
                 )}

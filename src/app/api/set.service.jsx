@@ -6,15 +6,19 @@ class SetService {
     }
 
     getSet(id) {
-        return api.get(`/sets/${id}`).then((response) => response.data.set);
+        return api.get(`/sets/${id}`).then((response) => response.data);
+    }
+
+    getGraph() {
+        return api.get("/graph").then((response) => response.data);
     }
 
     createSet(payload) {
-        return api.post("/sets", payload).then((response) => response.data.set);
+        return api.post("/sets", payload).then((response) => response.data);
     }
 
     updateSet(id, payload) {
-        return api.put(`/sets/${id}`, payload).then((response) => response.data.set);
+        return api.put(`/sets/${id}`, payload).then((response) => response.data);
     }
 
     deleteSet(id) {

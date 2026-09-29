@@ -50,13 +50,45 @@ type apiSet struct {
 	LastActivity string `json:"last_activity"`
 }
 
+type apiLink struct {
+	Label       string `json:"label"`
+	Alias       string `json:"alias"`
+	TargetID    int    `json:"target_id"`
+	TargetTitle string `json:"target_title"`
+	OneSided    bool   `json:"one_sided"`
+}
+
+type apiBacklink struct {
+	ID       int    `json:"id"`
+	Title    string `json:"title"`
+	OneSided bool   `json:"one_sided"`
+}
+
+type apiGraphNode struct {
+	ID        int    `json:"id"`
+	Title     string `json:"title"`
+	Links     int    `json:"links"`
+	Backlinks int    `json:"backlinks"`
+	Updated   string `json:"updated"`
+}
+
+type apiGraphEdge struct {
+	From     int  `json:"from"`
+	To       int  `json:"to"`
+	OneSided bool `json:"one_sided"`
+}
+
 type apiResponse struct {
-	Status  string            `json:"status"`
-	Message string            `json:"message"`
-	Errors  []validationError `json:"errors"`
-	User    *apiUser          `json:"user"`
-	Sets    []apiSet          `json:"sets"`
-	Set     *apiSet           `json:"set"`
+	Status    string            `json:"status"`
+	Message   string            `json:"message"`
+	Errors    []validationError `json:"errors"`
+	User      *apiUser          `json:"user"`
+	Sets      []apiSet          `json:"sets"`
+	Set       *apiSet           `json:"set"`
+	Links     []apiLink         `json:"links"`
+	Backlinks []apiBacklink     `json:"backlinks"`
+	Nodes     []apiGraphNode    `json:"nodes"`
+	Edges     []apiGraphEdge    `json:"edges"`
 }
 
 type callOptions struct {
@@ -168,6 +200,43 @@ func containsField(errors []validationError, field string) bool {
 		}
 	}
 	return false
+}
+
+func findLink(links []apiLink, label string) *apiLink {
+	for index := range links {
+		if links[index].Label == label {
+			return &links[index]
+		}
+	}
+	return nil
+}
+
+func findNode(nodes []apiGraphNode, id int) *apiGraphNode {
+	for index := range nodes {
+		if nodes[index].ID == id {
+			return &nodes[index]
+		}
+	}
+	return nil
+}
+
+func findEdge(edges []apiGraphEdge, from, to int) *apiGraphEdge {
+	for index := range edges {
+		if edges[index].From == from && edges[index].To == to {
+			return &edges[index]
+		}
+	}
+	return nil
+}
+
+func findEdgeAny(edges []apiGraphEdge, a, b int) *apiGraphEdge {
+	for index := range edges {
+		if (edges[index].From == a && edges[index].To == b) ||
+			(edges[index].From == b && edges[index].To == a) {
+			return &edges[index]
+		}
+	}
+	return nil
 }
 
 func TestAuthAndSetsFlow(t *testing.T) {
@@ -530,6 +599,161 @@ func TestAuthAndSetsFlow(t *testing.T) {
 	})
 	if resp.StatusCode != fiber.StatusNotFound {
 		t.Fatalf("повторное удаление = %d, ожидалось 404", resp.StatusCode)
+	}
+
+	// --- 9.2 Связи между сетами и граф ---
+	resp, body, raw = call(t, app, callOptions{
+		Method:  fiber.MethodPost,
+		Path:    "/sets",
+		Cookies: authCookies,
+		Body:    map[string]string{"title": "Целевой сет", "content": "# Цель\n"},
+	})
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("создание целевого сета = %d (%s)", resp.StatusCode, raw)
+	}
+	targetID := body.Set.ID
+
+	resp, body, raw = call(t, app, callOptions{
+		Method:  fiber.MethodPost,
+		Path:    "/sets",
+		Cookies: authCookies,
+		Body: map[string]string{
+			"title":   "Сет со ссылками",
+			"content": "Смотри [[Целевой сет]] и [[Несуществующий сет|алиас]].\n\n```\n[[Внутри кода]]\n```\n",
+		},
+	})
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("создание сета со ссылками = %d (%s)", resp.StatusCode, raw)
+	}
+	sourceID := body.Set.ID
+
+	if len(body.Links) != 1 {
+		t.Fatalf("ожидалась 1 связь: ссылка внутри кода не считается, а ссылка на несуществующий сет — не связь: %+v", body.Links)
+	}
+
+	link := findLink(body.Links, "Целевой сет")
+	if link == nil || link.TargetID != targetID || link.TargetTitle != "Целевой сет" {
+		t.Fatalf("связь с существующим сетом разобрана неверно: %+v", body.Links)
+	}
+	if !link.OneSided {
+		t.Fatalf("связь должна быть односторонней, пока целевой сет не ссылается обратно: %+v", link)
+	}
+	if other := findLink(body.Links, "Несуществующий сет"); other != nil {
+		t.Fatalf("ссылка на несуществующий сет не должна попадать в связи: %+v", other)
+	}
+
+	resp, body, raw = call(t, app, callOptions{
+		Method:  fiber.MethodGet,
+		Path:    fmt.Sprintf("/sets/%d", targetID),
+		Cookies: authCookies,
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("чтение целевого сета = %d (%s)", resp.StatusCode, raw)
+	}
+	if len(body.Backlinks) != 1 || body.Backlinks[0].ID != sourceID {
+		t.Fatalf("обратные ссылки неверны: %+v", body.Backlinks)
+	}
+	if !body.Backlinks[0].OneSided {
+		t.Fatalf("обратная ссылка должна быть односторонней: %+v", body.Backlinks[0])
+	}
+
+	resp, body, raw = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/graph", Cookies: authCookies})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("граф = %d (%s)", resp.StatusCode, raw)
+	}
+	edge := findEdge(body.Edges, sourceID, targetID)
+	if edge == nil {
+		t.Fatalf("в графе нет ребра %d -> %d: %+v", sourceID, targetID, body.Edges)
+	}
+	if !edge.OneSided {
+		t.Fatalf("ребро должно быть односторонним: %+v", edge)
+	}
+	if reverse := findEdge(body.Edges, targetID, sourceID); reverse != nil {
+		t.Fatalf("обратного ребра быть не должно, пока нет взаимной ссылки: %+v", reverse)
+	}
+	if node := findNode(body.Nodes, sourceID); node == nil || node.Links != 1 {
+		t.Fatalf("у узла-источника должна быть 1 исходящая связь: %+v", node)
+	}
+	if node := findNode(body.Nodes, targetID); node == nil || node.Backlinks != 1 {
+		t.Fatalf("у целевого узла должна быть 1 обратная ссылка: %+v", node)
+	}
+	for _, node := range body.Nodes {
+		if node.Title == "Несуществующий сет" {
+			t.Fatalf("в графе появился узел для несуществующего сета: %+v", node)
+		}
+	}
+
+	resp, _, raw = call(t, app, callOptions{
+		Method:  fiber.MethodPut,
+		Path:    fmt.Sprintf("/sets/%d", targetID),
+		Cookies: authCookies,
+		Body:    map[string]string{"title": "Целевой сет", "content": "Обратная ссылка: [[Сет со ссылками]]\n"},
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("создание обратной ссылки = %d (%s)", resp.StatusCode, raw)
+	}
+
+	resp, body, _ = call(t, app, callOptions{
+		Method:  fiber.MethodGet,
+		Path:    fmt.Sprintf("/sets/%d", sourceID),
+		Cookies: authCookies,
+	})
+	if len(body.Links) != 1 || body.Links[0].OneSided {
+		t.Fatalf("после появления обратной ссылки связь должна стать двусторонней: %+v", body.Links)
+	}
+
+	resp, body, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/graph", Cookies: authCookies})
+	if edge := findEdgeAny(body.Edges, sourceID, targetID); edge == nil || edge.OneSided {
+		t.Fatalf("ребро должно стать двусторонним: %+v", edge)
+	}
+	mutual := 0
+	for _, candidate := range body.Edges {
+		if findEdgeAny([]apiGraphEdge{candidate}, sourceID, targetID) != nil {
+			mutual++
+		}
+	}
+	if mutual != 1 {
+		t.Fatalf("взаимная связь должна быть ровно одним ребром, получено %d: %+v", mutual, body.Edges)
+	}
+
+	resp, _, raw = call(t, app, callOptions{
+		Method:  fiber.MethodPut,
+		Path:    fmt.Sprintf("/sets/%d", targetID),
+		Cookies: authCookies,
+		Body:    map[string]string{"title": "Целевой сет v2", "content": "Обратная ссылка: [[Сет со ссылками]]\n"},
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("переименование сета = %d (%s)", resp.StatusCode, raw)
+	}
+
+	resp, body, _ = call(t, app, callOptions{
+		Method:  fiber.MethodGet,
+		Path:    fmt.Sprintf("/sets/%d", sourceID),
+		Cookies: authCookies,
+	})
+	if len(body.Links) != 0 {
+		t.Fatalf("после переименования цель исчезла, ссылка должна стать обычным текстом: %+v", body.Links)
+	}
+	if len(body.Backlinks) != 1 || body.Backlinks[0].ID != targetID {
+		t.Fatalf("обратная ссылка от переименованного сета должна остаться: %+v", body.Backlinks)
+	}
+
+	resp, body, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/graph", Cookies: authCookies})
+	if edge := findEdge(body.Edges, sourceID, targetID); edge != nil {
+		t.Fatalf("ребро на переименованный сет должно исчезнуть: %+v", edge)
+	}
+	if edge := findEdge(body.Edges, targetID, sourceID); edge == nil || !edge.OneSided {
+		t.Fatalf("оставшееся ребро должно быть односторонним: %+v", edge)
+	}
+
+	resp, _, _ = call(t, app, callOptions{
+		Method:  fiber.MethodPost,
+		Path:    "/sets",
+		Cookies: authCookies,
+		Body:    map[string]string{"title": "целевой сет v2", "content": ""},
+	})
+	if resp.StatusCode != fiber.StatusConflict {
+		t.Fatalf("дубликат названия = %d, ожидалось 409", resp.StatusCode)
 	}
 
 	// --- 10. Продление сессии ---

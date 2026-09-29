@@ -4,6 +4,7 @@ type Set struct {
 	ID           int    `json:"id,omitempty" db:"id"`
 	UserID       int    `json:"user_id" db:"user_id"`
 	Title        string `json:"title" db:"title"`
+	TitleKey     string `json:"-" db:"title_key"`
 	Description  string `json:"description" db:"description"`
 	Content      string `json:"content,omitempty" db:"content"`
 	DateCreated  string `json:"date_created" db:"date_created"`

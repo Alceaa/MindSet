@@ -58,18 +58,14 @@ func scanSetSummary(row pgx.Row) (*models.Set, error) {
 	return &set, nil
 }
 
-func CreateSet(ctx context.Context, set *models.Set) (*models.Set, error) {
-	conn, err := pool()
-	if err != nil {
-		return nil, err
-	}
-
-	query := `INSERT INTO sets (title, description, content, user_id) VALUES
-	(@title, @description, @content, @user_id)
+func CreateSet(ctx context.Context, tx pgx.Tx, set *models.Set) (*models.Set, error) {
+	query := `INSERT INTO sets (title, title_key, description, content, user_id) VALUES
+	(@title, @title_key, @description, @content, @user_id)
 	RETURNING ` + setColumns
 
-	created, err := scanSet(conn.QueryRow(ctx, query, pgx.NamedArgs{
+	created, err := scanSet(tx.QueryRow(ctx, query, pgx.NamedArgs{
 		"title":       set.Title,
+		"title_key":   set.TitleKey,
 		"description": set.Description,
 		"content":     set.Content,
 		"user_id":     set.UserID,
@@ -80,24 +76,21 @@ func CreateSet(ctx context.Context, set *models.Set) (*models.Set, error) {
 	return created, nil
 }
 
-func UpdateSet(ctx context.Context, set *models.Set) (*models.Set, error) {
-	conn, err := pool()
-	if err != nil {
-		return nil, err
-	}
-
+func UpdateSet(ctx context.Context, tx pgx.Tx, set *models.Set) (*models.Set, error) {
 	query := `UPDATE sets SET
 	  title = @title,
+	  title_key = @title_key,
 	  description = @description,
 	  content = @content,
 	  last_activity = CURRENT_DATE
 	WHERE id = @id AND user_id = @user_id
 	RETURNING ` + setColumns
 
-	updated, err := scanSet(conn.QueryRow(ctx, query, pgx.NamedArgs{
+	updated, err := scanSet(tx.QueryRow(ctx, query, pgx.NamedArgs{
 		"id":          set.ID,
 		"user_id":     set.UserID,
 		"title":       set.Title,
+		"title_key":   set.TitleKey,
 		"description": set.Description,
 		"content":     set.Content,
 	}))

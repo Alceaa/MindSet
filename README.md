@@ -62,9 +62,11 @@ go run ./cmd/migrate
 | GET | `/auth/me` | по access-токену | Текущий пользователь |
 | GET | `/sets` | по access-токену | Список сетов (краткая сводка, без содержимого) |
 | POST | `/sets` | по access-токену | Создание сета |
-| GET | `/sets/:id` | по access-токену | Сет с содержимым (чужие сеты → 404) |
+| GET | `/sets/:id` | по access-токену | Сет с содержимым, `links` и `backlinks` (чужие сеты → 404) |
 | PUT | `/sets/:id` | по access-токену | Обновление сета, `last_activity = CURRENT_DATE` |
 | DELETE | `/sets/:id` | по access-токену | Удаление сета |
+| GET | `/graph` | по access-токену | Граф связей: `nodes`, `edges` (одно ребро на пару сетов, `one_sided` = направление стрелки) |
+
 
 Формат ответов:
 

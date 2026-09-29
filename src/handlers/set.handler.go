@@ -5,12 +5,17 @@ import (
 	"strings"
 
 	"mindset/db"
+	"mindset/links"
 	"mindset/middlewares"
 	"mindset/models"
 	"mindset/utils"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
+
+const setTitleConflict = "sets_user_title_key_idx"
 
 func CreateSet(c *fiber.Ctx) error {
 	user, ok := middlewares.CurrentUser(c)
@@ -27,19 +32,39 @@ func CreateSet(c *fiber.Ctx) error {
 		return utils.FailValidation(c, validationErrors)
 	}
 
-	set, err := db.CreateSet(c.Context(), &models.Set{
+	set := &models.Set{
 		UserID:      user.ID,
 		Title:       strings.TrimSpace(req.Title),
+		TitleKey:    links.NormalizeTitle(req.Title),
 		Description: strings.TrimSpace(req.Description),
 		Content:     req.Content,
+	}
+	parsed := links.Parse(req.Content)
+
+	var created *models.Set
+	err := db.WithTx(c.Context(), func(tx pgx.Tx) error {
+		var txErr error
+
+		created, txErr = db.CreateSet(c.Context(), tx, set)
+		if txErr != nil {
+			return txErr
+		}
+
+		return db.ReplaceSetLinks(c.Context(), tx, created.ID, parsed)
 	})
 	if err != nil {
-		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось создать сет", err)
+		return writeSetError(c, err, "Не удалось создать сет")
+	}
+
+	setLinks, err := db.GetSetLinks(c.Context(), created.ID, user.ID)
+	if err != nil {
+		return utils.Fail(c, fiber.StatusInternalServerError, "Сет создан, но связи не загрузились", err)
 	}
 
 	return utils.Success(c, fiber.StatusCreated, fiber.Map{
 		"message": "Сет успешно создан",
-		"set":     set,
+		"set":     created,
+		"links":   setLinks,
 	})
 }
 
@@ -76,7 +101,21 @@ func GetSet(c *fiber.Ctx) error {
 		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось загрузить сет", err)
 	}
 
-	return utils.Success(c, fiber.StatusOK, fiber.Map{"set": set})
+	setLinks, err := db.GetSetLinks(c.Context(), set.ID, user.ID)
+	if err != nil {
+		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось загрузить связи сета", err)
+	}
+
+	backlinks, err := db.GetBacklinks(c.Context(), set.ID, user.ID)
+	if err != nil {
+		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось загрузить обратные ссылки", err)
+	}
+
+	return utils.Success(c, fiber.StatusOK, fiber.Map{
+		"set":       set,
+		"links":     setLinks,
+		"backlinks": backlinks,
+	})
 }
 
 func UpdateSet(c *fiber.Ctx) error {
@@ -99,23 +138,40 @@ func UpdateSet(c *fiber.Ctx) error {
 		return utils.FailValidation(c, validationErrors)
 	}
 
-	set, err := db.UpdateSet(c.Context(), &models.Set{
+	set := &models.Set{
 		ID:          id,
 		UserID:      user.ID,
 		Title:       strings.TrimSpace(req.Title),
+		TitleKey:    links.NormalizeTitle(req.Title),
 		Description: strings.TrimSpace(req.Description),
 		Content:     req.Content,
+	}
+	parsed := links.Parse(req.Content)
+
+	var updated *models.Set
+	err = db.WithTx(c.Context(), func(tx pgx.Tx) error {
+		var txErr error
+
+		updated, txErr = db.UpdateSet(c.Context(), tx, set)
+		if txErr != nil {
+			return txErr
+		}
+
+		return db.ReplaceSetLinks(c.Context(), tx, updated.ID, parsed)
 	})
 	if err != nil {
-		if errors.Is(err, db.ErrNotFound) {
-			return utils.Fail(c, fiber.StatusNotFound, "Сет не найден", nil)
-		}
-		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось сохранить сет", err)
+		return writeSetError(c, err, "Не удалось сохранить сет")
+	}
+
+	setLinks, err := db.GetSetLinks(c.Context(), updated.ID, user.ID)
+	if err != nil {
+		return utils.Fail(c, fiber.StatusInternalServerError, "Сет сохранён, но связи не загрузились", err)
 	}
 
 	return utils.Success(c, fiber.StatusOK, fiber.Map{
 		"message": "Сет сохранён",
-		"set":     set,
+		"set":     updated,
+		"links":   setLinks,
 	})
 }
 
@@ -138,4 +194,17 @@ func DeleteSet(c *fiber.Ctx) error {
 	}
 
 	return utils.Success(c, fiber.StatusOK, fiber.Map{"message": "Сет удалён"})
+}
+
+func writeSetError(c *fiber.Ctx, err error, fallback string) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == setTitleConflict {
+		return utils.Fail(c, fiber.StatusConflict, "Сет с таким названием уже есть", nil)
+	}
+
+	if errors.Is(err, db.ErrNotFound) {
+		return utils.Fail(c, fiber.StatusNotFound, "Сет не найден", nil)
+	}
+
+	return utils.Fail(c, fiber.StatusInternalServerError, fallback, err)
 }

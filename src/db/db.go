@@ -7,6 +7,7 @@ import (
 	"log"
 	"sync"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -72,4 +73,29 @@ func pool() (*pgxpool.Pool, error) {
 		return nil, ErrNotInitialized
 	}
 	return pgInstance.db, nil
+}
+
+func WithTx(ctx context.Context, fn func(tx pgx.Tx) error) error {
+	conn, err := pool()
+	if err != nil {
+		return err
+	}
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transaction: %w", err)
+	}
+
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	if err := fn(tx); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+	return nil
 }

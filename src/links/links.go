@@ -2,7 +2,9 @@ package links
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
+	"unicode"
 )
 
 type Link struct {
@@ -11,10 +13,24 @@ type Link struct {
 	Key   string
 }
 
-var wikilinkPattern = regexp.MustCompile(`\[\[([^\[\]\n]+)\]\]`)
+var (
+	wikilinkPattern = regexp.MustCompile(`\[\[([^\[\]\n]+)\]\]`)
+	escapePattern   = regexp.MustCompile("\\\\([!-/:-@[-`{-~])")
+	entityPattern   = regexp.MustCompile(`&#x([0-9a-fA-F]{1,6});|&#(\d{1,7});|&(lt|gt|quot|apos|nbsp|amp);`)
+)
+
+var namedEntities = map[string]string{
+	"lt":   "<",
+	"gt":   ">",
+	"quot": "\"",
+	"apos": "'",
+	"nbsp": "\u00a0",
+	"amp":  "&",
+}
 
 func Parse(markdown string) []Link {
-	text := stripCode(unescapeBrackets(markdown))
+	text := stripCode(decodeEntities(unescapeEscapes(markdown)))
+
 	matches := wikilinkPattern.FindAllStringSubmatch(text, -1)
 
 	parsed := make([]Link, 0, len(matches))
@@ -54,8 +70,38 @@ func splitAlias(raw string) (label, alias string) {
 	return label, alias
 }
 
-func unescapeBrackets(text string) string {
-	return strings.NewReplacer(`\[`, "[", `\]`, "]").Replace(text)
+func unescapeEscapes(text string) string {
+	return escapePattern.ReplaceAllString(text, "$1")
+}
+
+func decodeEntities(text string) string {
+	return entityPattern.ReplaceAllStringFunc(text, func(match string) string {
+		parts := entityPattern.FindStringSubmatch(match)
+		if parts == nil {
+			return match
+		}
+
+		switch {
+		case parts[1] != "":
+			return characterReference(parts[1], 16, match)
+		case parts[2] != "":
+			return characterReference(parts[2], 10, match)
+		default:
+			if value, ok := namedEntities[parts[3]]; ok {
+				return value
+			}
+			return match
+		}
+	})
+}
+
+func characterReference(raw string, base int, fallback string) string {
+	code, err := strconv.ParseInt(raw, base, 32)
+	if err != nil || code < 0 || code > unicode.MaxRune {
+		return fallback
+	}
+
+	return string(rune(code))
 }
 
 func stripCode(text string) string {

@@ -57,6 +57,7 @@ func GetSetLinks(ctx context.Context, setID, userID int) ([]*models.SetLink, err
 	FROM set_links l
 	JOIN sets target ON target.user_id = @user_id AND target.title_key = l.target_key
 	WHERE l.from_set_id = @set_id
+	  AND target.id <> @set_id
 	ORDER BY l.id`
 
 	rows, err := conn.Query(ctx, query, pgx.NamedArgs{"set_id": setID, "user_id": userID})

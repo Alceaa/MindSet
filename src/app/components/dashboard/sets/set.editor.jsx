@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
     BlockTypeSelect,
     BoldItalicUnderlineToggles,
@@ -34,8 +34,11 @@ import "@mdxeditor/editor/style.css";
 import setService from "../../../api/set.service";
 import parseApiError from "../../../utils/api.error";
 import LoadingScreen from "../../common/loading.screen.jsx";
+import SetArticle from "./set.article.jsx";
+import SetSidebar from "./set.sidebar.jsx";
 import WikilinkPicker from "./wikilink.picker.jsx";
 import "../../../css/dashboard/dashboard.scss";
+import "../../../css/dashboard/workspace.scss";
 
 const EDITOR_ID = "mindset-set-editor";
 
@@ -51,6 +54,27 @@ const CODE_LANGUAGES = {
     md: "Markdown",
     sql: "SQL",
     ts: "TypeScript",
+};
+
+const WIKILINK_TAIL = /^([^[\]\n]*)(\]\])?/;
+
+const findWikilinkRange = (text, caret) => {
+    const before = text.slice(0, caret);
+    const start = before.lastIndexOf("[[");
+
+    if (start === -1 || /[[\]]/.test(before.slice(start + 2))) {
+        return null;
+    }
+
+    const tail = WIKILINK_TAIL.exec(text.slice(caret));
+    const body = tail?.[1] ?? "";
+    const closing = tail?.[2] ?? "";
+
+    return {
+        start,
+        end: caret + body.length + closing.length,
+        label: before.slice(start + 2) + body,
+    };
 };
 
 const useEditorPlugins = (onOpenPicker) =>
@@ -101,7 +125,8 @@ const SetEditorInner = () => {
     const realm = useRemoteMDXEditorRealm(EDITOR_ID);
 
     const hostRef = useRef(null);
-    const pendingLink = useRef(null);
+    const suppressTrigger = useRef(0);
+    const realmRef = useRef(null);
 
     const [set, setSet] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -122,6 +147,41 @@ const SetEditorInner = () => {
     const [actionError, setActionError] = useState("");
     const [fieldErrors, setFieldErrors] = useState({});
     const [savedAt, setSavedAt] = useState("");
+    const [mode, setMode] = useState("read");
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+        try {
+            return window.localStorage.getItem("mindset:sidebar:collapsed") === "1";
+        } catch {
+            return false;
+        }
+    });
+
+    const toggleSidebar = useCallback(() => {
+        setSidebarCollapsed((current) => {
+            const next = !current;
+            try {
+                window.localStorage.setItem("mindset:sidebar:collapsed", next ? "1" : "0");
+            } catch {
+                return next;
+            }
+            return next;
+        });
+    }, []);
+
+    useEffect(() => {
+        if (searchParams.get("mode") === "edit") {
+            setMode("edit");
+        }
+    }, [searchParams]);
+
+    const switchMode = useCallback(
+        (next) => {
+            setMode(next);
+            setSearchParams(next === "edit" ? { mode: "edit" } : {}, { replace: true });
+        },
+        [setSearchParams]
+    );
 
     const [picker, setPicker] = useState(null);
     const [pickerError, setPickerError] = useState("");
@@ -218,6 +278,7 @@ const SetEditorInner = () => {
             setSavedAt(
                 new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
             );
+            switchMode("read");
         } catch (error) {
             const parsed = parseApiError(error);
             setActionError(parsed.message);
@@ -225,7 +286,20 @@ const SetEditorInner = () => {
         } finally {
             setSaving(false);
         }
-    }, [set, saving, dirty, title, description, content, applySet]);
+    }, [set, saving, dirty, title, description, content, applySet, switchMode]);
+
+    const handleLeave = useCallback(() => {
+        if (dirty) {
+            const leave = window.confirm(
+                "Есть несохранённые изменения. Выйти к статье без сохранения?"
+            );
+            if (!leave) {
+                return;
+            }
+        }
+        setActionError("");
+        switchMode("read");
+    }, [dirty, switchMode]);
 
     const handleDelete = useCallback(async () => {
         if (!set || removing) {
@@ -253,12 +327,22 @@ const SetEditorInner = () => {
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
                 event.preventDefault();
                 handleSave();
+                return;
+            }
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "e") {
+                event.preventDefault();
+                if (mode === "edit") {
+                    handleLeave();
+                } else {
+                    setActionError("");
+                    switchMode("edit");
+                }
             }
         };
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [handleSave]);
+    }, [handleSave, mode, handleLeave, switchMode]);
 
     useEffect(() => {
         if (!dirty) {
@@ -277,7 +361,6 @@ const SetEditorInner = () => {
     const insertWikilink = useCallback(
         (value, withAlias) => {
             const editor = realm?.getValue(rootEditor$);
-            const pending = pendingLink.current;
 
             if (!editor) {
                 setPickerError("Редактор ещё не готов, попробуйте ещё раз");
@@ -286,11 +369,15 @@ const SetEditorInner = () => {
 
             if (
                 typeof lexical?.$getSelection !== "function" ||
-                typeof lexical?.$isRangeSelection !== "function"
+                typeof lexical?.$isRangeSelection !== "function" ||
+                typeof lexical?.$isTextNode !== "function"
             ) {
                 setPickerError("Не удалось вставить ссылку: API редактора недоступен");
                 return;
             }
+
+            const instruction = withAlias ? `[[${value}|]]` : `[[${value}]]`;
+            let placed = false;
 
             editor.update(() => {
                 const selection = lexical.$getSelection();
@@ -298,37 +385,79 @@ const SetEditorInner = () => {
                     return;
                 }
 
-                for (let index = 0; index < (pending?.back ?? 0); index += 1) {
-                    selection.deleteCharacter(true);
+                const anchorNode = selection.anchor.getNode();
+                if (!lexical.$isTextNode(anchorNode)) {
+                    return;
                 }
 
-                for (let index = 0; index < (pending?.forward ?? 0); index += 1) {
-                    selection.deleteCharacter(false);
+                const text = anchorNode.getTextContent();
+                const range = findWikilinkRange(text, selection.anchor.offset);
+
+                if (!range) {
+                    selection.insertText(instruction);
+                    placed = true;
+                    return;
                 }
 
-                selection.insertText(`[[${value}${withAlias ? "|" : ""}]]`);
+                anchorNode.setTextContent(
+                    text.slice(0, range.start) + instruction + text.slice(range.end)
+                );
+
+                const caret = range.start + (withAlias ? instruction.length - 2 : instruction.length);
+                anchorNode.select(caret, caret);
+                placed = true;
             });
 
+            if (!placed) {
+                setPickerError("Не удалось вставить ссылку: поставьте курсор в текст сета");
+                return;
+            }
+
+            suppressTrigger.current = performance.now() + 300;
             editor.focus();
             setPicker(null);
             setPickerError("");
-            pendingLink.current = null;
         },
         [realm]
     );
 
+    useEffect(() => {
+        realmRef.current = realm;
+    }, [realm]);
+
     const openPicker = useCallback(() => {
+        const editor = realmRef.current?.getValue(rootEditor$);
+
         setPickerError("");
+
+        if (
+            editor &&
+            typeof lexical?.$getSelection === "function" &&
+            typeof lexical?.$isRangeSelection === "function"
+        ) {
+            editor.update(() => {
+                const selection = lexical.$getSelection();
+                if (lexical.$isRangeSelection(selection)) {
+                    selection.insertText("[[");
+                }
+            });
+        }
+
+        if (editor) {
+            editor.focus();
+        }
+
         setPicker({ query: "", left: 16, top: 64 });
     }, []);
 
     const pickerOptions = useMemo(() => {
         const needle = (picker?.query ?? "").trim().toLowerCase();
         return allSets
+            .filter((item) => item.id !== set?.id)
             .filter((item) => !needle || item.title.toLowerCase().includes(needle))
             .slice(0, 12)
             .map((item) => ({ title: item.title }));
-    }, [picker, allSets]);
+    }, [picker, allSets, set]);
 
     const handlePick = useCallback(
         (option, withAlias) => {
@@ -341,7 +470,13 @@ const SetEditorInner = () => {
         const host = hostRef.current;
         const selection = window.getSelection();
 
-        if (!host || !selection || selection.rangeCount === 0 || !selection.isCollapsed) {
+        if (
+            !host ||
+            !selection ||
+            selection.rangeCount === 0 ||
+            !selection.isCollapsed ||
+            performance.now() < suppressTrigger.current
+        ) {
             return;
         }
 
@@ -352,72 +487,74 @@ const SetEditorInner = () => {
             return;
         }
 
-        const text = node.textContent ?? "";
-        const caret = selection.anchorOffset;
-        const before = text.slice(0, caret);
+        const range = findWikilinkRange(node.textContent ?? "", selection.anchorOffset);
 
-        const openIndex = before.lastIndexOf("[[");
-        let back = 0;
-        let forward = 0;
-        let label = null;
-
-        if (before.endsWith("]]")) {
-            const closeIndex = before.length - 2;
-            const inner = before.slice(openIndex + 2, closeIndex);
-            if (openIndex !== -1 && !inner.includes("]") && !inner.includes("[")) {
-                back = caret - openIndex;
-                label = inner;
-            }
-        } else if (openIndex !== -1 && !before.slice(openIndex + 2).includes("]")) {
-            const after = text.slice(caret);
-            const match = /^([^[\]\n]*)(\]\])?/.exec(after);
-            const tail = match?.[1] ?? "";
-            const closing = match?.[2] ?? "";
-            back = caret - openIndex;
-            forward = tail.length + closing.length;
-            label = before.slice(openIndex + 2) + tail;
-        }
-
-        if (label === null) {
+        if (!range) {
             setPicker(null);
-            pendingLink.current = null;
             return;
         }
-
-        pendingLink.current = { back, forward };
 
         const rect = selection.getRangeAt(0).getBoundingClientRect();
         const hostRect = host.getBoundingClientRect();
         const hasCaret = rect.top !== 0 || rect.left !== 0;
 
         setPicker({
-            query: label,
+            query: range.label,
             left: Math.min(Math.max(rect.left - hostRect.left, 8), Math.max(hostRect.width - 330, 8)),
             top: (hasCaret ? rect.bottom - hostRect.top : 64) + 6,
         });
     }, []);
 
     useEffect(() => {
-        const host = hostRef.current;
-        if (!host) {
+        if (mode !== "edit") {
             return undefined;
         }
 
-        const handleKeyUp = (event) => {
-            if (["ArrowUp", "ArrowDown", "Enter", "Tab", "Escape"].includes(event.key)) {
-                return;
+        const attach = () => {
+            const host = hostRef.current;
+            if (!host) {
+                return undefined;
             }
-            detectTrigger();
+
+            const handleKeyUp = (event) => {
+                if (["ArrowUp", "ArrowDown", "Enter", "Tab", "Escape"].includes(event.key)) {
+                    return;
+                }
+                detectTrigger();
+            };
+
+            const handleMouseUp = (event) => {
+                if (event.target.closest?.(".wikilinkPicker")) {
+                    return;
+                }
+                detectTrigger();
+            };
+
+            host.addEventListener("keyup", handleKeyUp);
+            host.addEventListener("mouseup", handleMouseUp);
+
+            return () => {
+                host.removeEventListener("keyup", handleKeyUp);
+                host.removeEventListener("mouseup", handleMouseUp);
+            };
         };
 
-        host.addEventListener("keyup", handleKeyUp);
-        host.addEventListener("mouseup", detectTrigger);
+        let detach = attach();
+
+        const observer = new MutationObserver(() => {
+            detach?.();
+            detach = attach();
+        });
+
+        if (hostRef.current) {
+            observer.observe(hostRef.current, { childList: true, subtree: true });
+        }
 
         return () => {
-            host.removeEventListener("keyup", handleKeyUp);
-            host.removeEventListener("mouseup", detectTrigger);
+            observer.disconnect();
+            detach?.();
         };
-    }, [detectTrigger, loading]);
+    }, [detectTrigger, mode, loading]);
 
     useEffect(() => {
         if (!picker) {
@@ -427,7 +564,6 @@ const SetEditorInner = () => {
         const handleMouseDown = (event) => {
             if (!event.target.closest?.(".wikilinkPicker")) {
                 setPicker(null);
-                pendingLink.current = null;
             }
         };
 
@@ -447,6 +583,7 @@ const SetEditorInner = () => {
         const handleKeyDown = (event) => {
             if (event.key === "ArrowDown" || event.key === "ArrowUp") {
                 event.preventDefault();
+                event.stopPropagation();
                 setPickerIndex((current) => {
                     const next = event.key === "ArrowDown" ? current + 1 : current - 1;
                     return Math.min(Math.max(next, 0), Math.max(pickerOptions.length - 1, 0));
@@ -455,19 +592,19 @@ const SetEditorInner = () => {
             }
             if (event.key === "Enter" || event.key === "Tab") {
                 event.preventDefault();
+                event.stopPropagation();
                 const option = pickerOptions[pickerIndex];
                 if (option) {
                     handlePick(option, event.shiftKey);
                 } else {
                     setPicker(null);
-                    pendingLink.current = null;
                 }
                 return;
             }
             if (event.key === "Escape") {
                 event.preventDefault();
+                event.stopPropagation();
                 setPicker(null);
-                pendingLink.current = null;
             }
         };
 
@@ -507,138 +644,152 @@ const SetEditorInner = () => {
     }
 
     return (
-        <div className="page">
-            <div className="pageHead">
-                <div className="editorHead">
-                    <Link className="link" to="/dashboard?tab=sets">
-                        Все сеты
-                    </Link>
-                    <h1 className="pageTitle">{title || "Без названия"}</h1>
-                    <p className="pageSubtitle">
-                        Создан {set.date_created} · изменён {set.last_activity}
-                        {links.length > 0 && <span className="badge">Связей: {links.length}</span>}
-                        {dirty && <span className="badge badgeWarning">не сохранено</span>}
-                        {!dirty && savedAt && (
-                            <span className="badge badgeSuccess">сохранено в {savedAt}</span>
-                        )}
-                    </p>
-                </div>
+        <div className="setWorkspace">
+            <SetSidebar
+                sets={allSets}
+                currentId={id}
+                collapsed={sidebarCollapsed}
+                onToggle={toggleSidebar}
+            />
 
-                <div className="formActions">
-                    <button
-                        className="btn btnPrimary"
-                        onClick={handleSave}
-                        disabled={!dirty || saving}
-                    >
-                        {saving ? "Сохраняем..." : "Сохранить"}
-                    </button>
-                    <button className="btn btnDanger" onClick={handleDelete} disabled={removing}>
-                        {removing ? "Удаляем..." : "Удалить"}
-                    </button>
-                </div>
-            </div>
-
-            {actionError && (
-                <div className="alert alertError" role="alert">
-                    {actionError}
-                </div>
-            )}
-
-            <div className="card">
-                <label className="field">
-                    <span className="fieldLabel">Название</span>
-                    <input
-                        className={`input${fieldErrors.title ? " inputInvalid" : ""}`}
-                        type="text"
-                        value={title}
-                        onChange={(event) => setTitle(event.target.value)}
-                        maxLength={100}
-                    />
-                    {fieldErrors.title && <span className="fieldError">{fieldErrors.title}</span>}
-                </label>
-
-                <label className="field fieldLast">
-                    <span className="fieldLabel">
-                        Описание <span className="mutedText">(не обязательно)</span>
-                    </span>
-                    <input
-                        className={`input${fieldErrors.description ? " inputInvalid" : ""}`}
-                        type="text"
-                        value={description}
-                        onChange={(event) => setDescription(event.target.value)}
-                        maxLength={250}
-                    />
-                    {fieldErrors.description && (
-                        <span className="fieldError">{fieldErrors.description}</span>
-                    )}
-                </label>
-            </div>
-
-            <div className="editorCard">
-                <div className="editorHint">
-                    Ctrl+S — сохранить. Ссылка на другой сет: наберите [[ — откроется подсказка
-                    со списком сетов (или кнопка «[[ ]] ссылка»). Enter — вставить, Shift+Enter —
-                    с подписью, ↑↓ — выбрать.
-                </div>
-                <div className="mdxEditorHost" ref={hostRef}>
-                    <MDXEditor
-                        key={set.id}
-                        className="mdxEditorTheme"
-                        contentEditableClassName="mdxContent"
-                        markdown={content}
-                        onChange={setContent}
-                        placeholder=""
-                        plugins={plugins}
-                    />
-                    {picker && (
-                        <WikilinkPicker
-                            query={picker.query}
-                            options={pickerOptions}
-                            activeIndex={pickerIndex}
-                            position={picker}
-                            error={pickerError}
-                            onPick={handlePick}
-                            onClose={() => {
-                                setPicker(null);
-                                pendingLink.current = null;
-                            }}
-                        />
-                    )}
-                </div>
-            </div>
-
-            <div className="card linksCard">
-                <div className="linksColumn">
-                    <h2 className="cardTitle">Ссылки из сета</h2>
-                    <ul className="plainList">
-                        {links.map((link) => (
-                            <li key={`${link.label}-${link.alias}`}>
-                                <span className="linkRow">
-                                    {link.one_sided && (
-                                        <span
-                                            className="oneSidedMark"
-                                            title="Односторонняя связь: этот сет ссылается, а на него — нет"
-                                        >
-                                            →
-                                        </span>
-                                    )}
-                                    <Link className="link" to={`/sets/${link.target_id}`}>
-                                        {link.alias || link.target_title}
-                                    </Link>
-                                </span>
-                                {link.alias && (
-                                    <span className="listMeta">{link.target_title}</span>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-
-                <div className="linksColumn">
-                    <h2 className="cardTitle">Обратные ссылки</h2>
-                    {backlinks.length === 0 ? (
-                        <p className="mutedText">На этот сет пока никто не ссылается.</p>
+            <div className="setMain">
+                <div className="setToolbar">
+                    {mode === "read" ? (
+                        <>
+                            <button
+                                className="btn btnPrimary"
+                                onClick={() => switchMode("edit")}
+                                title="Ctrl+E"
+                            >
+                                Редактировать
+                            </button>
+                            <button
+                                className="btn btnDanger"
+                                onClick={handleDelete}
+                                disabled={removing}
+                            >
+                                {removing ? "Удаляем..." : "Удалить"}
+                            </button>
+                        </>
                     ) : (
+                        <>
+                            <button
+                                className="btn btnPrimary"
+                                onClick={handleSave}
+                                disabled={!dirty || saving}
+                            >
+                                {saving ? "Сохраняем..." : "Сохранить"}
+                            </button>
+                            <button className="btn btnGhost" onClick={handleLeave} title="Ctrl+E">
+                                К статье
+                            </button>
+                            <button
+                                className="btn btnDanger"
+                                onClick={handleDelete}
+                                disabled={removing}
+                            >
+                                {removing ? "Удаляем..." : "Удалить"}
+                            </button>
+                        </>
+                    )}
+                </div>
+
+                {actionError && (
+                    <div className="alert alertError" role="alert">
+                        {actionError}
+                    </div>
+                )}
+
+                {mode === "read" ? (
+                    <div className="articleCard">
+                        <header className="articleHead">
+                            <h1 className="articleTitle">{title || "Без названия"}</h1>
+                            {description && <p className="articleDescription">{description}</p>}
+                            <div className="articleMeta">
+                                <span>Создан {set.date_created}</span>
+                                <span>изменён {set.last_activity}</span>
+                                {links.length > 0 && (
+                                    <span className="badge">Связей: {links.length}</span>
+                                )}
+                                {dirty && <span className="badge badgeWarning">не сохранено</span>}
+                                {!dirty && savedAt && (
+                                    <span className="badge badgeSuccess">сохранено в {savedAt}</span>
+                                )}
+                            </div>
+                        </header>
+                        <SetArticle content={content} links={links} />
+                    </div>
+                ) : (
+                    <div className="editorCard">
+                        <div className="editorFields">
+                            <label className="field">
+                                <span className="fieldLabel">Название</span>
+                                <input
+                                    className={`input${fieldErrors.title ? " inputInvalid" : ""}`}
+                                    type="text"
+                                    value={title}
+                                    onChange={(event) => setTitle(event.target.value)}
+                                    maxLength={100}
+                                />
+                                {fieldErrors.title && (
+                                    <span className="fieldError">{fieldErrors.title}</span>
+                                )}
+                            </label>
+
+                            <label className="field fieldLast">
+                                <span className="fieldLabel">
+                                    Описание <span className="mutedText">(не обязательно)</span>
+                                </span>
+                                <input
+                                    className={`input${
+                                        fieldErrors.description ? " inputInvalid" : ""
+                                    }`}
+                                    type="text"
+                                    value={description}
+                                    onChange={(event) => setDescription(event.target.value)}
+                                    maxLength={250}
+                                />
+                                {fieldErrors.description && (
+                                    <span className="fieldError">{fieldErrors.description}</span>
+                                )}
+                            </label>
+                        </div>
+                        <div className="editorHint">
+                            Ctrl+S — сохранить, Ctrl+E — вернуться к статье. Ссылка на другой сет:
+                            наберите [[ — откроется подсказка со списком сетов (или кнопка
+                            «[[ ]] ссылка»). Enter — вставить, Shift+Enter — с подписью, ↑↓ —
+                            выбрать.
+                        </div>
+                        <div className="mdxEditorHost" ref={hostRef}>
+                            <MDXEditor
+                                key={set.id}
+                                className="mdxEditorTheme"
+                                contentEditableClassName="mdxContent"
+                                markdown={content}
+                                onChange={setContent}
+                                placeholder=""
+                                plugins={plugins}
+                            />
+                            {picker && (
+                                <WikilinkPicker
+                                    query={picker.query}
+                                    options={pickerOptions}
+                                    activeIndex={pickerIndex}
+                                    position={picker}
+                                    error={pickerError}
+                                    onPick={handlePick}
+                                    onClose={() => {
+                                        setPicker(null);
+                                    }}
+                                />
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {mode === "read" && backlinks.length > 0 && (
+                    <div className="card backlinksCard">
+                        <h2 className="cardTitle">Обратные ссылки</h2>
                         <ul className="plainList">
                             {backlinks.map((item) => (
                                 <li key={item.id}>
@@ -658,8 +809,8 @@ const SetEditorInner = () => {
                                 </li>
                             ))}
                         </ul>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         </div>
     );

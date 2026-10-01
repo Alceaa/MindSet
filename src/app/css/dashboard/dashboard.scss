@@ -68,19 +68,6 @@
     }
 }
 
-.editorHead {
-    display: flex;
-    flex-direction: column;
-    gap: var(--gap-xs);
-}
-
-.editorHead .pageSubtitle {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--gap-sm);
-}
-
 .editorCard {
     display: flex;
     flex-direction: column;

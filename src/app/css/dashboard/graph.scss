@@ -198,16 +198,6 @@
     font-size: 11px;
 }
 
-.linksCard {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: var(--gap-lg);
-}
-
-.linksColumn {
-    min-width: 0;
-}
-
 .linkRow .link {
     overflow: hidden;
     text-overflow: ellipsis;

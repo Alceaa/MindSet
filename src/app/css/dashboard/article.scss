@@ -1,0 +1,138 @@
+.articleCard {
+    padding: var(--gap-lg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.articleLinkMissing {
+    color: var(--text-faint);
+    border-bottom: 1px dashed var(--border);
+    cursor: help;
+}
+
+.article {
+    max-width: 72ch;
+    margin: 0 auto;
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.articleEmpty {
+    max-width: 72ch;
+    margin: 0 auto;
+    padding: var(--gap-lg) 0;
+    text-align: center;
+}
+
+.article h1,
+.article h2,
+.article h3,
+.article h4,
+.article h5,
+.article h6 {
+    margin: var(--gap-lg) 0 var(--gap-sm);
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.article h1 {
+    font-size: 1.6rem;
+}
+
+.article h2 {
+    font-size: 1.3rem;
+}
+
+.article h3 {
+    font-size: 1.12rem;
+}
+
+.article h4,
+.article h5,
+.article h6 {
+    font-size: 1rem;
+    color: var(--text-muted);
+}
+
+.article p {
+    margin: 0 0 var(--gap);
+}
+
+.article ul,
+.article ol {
+    margin: 0 0 var(--gap);
+    padding-left: 1.5em;
+}
+
+.article li {
+    margin-bottom: var(--gap-xs);
+}
+
+.article blockquote {
+    margin: 0 0 var(--gap);
+    padding: var(--gap-xs) 0 var(--gap-xs) var(--gap);
+    border-left: 3px solid var(--border);
+    color: var(--text-muted);
+}
+
+.article hr {
+    margin: var(--gap-lg) 0;
+    border: none;
+    border-top: 1px solid var(--border);
+}
+
+.article code {
+    padding: 2px 5px;
+    border-radius: 4px;
+    background-color: var(--bg-surface-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.88em;
+}
+
+.article pre {
+    margin: 0 0 var(--gap);
+    padding: var(--gap-sm) var(--gap);
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+}
+
+.article pre code {
+    padding: 0;
+    background: none;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.article a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+}
+
+.article a:hover {
+    border-bottom-color: var(--accent);
+    text-decoration: none;
+}
+
+.article table {
+    width: 100%;
+    margin: 0 0 var(--gap);
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.article th,
+.article td {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    text-align: left;
+}
+
+.article th {
+    background-color: var(--bg-surface-muted);
+    font-weight: 600;
+}

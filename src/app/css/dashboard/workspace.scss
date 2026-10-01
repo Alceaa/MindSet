@@ -1,0 +1,187 @@
+.setWorkspace {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--gap);
+}
+
+.setSidebar {
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    padding: var(--gap-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.setSidebarCollapsed {
+    width: auto;
+    padding: var(--gap-xs);
+    border-color: transparent;
+    background: none;
+}
+
+.setSidebarHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+}
+
+.setSidebarTitle {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.setSidebarToggle {
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.setSidebarToggle:hover {
+    background-color: #30363d;
+    color: var(--text);
+}
+
+.setSidebarSearch {
+    width: 100%;
+}
+
+.setSidebarList {
+    flex: 1;
+    max-height: 58vh;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.setSidebarItem {
+    display: block;
+    padding: 6px 8px;
+    overflow: hidden;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-size: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.setSidebarItem:hover {
+    background-color: var(--bg-surface-muted);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.setSidebarItemActive {
+    background-color: var(--accent-soft);
+    color: var(--text);
+}
+
+.setSidebarEmpty {
+    padding: 6px 8px;
+    font-size: 13px;
+}
+
+.setSidebarResizer {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+}
+
+.setSidebarResizer:hover {
+    background-color: var(--accent-soft);
+}
+
+.setMain {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+}
+
+.setToolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--gap-sm);
+}
+
+.editorFields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    padding: var(--gap-sm) var(--gap-sm) 0;
+}
+
+.articleHead {
+    margin-bottom: var(--gap-lg);
+    padding-bottom: var(--gap-sm);
+    border-bottom: 1px solid var(--border-muted);
+}
+
+.articleTitle {
+    margin: 0;
+    font-size: 1.7rem;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.articleDescription {
+    margin: var(--gap-xs) 0 0;
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.articleMeta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-sm);
+    margin-top: var(--gap-sm);
+    color: var(--text-faint);
+    font-size: 12px;
+}
+
+.backlinksCard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+}
+
+@media (max-width: 900px) {
+    .setWorkspace {
+        flex-direction: column;
+    }
+
+    .setSidebar {
+        width: 100% !important;
+    }
+
+    .setSidebarResizer {
+        display: none;
+    }
+
+    .setToolbar {
+        justify-content: flex-start;
+    }
+}

@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS sets (
     user_id       integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     title         varchar NOT NULL,
     title_key     varchar NOT NULL,
+    slug          varchar NOT NULL DEFAULT '',
+    visibility    varchar NOT NULL DEFAULT 'private',
     description   varchar,
     content       text NOT NULL DEFAULT '',
     date_created  date NOT NULL DEFAULT CURRENT_DATE,
@@ -21,6 +23,20 @@ CREATE TABLE IF NOT EXISTS sets (
 ALTER TABLE sets ADD COLUMN IF NOT EXISTS user_id integer;
 ALTER TABLE sets ADD COLUMN IF NOT EXISTS content text NOT NULL DEFAULT '';
 ALTER TABLE sets ADD COLUMN IF NOT EXISTS description varchar;
+ALTER TABLE sets ADD COLUMN IF NOT EXISTS slug varchar NOT NULL DEFAULT '';
+ALTER TABLE sets ADD COLUMN IF NOT EXISTS visibility varchar NOT NULL DEFAULT 'private';
+
+UPDATE sets SET visibility = 'private' WHERE visibility IS NULL;
+UPDATE sets SET slug = 'set-' || id WHERE slug IS NULL OR slug = '';
+
+DO $$
+BEGIN
+    ALTER TABLE sets
+        ADD CONSTRAINT sets_visibility_check
+        CHECK (visibility IN ('private', 'unlisted', 'public'));
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 UPDATE sets SET content = '' WHERE content IS NULL;
 
@@ -60,6 +76,8 @@ WHERE s.id IN (
 ALTER TABLE sets ALTER COLUMN title_key SET NOT NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS sets_user_title_key_idx ON sets (user_id, title_key);
+CREATE UNIQUE INDEX IF NOT EXISTS sets_slug_idx ON sets (slug);
+CREATE INDEX IF NOT EXISTS sets_visibility_idx ON sets (visibility);
 
 CREATE TABLE IF NOT EXISTS set_links (
     id          serial PRIMARY KEY,

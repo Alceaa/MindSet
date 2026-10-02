@@ -44,10 +44,15 @@ type apiSet struct {
 	ID           int    `json:"id"`
 	UserID       int    `json:"user_id"`
 	Title        string `json:"title"`
+	Slug         string `json:"slug"`
+	Visibility   string `json:"visibility"`
 	Description  string `json:"description"`
 	Content      string `json:"content"`
 	DateCreated  string `json:"date_created"`
 	LastActivity string `json:"last_activity"`
+	Author       *struct {
+		Login string `json:"login"`
+	} `json:"author"`
 }
 
 type apiLink struct {
@@ -820,5 +825,324 @@ func TestAuthAndSetsFlow(t *testing.T) {
 	})
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("поддельный токен = %d, ожидалось 401", resp.StatusCode)
+	}
+}
+
+func registerForPrivacy(t *testing.T, app *fiber.App, login, email, password string) []*http.Cookie {
+	t.Helper()
+
+	_, _, raw := call(t, app, callOptions{
+		Method: fiber.MethodPost,
+		Path:   "/auth/register",
+		Body: map[string]string{
+			"login":            login,
+			"email":            email,
+			"password":         password,
+			"password_confirm": password,
+		},
+	})
+	if !strings.Contains(raw, `"status":"success"`) {
+		t.Fatalf("регистрация %s не удалась: %s", login, raw)
+	}
+
+	resp, _, raw := call(t, app, callOptions{
+		Method: fiber.MethodPost,
+		Path:   "/auth/login",
+		Body:   map[string]string{"login": login, "password": password},
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("вход %s = %d, ожидалось 200: %s", login, resp.StatusCode, raw)
+	}
+
+	return []*http.Cookie{cookieByName(t, resp.Cookies(), "access_token")}
+}
+
+func createSetForPrivacy(t *testing.T, app *fiber.App, cookies []*http.Cookie, title, visibility string) *apiSet {
+	t.Helper()
+
+	resp, body, raw := call(t, app, callOptions{
+		Method:  fiber.MethodPost,
+		Path:    "/sets",
+		Cookies: cookies,
+		Body: map[string]string{
+			"title":       title,
+			"content":     "содержимое",
+			"visibility":  visibility,
+			"description": "описание",
+		},
+	})
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("создание сета = %d, ожидалось 201: %s", resp.StatusCode, raw)
+	}
+	if body.Set == nil {
+		t.Fatalf("ответ создания без сета: %s", raw)
+	}
+	return body.Set
+}
+
+func TestSetVisibilityDefaultAndSlug(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	login := fmt.Sprintf("pv_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{login}) })
+
+	const password = "sup3r-secret-password"
+	cookies := registerForPrivacy(t, app, login, login+"@example.com", password)
+
+	resp, body, raw := call(t, app, callOptions{
+		Method:  fiber.MethodPost,
+		Path:    "/sets",
+		Cookies: cookies,
+		Body:    map[string]string{"title": "Мои заметки", "content": "текст"},
+	})
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("создание = %d, ожидалось 201: %s", resp.StatusCode, raw)
+	}
+	if body.Set.Visibility != "private" {
+		t.Errorf("видимость по умолчанию = %q, ожидалось \"private\"", body.Set.Visibility)
+	}
+	if body.Set.Slug != "мои-заметки" {
+		t.Errorf("slug = %q, ожидалось \"мои-заметки\"", body.Set.Slug)
+	}
+
+	resp, _, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/public/sets/мои-заметки"})
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("приватный сет по публичному адресу = %d, ожидалось 404", resp.StatusCode)
+	}
+}
+
+func TestPublicSetVisibleWithoutAuth(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	login := fmt.Sprintf("pu_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{login}) })
+
+	const password = "sup3r-secret-password"
+	cookies := registerForPrivacy(t, app, login, login+"@example.com", password)
+
+	created := createSetForPrivacy(t, app, cookies, "Публичная статья", "public")
+	if created.Visibility != "public" {
+		t.Fatalf("видимость = %q, ожидалось \"public\"", created.Visibility)
+	}
+
+	resp, body, raw := call(t, app, callOptions{
+		Method: fiber.MethodGet,
+		Path:   "/public/sets/" + created.Slug,
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("чтение публичного сета = %d, ожидалось 200: %s", resp.StatusCode, raw)
+	}
+	if body.Set == nil || body.Set.Content != "содержимое" {
+		t.Fatalf("публичный сет без содержимого: %s", raw)
+	}
+	if body.Set.Author == nil || body.Set.Author.Login != login {
+		t.Errorf("автор публичного сета = %+v, ожидался %q", body.Set.Author, login)
+	}
+
+	resp, _, _ = call(t, app, callOptions{
+		Method: fiber.MethodPut, Path: "/public/sets/" + created.Slug,
+		Body: map[string]string{"title": "взлом"},
+	})
+	if resp.StatusCode != fiber.StatusNotFound && resp.StatusCode != fiber.StatusMethodNotAllowed {
+		t.Errorf("PUT на публичный маршрут = %d, ожидалось 404 или 405", resp.StatusCode)
+	}
+}
+
+func TestUnlistedHiddenFromCatalogue(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	login := fmt.Sprintf("ul_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{login}) })
+
+	const password = "sup3r-secret-password"
+	cookies := registerForPrivacy(t, app, login, login+"@example.com", password)
+
+	unlisted := createSetForPrivacy(t, app, cookies, "Скрытая статья", "unlisted")
+	published := createSetForPrivacy(t, app, cookies, "Открытая статья", "public")
+	private := createSetForPrivacy(t, app, cookies, "Личная статья", "private")
+
+	resp, _, raw := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/public/sets/" + unlisted.Slug})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("чтение unlisted по ссылке = %d, ожидалось 200: %s", resp.StatusCode, raw)
+	}
+
+	resp, _, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/public/sets/" + private.Slug})
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("чтение приватного = %d, ожидалось 404", resp.StatusCode)
+	}
+
+	resp, body, raw := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/public/sets"})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("витрина = %d, ожидалось 200: %s", resp.StatusCode, raw)
+	}
+	visible := map[string]bool{}
+	for _, set := range body.Sets {
+		visible[set.Slug] = true
+		if set.Visibility != "public" {
+			t.Errorf("в витрине сет %q с видимостью %q", set.Slug, set.Visibility)
+		}
+	}
+	if !visible[published.Slug] {
+		t.Error("публичный сет не попал в витрину")
+	}
+	if visible[unlisted.Slug] {
+		t.Error("unlisted сет не должен попадать в витрину")
+	}
+	if visible[private.Slug] {
+		t.Error("приватный сет не должен попадать в витрину")
+	}
+}
+
+func TestVisibilityChangedByUpdate(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	login := fmt.Sprintf("vc_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{login}) })
+
+	const password = "sup3r-secret-password"
+	cookies := registerForPrivacy(t, app, login, login+"@example.com", password)
+
+	created := createSetForPrivacy(t, app, cookies, "Смена видимости", "private")
+	if created.Visibility != "private" {
+		t.Fatalf("стартовая видимость = %q", created.Visibility)
+	}
+
+	resp, body, raw := call(t, app, callOptions{
+		Method:  fiber.MethodPut,
+		Path:    fmt.Sprintf("/sets/%d", created.ID),
+		Cookies: cookies,
+		Body: map[string]string{
+			"title":      "Смена видимости",
+			"content":    "текст",
+			"visibility": "public",
+		},
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("обновление = %d, ожидалось 200: %s", resp.StatusCode, raw)
+	}
+	if body.Set.Visibility != "public" {
+		t.Errorf("видимость после обновления = %q, ожидалось \"public\"", body.Set.Visibility)
+	}
+	if body.Set.Slug != created.Slug {
+		t.Errorf("slug изменился при смене видимости: %q -> %q", created.Slug, body.Set.Slug)
+	}
+
+	resp, _, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/public/sets/" + created.Slug})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("сет после публикации = %d, ожидалось 200", resp.StatusCode)
+	}
+}
+
+func TestInvalidVisibilityRejected(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	login := fmt.Sprintf("vi_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{login}) })
+
+	const password = "sup3r-secret-password"
+	cookies := registerForPrivacy(t, app, login, login+"@example.com", password)
+
+	resp, body, raw := call(t, app, callOptions{
+		Method:  fiber.MethodPost,
+		Path:    "/sets",
+		Cookies: cookies,
+		Body:    map[string]string{"title": "Секрет", "content": "текст", "visibility": "открытый"},
+	})
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("неизвестная видимость = %d, ожидалось 400: %s", resp.StatusCode, raw)
+	}
+	if !containsField(body.Errors, "visibility") {
+		t.Errorf("нет ошибки по полю visibility: %+v", body.Errors)
+	}
+}
+
+func TestSlugUniqueness(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	loginA := fmt.Sprintf("su_a_%d", suffix)
+	loginB := fmt.Sprintf("su_b_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{loginA, loginB}) })
+
+	const password = "sup3r-secret-password"
+	cookiesA := registerForPrivacy(t, app, loginA, loginA+"@example.com", password)
+	cookiesB := registerForPrivacy(t, app, loginB, loginB+"@example.com", password)
+
+	first := createSetForPrivacy(t, app, cookiesA, "Общее название", "public")
+	second := createSetForPrivacy(t, app, cookiesB, "Общее название", "public")
+
+	if first.Slug == second.Slug {
+		t.Fatalf("у двух пользователей один адрес %q", first.Slug)
+	}
+
+	for _, set := range []*apiSet{first, second} {
+		resp, body, raw := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/public/sets/" + set.Slug})
+		if resp.StatusCode != fiber.StatusOK {
+			t.Fatalf("адрес %q = %d, ожидалось 200: %s", set.Slug, resp.StatusCode, raw)
+		}
+		if body.Set.ID != set.ID {
+			t.Errorf("адрес %q открыл сет %d вместо %d", set.Slug, body.Set.ID, set.ID)
+		}
+	}
+}
+
+func TestPrivateSetsStayOwnerOnly(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	ownerLogin := fmt.Sprintf("ow_%d", suffix)
+	otherLogin := fmt.Sprintf("ot_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{ownerLogin, otherLogin}) })
+
+	const password = "sup3r-secret-password"
+	ownerCookies := registerForPrivacy(t, app, ownerLogin, ownerLogin+"@example.com", password)
+	otherCookies := registerForPrivacy(t, app, otherLogin, otherLogin+"@example.com", password)
+
+	private := createSetForPrivacy(t, app, ownerCookies, "Чужая тайна", "private")
+
+	resp, _, raw := call(t, app, callOptions{
+		Method:  fiber.MethodGet,
+		Path:    fmt.Sprintf("/sets/%d", private.ID),
+		Cookies: otherCookies,
+	})
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("чужой приватный сет = %d, ожидалось 404: %s", resp.StatusCode, raw)
+	}
+
+	resp, _, raw = call(t, app, callOptions{
+		Method:  fiber.MethodPut,
+		Path:    fmt.Sprintf("/sets/%d", private.ID),
+		Cookies: otherCookies,
+		Body:    map[string]string{"title": "Взлом", "content": "x"},
+	})
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("изменение чужого сета = %d, ожидалось 404: %s", resp.StatusCode, raw)
+	}
+}
+
+func TestPublicRoutesRejectInvalidSlug(t *testing.T) {
+	app := setupApp(t)
+
+	for _, path := range []string{
+		"/public/sets/..%2Fetc",
+		"/public/sets/under_score",
+		"/public/sets/has%20space",
+	} {
+		resp, _, _ := call(t, app, callOptions{Method: fiber.MethodGet, Path: path})
+		if resp.StatusCode != fiber.StatusNotFound {
+			t.Errorf("%s = %d, ожидалось 404", path, resp.StatusCode)
+		}
 	}
 }

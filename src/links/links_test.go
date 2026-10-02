@@ -120,10 +120,10 @@ func TestNormalizeTitle(t *testing.T) {
 	cases := map[string]string{
 		"План на неделю":      "план на неделю",
 		"  План   на неделю ": "план на неделю",
-		"ПЛАН": "план",
-		"Go Notes": "go notes",
-		"":         "",
-		"   ":      "",
+		"ПЛАН":                "план",
+		"Go Notes":            "go notes",
+		"":                    "",
+		"   ":                 "",
 	}
 
 	for input, want := range cases {
@@ -141,5 +141,70 @@ func TestKeys(t *testing.T) {
 	}
 	if got := Keys(nil); len(got) != 0 {
 		t.Errorf("Keys(nil) = %v, ожидался пустой срез", got)
+	}
+}
+
+func TestSlugify(t *testing.T) {
+	tests := []struct {
+		name  string
+		title string
+		want  string
+	}{
+		{name: "пробелы становятся дефисами", title: "Мои заметки", want: "мои-заметки"},
+		{name: "латиница в нижний регистр", title: "Hello World", want: "hello-world"},
+		{name: "смешанные алфавиты", title: "Go и Rust 1.21", want: "go-и-rust-1-21"},
+		{name: "пунктуация схлопывается", title: "Что   это?! -- Да.", want: "что-это-да"},
+		{name: "обрезка краёв", title: "  ...тест...  ", want: "тест"},
+		{name: "только символы", title: "!!!", want: ""},
+		{name: "пустая строка", title: "   ", want: ""},
+		{name: "цифры", title: "123", want: "123"},
+		{name: "слеш и подчёркивание", title: "a/b_c", want: "a-b-c"},
+	}
+
+	for _, tt := range tests {
+		got := Slugify(tt.title)
+		if got != tt.want {
+			t.Errorf("Slugify(%q) = %q, want %q", tt.title, got, tt.want)
+		}
+	}
+}
+
+func TestIsValidSlug(t *testing.T) {
+	valid := []string{"a", "hello-world", "мои-заметки", "123", "go-1-21"}
+	for _, slug := range valid {
+		if !IsValidSlug(slug) {
+			t.Errorf("IsValidSlug(%q) = false, want true", slug)
+		}
+	}
+
+	invalid := []string{"", "a b", "a/b", "a_b", "a.b", "a?b"}
+	for _, slug := range invalid {
+		if IsValidSlug(slug) {
+			t.Errorf("IsValidSlug(%q) = true, want false", slug)
+		}
+	}
+}
+
+func TestSlugifyAlwaysValid(t *testing.T) {
+	titles := []string{"Мои заметки", "Hello World", "!!!", "a/b_c", "  ", "Go 1.21"}
+
+	for _, title := range titles {
+		slug := Slugify(title)
+		if slug == "" {
+			continue
+		}
+		if !IsValidSlug(slug) {
+			t.Errorf("Slugify(%q) = %q, which is not a valid slug", title, slug)
+		}
+	}
+}
+
+func TestSlugifyIsStable(t *testing.T) {
+	first := Slugify("Мои заметки")
+
+	for i := 0; i < 5; i++ {
+		if got := Slugify("Мои заметки"); got != first {
+			t.Fatalf("Slugify is not stable: %q then %q", first, got)
+		}
 	}
 }

@@ -146,3 +146,34 @@ func stripInlineCode(line string) string {
 
 	return out.String()
 }
+
+var (
+	nonSlugChars   = regexp.MustCompile(`[^\p{L}\p{N}]+`)
+	repeatedDashes = regexp.MustCompile(`-+`)
+	leadingDashes  = regexp.MustCompile(`^-+`)
+	trailingDashes = regexp.MustCompile(`-+$`)
+)
+
+func Slugify(title string) string {
+	lowered := strings.ToLower(strings.TrimSpace(title))
+	replaced := nonSlugChars.ReplaceAllString(lowered, "-")
+	collapsed := repeatedDashes.ReplaceAllString(replaced, "-")
+
+	return trailingDashes.ReplaceAllString(leadingDashes.ReplaceAllString(collapsed, ""), "")
+}
+
+func IsValidSlug(slug string) bool {
+	if slug == "" {
+		return false
+	}
+
+	for _, symbol := range slug {
+		if unicode.IsLetter(symbol) || unicode.IsDigit(symbol) || symbol == '-' {
+			continue
+		}
+
+		return false
+	}
+
+	return true
+}

@@ -37,10 +37,36 @@ import LoadingScreen from "../../common/loading.screen.jsx";
 import SetArticle from "./set.article.jsx";
 import SetSidebar from "./set.sidebar.jsx";
 import WikilinkPicker from "./wikilink.picker.jsx";
+import ReaderSettings from "./reader.settings.jsx";
+import useReaderSettings from "../../../hooks/use.reader.settings";
 import "../../../css/dashboard/dashboard.scss";
 import "../../../css/dashboard/workspace.scss";
+import "../../../css/dashboard/reader.scss";
 
 const EDITOR_ID = "mindset-set-editor";
+
+export const VISIBILITY_OPTIONS = [
+    { value: "private", label: "Личный", hint: "Виден только вам" },
+    { value: "unlisted", label: "По ссылке", hint: "Доступен тем, у кого есть адрес" },
+    { value: "public", label: "Публичный", hint: "Виден всем и попадает в общий список" },
+];
+
+export const visibilityLabel = (value) =>
+    VISIBILITY_OPTIONS.find((option) => option.value === value)?.label ?? "";
+
+export const shareUrl = (slug) => `${window.location.origin}/s/${slug}`;
+
+export const copyShareLink = async (slug, current, setCopied) => {
+    const url = shareUrl(slug);
+    try {
+        await navigator.clipboard.writeText(url);
+    } catch {
+        setCopied(false);
+        return;
+    }
+    setCopied(!current);
+    window.setTimeout(() => setCopied(false), 2000);
+};
 
 const CODE_LANGUAGES = {
     "": "Текст",
@@ -135,6 +161,8 @@ const SetEditorInner = () => {
 
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
+    const [visibility, setVisibility] = useState(VISIBILITY_OPTIONS[0].value);
+    const [setCopied, setSetCopied] = useState(false);
     const [content, setContent] = useState("");
     const [snapshot, setSnapshot] = useState(null);
 
@@ -169,6 +197,9 @@ const SetEditorInner = () => {
         });
     }, []);
 
+    const { settings: readerView, update: updateReaderView, reset: resetReaderView } =
+        useReaderSettings();
+
     useEffect(() => {
         if (searchParams.get("mode") === "edit") {
             setMode("edit");
@@ -191,11 +222,13 @@ const SetEditorInner = () => {
         const normalized = {
             title: data.title ?? "",
             description: data.description ?? "",
+            visibility: data.visibility ?? VISIBILITY_OPTIONS[0].value,
             content: data.content ?? "",
         };
         setSet(data);
         setTitle(normalized.title);
         setDescription(normalized.description);
+        setVisibility(normalized.visibility);
         setContent(normalized.content);
         setSnapshot(normalized);
     }, []);
@@ -258,9 +291,10 @@ const SetEditorInner = () => {
         return (
             snapshot.title !== title ||
             snapshot.description !== description ||
+            snapshot.visibility !== visibility ||
             snapshot.content !== content
         );
-    }, [snapshot, title, description, content]);
+    }, [snapshot, title, description, visibility, content]);
 
     const handleSave = useCallback(async () => {
         if (!set || saving || !dirty) {
@@ -272,7 +306,12 @@ const SetEditorInner = () => {
         setFieldErrors({});
 
         try {
-            const updated = await setService.updateSet(set.id, { title, description, content });
+            const updated = await setService.updateSet(set.id, {
+                title,
+                description,
+                visibility,
+                content,
+            });
             applySet(updated.set);
             setLinks(updated.links ?? []);
             setSavedAt(
@@ -286,7 +325,7 @@ const SetEditorInner = () => {
         } finally {
             setSaving(false);
         }
-    }, [set, saving, dirty, title, description, content, applySet, switchMode]);
+    }, [set, saving, dirty, title, description, visibility, content, applySet, switchMode]);
 
     const handleLeave = useCallback(() => {
         if (dirty) {
@@ -656,6 +695,11 @@ const SetEditorInner = () => {
                 <div className="setToolbar">
                     {mode === "read" ? (
                         <>
+                            <ReaderSettings
+                                settings={readerView}
+                                onChange={updateReaderView}
+                                onReset={resetReaderView}
+                            />
                             <button
                                 className="btn btnPrimary"
                                 onClick={() => switchMode("edit")}
@@ -701,13 +745,21 @@ const SetEditorInner = () => {
                 )}
 
                 {mode === "read" ? (
-                    <div className="articleCard">
+                    <div
+                        className="articleCard"
+                        data-reader-theme={readerView.theme}
+                        data-reader-width={readerView.width}
+                        data-reader-font={readerView.font}
+                        data-reader-scale={readerView.scale}
+                    >
                         <header className="articleHead">
                             <h1 className="articleTitle">{title || "Без названия"}</h1>
-                            {description && <p className="articleDescription">{description}</p>}
                             <div className="articleMeta">
                                 <span>Создан {set.date_created}</span>
                                 <span>изменён {set.last_activity}</span>
+                                <span className={`badge badgeVisibility badgeVisibility_${visibility}`}>
+                                    {visibilityLabel(visibility)}
+                                </span>
                                 {links.length > 0 && (
                                     <span className="badge">Связей: {links.length}</span>
                                 )}
@@ -753,6 +805,52 @@ const SetEditorInner = () => {
                                     <span className="fieldError">{fieldErrors.description}</span>
                                 )}
                             </label>
+                            <fieldset className="visibilityField">
+                                <legend className="fieldLabel">Доступ</legend>
+                                <div className="visibilityOptions">
+                                    {VISIBILITY_OPTIONS.map((option) => (
+                                        <label
+                                            key={option.value}
+                                            className={`visibilityOption${
+                                                visibility === option.value
+                                                    ? " visibilityOptionActive"
+                                                    : ""
+                                            }`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="visibility"
+                                                value={option.value}
+                                                checked={visibility === option.value}
+                                                onChange={() => setVisibility(option.value)}
+                                            />
+                                            <span className="visibilityOptionText">
+                                                <span className="visibilityOptionLabel">
+                                                    {option.label}
+                                                </span>
+                                                <span className="visibilityOptionHint">
+                                                    {option.hint}
+                                                </span>
+                                            </span>
+                                        </label>
+                                    ))}
+                                </div>
+                                {set.slug && (
+                                    <div className="visibilityShare">
+                                        <span className="mutedText">Адрес страницы:</span>
+                                        <code className="visibilitySlug">
+                                            {`${window.location.origin}/s/${set.slug}`}
+                                        </code>
+                                        <button
+                                            type="button"
+                                            className="btn btnGhost btnSmall"
+                                            onClick={() => copyShareLink(set.slug, setCopied, setSetCopied)}
+                                        >
+                                            {setCopied ? "Скопировано" : "Копировать"}
+                                        </button>
+                                    </div>
+                                )}
+                            </fieldset>
                         </div>
                         <div className="editorHint">
                             Ctrl+S — сохранить, Ctrl+E — вернуться к статье. Ссылка на другой сет:

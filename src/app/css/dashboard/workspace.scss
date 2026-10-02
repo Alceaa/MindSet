@@ -135,11 +135,13 @@
 .articleHead {
     margin-bottom: var(--gap-lg);
     padding-bottom: var(--gap-sm);
-    border-bottom: 1px solid var(--border-muted);
+    border-bottom: 1px solid var(--reader-border);
 }
 
 .articleTitle {
     margin: 0;
+    color: var(--reader-text);
+    font-family: var(--reader-font);
     font-size: 1.7rem;
     font-weight: 600;
     line-height: 1.25;
@@ -147,7 +149,7 @@
 
 .articleDescription {
     margin: var(--gap-xs) 0 0;
-    color: var(--text-muted);
+    color: var(--reader-muted);
     font-size: 15px;
     line-height: 1.5;
 }
@@ -158,7 +160,7 @@
     align-items: center;
     gap: var(--gap-sm);
     margin-top: var(--gap-sm);
-    color: var(--text-faint);
+    color: var(--reader-faint);
     font-size: 12px;
 }
 

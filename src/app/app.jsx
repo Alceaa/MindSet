@@ -16,6 +16,7 @@ import Logout from "./components/auth/logout.jsx";
 import Dashboard from "./components/dashboard/dashboard.jsx";
 import CreateSet from "./components/dashboard/sets/create.set.jsx";
 import LoadingScreen from "./components/common/loading.screen.jsx";
+import PublicSet from "./components/dashboard/sets/public.set.jsx";
 
 const SetEditor = React.lazy(() => import("./components/dashboard/sets/set.editor.jsx"));
 
@@ -23,6 +24,10 @@ const router = createBrowserRouter([
     {
         path: "/",
         element: <RootRedirect />,
+    },
+    {
+        path: "s/:slug",
+        element: <PublicSet />,
     },
     {
         element: <AuthLayout />,

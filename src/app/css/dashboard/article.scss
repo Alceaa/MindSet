@@ -1,28 +1,28 @@
 .articleCard {
     padding: var(--gap-lg);
-    border: 1px solid var(--border);
+    border: 1px solid var(--reader-strong);
     border-radius: var(--radius-lg);
-    background-color: var(--bg-surface);
+    background-color: var(--reader-bg);
 }
 
 .articleLinkMissing {
-    color: var(--text-faint);
-    border-bottom: 1px dashed var(--border);
+    color: var(--reader-faint);
+    border-bottom: 1px dashed var(--reader-strong);
     cursor: help;
 }
 
 .article {
-    max-width: 72ch;
+    max-width: var(--reader-width);
     margin: 0 auto;
-    color: var(--text);
-    font-size: 15px;
-    line-height: 1.7;
+    color: var(--reader-text);
+    font-family: var(--reader-font);
+    font-size: var(--reader-size);
+    line-height: var(--reader-leading);
 }
 
 .articleEmpty {
-    max-width: 72ch;
-    margin: 0 auto;
     padding: var(--gap-lg) 0;
+    color: var(--reader-muted);
     text-align: center;
 }
 
@@ -53,7 +53,7 @@
 .article h5,
 .article h6 {
     font-size: 1rem;
-    color: var(--text-muted);
+    color: var(--reader-muted);
 }
 
 .article p {
@@ -73,20 +73,20 @@
 .article blockquote {
     margin: 0 0 var(--gap);
     padding: var(--gap-xs) 0 var(--gap-xs) var(--gap);
-    border-left: 3px solid var(--border);
-    color: var(--text-muted);
+    border-left: 3px solid var(--reader-strong);
+    color: var(--reader-muted);
 }
 
 .article hr {
     margin: var(--gap-lg) 0;
     border: none;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--reader-strong);
 }
 
 .article code {
     padding: 2px 5px;
     border-radius: 4px;
-    background-color: var(--bg-surface-muted);
+    background-color: var(--reader-code-bg);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.88em;
 }
@@ -95,9 +95,9 @@
     margin: 0 0 var(--gap);
     padding: var(--gap-sm) var(--gap);
     overflow-x: auto;
-    border: 1px solid var(--border);
+    border: 1px solid var(--reader-strong);
     border-radius: var(--radius);
-    background-color: var(--bg-inset);
+    background-color: var(--reader-code-block-bg);
 }
 
 .article pre code {
@@ -108,13 +108,13 @@
 }
 
 .article a {
-    color: var(--accent);
+    color: var(--reader-accent);
     text-decoration: none;
     border-bottom: 1px solid transparent;
 }
 
 .article a:hover {
-    border-bottom-color: var(--accent);
+    border-bottom-color: var(--reader-accent);
     text-decoration: none;
 }
 
@@ -122,17 +122,17 @@
     width: 100%;
     margin: 0 0 var(--gap);
     border-collapse: collapse;
-    font-size: 14px;
+    font-size: 0.93em;
 }
 
 .article th,
 .article td {
     padding: 6px 10px;
-    border: 1px solid var(--border);
+    border: 1px solid var(--reader-strong);
     text-align: left;
 }
 
 .article th {
-    background-color: var(--bg-surface-muted);
+    background-color: var(--reader-code-bg);
     font-weight: 600;
 }

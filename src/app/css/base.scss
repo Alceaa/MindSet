@@ -480,4 +480,137 @@ a:hover {
     max-width: 360px;
     margin-bottom: var(--gap-sm);
     color: var(--text-muted);
+
+.btnSmall {
+    padding: 3px 10px;
+    font-size: 13px;
+    line-height: 18px;
+}
+
+.visibilityField {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    margin: 0;
+    padding: var(--gap-sm) var(--gap) var(--gap);
+    border: 1px solid var(--border-muted);
+    border-radius: var(--radius);
+}
+
+.visibilityField .fieldLabel {
+    padding: 0 var(--gap-xs);
+}
+
+.visibilityOptions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+}
+
+.visibilityOption {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--gap-sm);
+    flex: 1 1 180px;
+    padding: var(--gap-sm) var(--gap);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.visibilityOption:hover {
+    background-color: var(--bg-surface-muted);
+}
+
+.visibilityOptionActive {
+    border-color: var(--accent);
+    background-color: var(--accent-soft);
+}
+
+.visibilityOption input {
+    margin: 3px 0 0;
+    accent-color: var(--accent);
+}
+
+.visibilityOptionText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.visibilityOptionLabel {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.visibilityOptionHint {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.visibilityShare {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+    font-size: 13px;
+}
+
+.visibilitySlug {
+    padding: 3px 8px;
+    border: 1px solid var(--border-muted);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+    color: var(--text-muted);
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 12px;
+    word-break: break-all;
+}
+
+.badgeVisibility_public {
+    border-color: rgba(63, 185, 80, 0.4);
+    background-color: rgba(63, 185, 80, 0.12);
+    color: var(--success);
+}
+
+.badgeVisibility_unlisted {
+    border-color: rgba(210, 153, 34, 0.4);
+    background-color: rgba(210, 153, 34, 0.12);
+    color: #d29922;
+}
+
+.publicPage {
+    display: flex;
+    justify-content: center;
+    padding: var(--gap-xl) var(--gap);
+}
+
+.publicPage .articleCard {
+    width: 100%;
+    max-width: 860px;
+}
+
+.publicMessage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--gap-sm);
+    max-width: 420px;
+    margin-top: var(--gap-xl);
+    padding: var(--gap-xl) var(--gap-lg);
+    border: 1px solid var(--border-muted);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+    text-align: center;
+}
+
+.publicMessageTitle {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 600;
+}
+
 }

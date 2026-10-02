@@ -24,6 +24,18 @@ class SetService {
     deleteSet(id) {
         return api.delete(`/sets/${id}`).then((response) => response.data);
     }
+
+    getPublicSet(slug) {
+        return api
+            .get(`/public/sets/${encodeURIComponent(slug)}`, { skipAuthRefresh: true })
+            .then((response) => response.data);
+    }
+
+    getPublicSets(params = {}) {
+        return api
+            .get("/public/sets", { params, skipAuthRefresh: true })
+            .then((response) => response.data);
+    }
 }
 
 const setService = new SetService();

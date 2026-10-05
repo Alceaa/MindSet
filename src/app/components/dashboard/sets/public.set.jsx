@@ -13,6 +13,7 @@ import "../../../css/dashboard/article.scss";
 const PublicSet = () => {
     const { slug } = useParams();
     const [set, setSet] = useState(null);
+    const [links, setLinks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -25,12 +26,14 @@ const PublicSet = () => {
         setLoading(true);
         setError("");
         setSet(null);
+        setLinks([]);
 
         setService
             .getPublicSet(slug)
             .then((data) => {
                 if (!cancelled) {
                     setSet(data.set);
+                    setLinks(data.links ?? []);
                 }
             })
             .catch((err) => {
@@ -88,7 +91,7 @@ const PublicSet = () => {
                         <span>изменён {set.last_activity}</span>
                     </div>
                 </header>
-                <SetArticle content={set.content} links={[]} />
+                <SetArticle content={set.content} links={links} />
             </article>
         </div>
     );

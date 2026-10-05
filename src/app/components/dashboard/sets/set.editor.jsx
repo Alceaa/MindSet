@@ -835,7 +835,7 @@ const SetEditorInner = () => {
                                         </label>
                                     ))}
                                 </div>
-                                {set.slug && (
+                                {set.slug && visibility !== "private" && (
                                     <div className="visibilityShare">
                                         <span className="mutedText">Адрес страницы:</span>
                                         <code className="visibilitySlug">

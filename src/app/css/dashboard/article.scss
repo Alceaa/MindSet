@@ -11,6 +11,12 @@
     cursor: help;
 }
 
+.articleLinkBroken {
+    color: var(--danger);
+    border-bottom: 1px dashed var(--danger);
+    cursor: help;
+}
+
 .article {
     max-width: var(--reader-width);
     margin: 0 auto;

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import Avatar from "@mui/material/Avatar";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
@@ -12,6 +12,7 @@ const initialOf = (login) => (login ? login.trim().charAt(0).toUpperCase() : "?"
 const Header = () => {
     const { user, isAuthenticated, logout } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [searchParams] = useSearchParams();
     const [anchorEl, setAnchorEl] = useState(null);
 
@@ -19,6 +20,8 @@ const Header = () => {
     // считаем по нему: NavLink без этого подсветил бы сразу обе ссылки.
     const isSetsTab = searchParams.get("tab") === "sets";
     const isGraphTab = searchParams.get("tab") === "graph";
+    const isExploreTab = location.pathname === "/explore";
+    const isHomeTab = !isExploreTab && !isSetsTab && !isGraphTab;
 
     const closeMenu = () => setAnchorEl(null);
 
@@ -36,28 +39,36 @@ const Header = () => {
                     <span className="brandName">MindSet</span>
                 </Link>
 
-                {isAuthenticated && (
-                    <nav className="mainNav">
-                        <Link
-                            className={`navLink${isSetsTab || isGraphTab ? "" : " navLinkActive"}`}
-                            to="/dashboard"
-                        >
-                            Домашняя
-                        </Link>
-                        <Link
-                            className={`navLink${isSetsTab ? " navLinkActive" : ""}`}
-                            to="/dashboard?tab=sets"
-                        >
-                            Сеты
-                        </Link>
-                        <Link
-                            className={`navLink${isGraphTab ? " navLinkActive" : ""}`}
-                            to="/dashboard?tab=graph"
-                        >
-                            Граф
-                        </Link>
-                    </nav>
-                )}
+                <nav className="mainNav">
+                    <Link
+                        className={`navLink${isExploreTab ? " navLinkActive" : ""}`}
+                        to="/explore"
+                    >
+                        Обзор
+                    </Link>
+                    {isAuthenticated && (
+                        <>
+                            <Link
+                                className={`navLink${isHomeTab ? " navLinkActive" : ""}`}
+                                to="/dashboard"
+                            >
+                                Домашняя
+                            </Link>
+                            <Link
+                                className={`navLink${isSetsTab ? " navLinkActive" : ""}`}
+                                to="/dashboard?tab=sets"
+                            >
+                                Сеты
+                            </Link>
+                            <Link
+                                className={`navLink${isGraphTab ? " navLinkActive" : ""}`}
+                                to="/dashboard?tab=graph"
+                            >
+                                Граф
+                            </Link>
+                        </>
+                    )}
+                </nav>
 
                 <div className="headerActions">
                     {isAuthenticated ? (

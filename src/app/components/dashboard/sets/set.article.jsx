@@ -21,23 +21,31 @@ const SetArticle = ({ content, links }) => {
                     const key = decodeURIComponent(href.slice(WIKILINK_PREFIX.length));
                     const target = targets.get(key);
 
-                    if (!target) {
+                    if (!target || target.broken) {
+                        const wasResolved = Boolean(target?.resolved_once);
+
                         return (
                             <span
-                                className="articleLinkMissing"
-                                title={`Сета «${String(children)}» нет — создайте его`}
+                                className={
+                                    wasResolved ? "articleLinkBroken" : "articleLinkMissing"
+                                }
+                                title={
+                                    wasResolved
+                                        ? `Сет «${target.label}» удалён или переименован`
+                                        : `Сета «${String(children)}» нет — создайте его`
+                                }
                             >
                                 {children}
                             </span>
                         );
                     }
 
+                    const to = target.own
+                        ? `/sets/${target.target_id}`
+                        : `/s/${target.target_slug}`;
+
                     return (
-                        <Link
-                            className="articleLink"
-                            to={`/sets/${target.target_id}`}
-                            title={target.target_title}
-                        >
+                        <Link className="articleLink" to={to} title={target.target_title}>
                             {children}
                         </Link>
                     );

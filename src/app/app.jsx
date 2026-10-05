@@ -17,6 +17,7 @@ import Dashboard from "./components/dashboard/dashboard.jsx";
 import CreateSet from "./components/dashboard/sets/create.set.jsx";
 import LoadingScreen from "./components/common/loading.screen.jsx";
 import PublicSet from "./components/dashboard/sets/public.set.jsx";
+import Explore from "./components/explore/explore.jsx";
 
 const SetEditor = React.lazy(() => import("./components/dashboard/sets/set.editor.jsx"));
 
@@ -53,6 +54,10 @@ const router = createBrowserRouter([
     {
         element: <AppLayout />,
         children: [
+            {
+                path: "explore",
+                element: <Explore />,
+            },
             {
                 path: "dashboard",
                 element: (

@@ -11,12 +11,15 @@ type Link struct {
 	Label string
 	Alias string
 	Key   string
+	Login string
+	Slug  string
 }
 
 var (
 	wikilinkPattern = regexp.MustCompile(`\[\[([^\[\]\n]+)\]\]`)
 	escapePattern   = regexp.MustCompile("\\\\([!-/:-@[-`{-~])")
 	entityPattern   = regexp.MustCompile(`&#x([0-9a-fA-F]{1,6});|&#(\d{1,7});|&(lt|gt|quot|apos|nbsp|amp);`)
+	crossRefPattern = regexp.MustCompile(`^@([\p{L}\p{N}_.-]+)/(.+)$`)
 )
 
 var namedEntities = map[string]string{
@@ -43,10 +46,25 @@ func Parse(markdown string) []Link {
 			continue
 		}
 		seen[key] = true
-		parsed = append(parsed, Link{Label: label, Alias: alias, Key: key})
+		login, slug, _ := SplitCrossRef(label)
+		parsed = append(parsed, Link{Label: label, Alias: alias, Key: key, Login: login, Slug: slug})
 	}
 
 	return parsed
+}
+
+func SplitCrossRef(label string) (login, slug string, ok bool) {
+	match := crossRefPattern.FindStringSubmatch(strings.TrimSpace(label))
+	if match == nil {
+		return "", "", false
+	}
+
+	slug = strings.TrimSpace(match[2])
+	if !IsValidSlug(slug) {
+		return "", "", false
+	}
+
+	return match[1], slug, true
 }
 
 func NormalizeTitle(title string) string {

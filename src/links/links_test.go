@@ -208,3 +208,47 @@ func TestSlugifyIsStable(t *testing.T) {
 		}
 	}
 }
+
+func TestSplitCrossRef(t *testing.T) {
+	tests := []struct {
+		name      string
+		label     string
+		wantLogin string
+		wantSlug  string
+		wantOK    bool
+	}{
+		{name: "латиница", label: "@alice/go-concurrency", wantLogin: "alice", wantSlug: "go-concurrency", wantOK: true},
+		{name: "кириллица", label: "@Пётр/мои-заметки", wantLogin: "Пётр", wantSlug: "мои-заметки", wantOK: true},
+		{name: "пробелы по краям", label: "  @bob/set-2  ", wantLogin: "bob", wantSlug: "set-2", wantOK: true},
+		{name: "без собаки", label: "go-concurrency", wantOK: false},
+		{name: "без логина", label: "@/go-concurrency", wantOK: false},
+		{name: "без слага", label: "@alice/", wantOK: false},
+		{name: "недопустимый слаг", label: "@alice/go_concurrency", wantOK: false},
+		{name: "собака не в начале", label: "почта @ alice", wantOK: false},
+	}
+
+	for _, tt := range tests {
+		login, slug, ok := SplitCrossRef(tt.label)
+		if ok != tt.wantOK {
+			t.Errorf("SplitCrossRef(%q) ok = %v, want %v", tt.label, ok, tt.wantOK)
+			continue
+		}
+		if login != tt.wantLogin || slug != tt.wantSlug {
+			t.Errorf("SplitCrossRef(%q) = (%q, %q), want (%q, %q)", tt.label, login, slug, tt.wantLogin, tt.wantSlug)
+		}
+	}
+}
+
+func TestParseFillsCrossRef(t *testing.T) {
+	parsed := Parse("Смотри [[@alice/go-concurrency|конспект]] и [[Обычная цель]].")
+
+	if len(parsed) != 2 {
+		t.Fatalf("ссылок = %d, want 2", len(parsed))
+	}
+	if parsed[0].Login != "alice" || parsed[0].Slug != "go-concurrency" || parsed[0].Alias != "конспект" {
+		t.Errorf("кросс-ссылка разобрана неверно: %+v", parsed[0])
+	}
+	if parsed[1].Login != "" || parsed[1].Slug != "" {
+		t.Errorf("обычная ссылка помечена как кросс-ссылка: %+v", parsed[1])
+	}
+}

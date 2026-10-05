@@ -206,36 +206,85 @@ func GetPublicSetBySlug(ctx context.Context, slug string) (*models.Set, error) {
 	return set, nil
 }
 
-func GetPublicSets(ctx context.Context, limit, offset int) ([]*models.Set, error) {
-	conn, err := pool()
+const publicSetColumns = `s.id, s.user_id, s.title, s.slug, s.visibility,
+	coalesce(s.description, '') AS description,
+	to_char(s.date_created, 'YYYY-MM-DD') AS date_created,
+	to_char(s.last_activity, 'YYYY-MM-DD') AS last_activity,
+	u.login AS author_login`
+
+const publicSetsFilter = `s.visibility = 'public'
+	  AND (@search = '' OR s.title ILIKE '%' || @search || '%' OR coalesce(s.description, '') ILIKE '%' || @search || '%')`
+
+func scanPublicSet(row pgx.Row) (*models.Set, error) {
+	var (
+		set   models.Set
+		login string
+	)
+	err := row.Scan(
+		&set.ID,
+		&set.UserID,
+		&set.Title,
+		&set.Slug,
+		&set.Visibility,
+		&set.Description,
+		&set.DateCreated,
+		&set.LastActivity,
+		&login,
+	)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("scan public set: %w", err)
 	}
 
-	query := `SELECT ` + setSummaryColumns + `
-	FROM sets
-	WHERE visibility = 'public'
-	ORDER BY last_activity DESC, id DESC
+	set.Author = &models.SetAuthor{Login: login}
+	return &set, nil
+}
+
+func GetPublicSets(ctx context.Context, search string, limit, offset int) ([]*models.Set, int, error) {
+	conn, err := pool()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query := `SELECT ` + publicSetColumns + `
+	FROM sets s
+	JOIN users u ON u.id = s.user_id
+	WHERE ` + publicSetsFilter + `
+	ORDER BY s.last_activity DESC, s.id DESC
 	LIMIT @limit OFFSET @offset`
 
-	rows, err := conn.Query(ctx, query, pgx.NamedArgs{"limit": limit, "offset": offset})
+	rows, err := conn.Query(ctx, query, pgx.NamedArgs{
+		"search": search,
+		"limit":  limit,
+		"offset": offset,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("list public sets: %w", err)
+		return nil, 0, fmt.Errorf("list public sets: %w", err)
 	}
 	defer rows.Close()
 
 	sets := make([]*models.Set, 0)
 	for rows.Next() {
-		set, err := scanSetSummary(rows)
+		set, err := scanPublicSet(rows)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		sets = append(sets, set)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("list public sets: %w", err)
+		return nil, 0, fmt.Errorf("list public sets: %w", err)
 	}
-	return sets, nil
+
+	countQuery := `SELECT count(*) FROM sets s WHERE ` + publicSetsFilter
+
+	var total int
+	if err := conn.QueryRow(ctx, countQuery, pgx.NamedArgs{"search": search}).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count public sets: %w", err)
+	}
+
+	return sets, total, nil
 }
 
 func ReserveSlug(ctx context.Context, tx pgx.Tx, title string, exceptID int) (string, error) {

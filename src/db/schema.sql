@@ -91,3 +91,28 @@ CREATE TABLE IF NOT EXISTS set_links (
 CREATE INDEX IF NOT EXISTS set_links_from_idx ON set_links (from_set_id);
 CREATE INDEX IF NOT EXISTS set_links_target_key_idx ON set_links (target_key);
 
+ALTER TABLE set_links ADD COLUMN IF NOT EXISTS to_set_id integer;
+ALTER TABLE set_links ADD COLUMN IF NOT EXISTS target_user_id integer;
+ALTER TABLE set_links ADD COLUMN IF NOT EXISTS resolved_once boolean NOT NULL DEFAULT false;
+
+UPDATE set_links l
+SET to_set_id = s.id,
+    target_user_id = s.user_id,
+    resolved_once = true
+FROM sets s, sets f
+WHERE f.id = l.from_set_id
+  AND s.user_id = f.user_id
+  AND s.title_key = l.target_key
+  AND l.to_set_id IS NULL;
+
+DO $$
+BEGIN
+    ALTER TABLE set_links
+        ADD CONSTRAINT set_links_to_set_id_fkey
+        FOREIGN KEY (to_set_id) REFERENCES sets (id) ON DELETE SET NULL;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE INDEX IF NOT EXISTS set_links_to_set_idx ON set_links (to_set_id);
+

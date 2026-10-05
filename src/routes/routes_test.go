@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,11 +57,16 @@ type apiSet struct {
 }
 
 type apiLink struct {
-	Label       string `json:"label"`
-	Alias       string `json:"alias"`
-	TargetID    int    `json:"target_id"`
-	TargetTitle string `json:"target_title"`
-	OneSided    bool   `json:"one_sided"`
+	Label        string `json:"label"`
+	Alias        string `json:"alias"`
+	TargetID     int    `json:"target_id"`
+	TargetTitle  string `json:"target_title"`
+	TargetSlug   string `json:"target_slug"`
+	TargetUserID int    `json:"target_user_id"`
+	Own          bool   `json:"own"`
+	OneSided     bool   `json:"one_sided"`
+	Broken       bool   `json:"broken"`
+	ResolvedOnce bool   `json:"resolved_once"`
 }
 
 type apiBacklink struct {
@@ -632,8 +638,8 @@ func TestAuthAndSetsFlow(t *testing.T) {
 	}
 	sourceID := body.Set.ID
 
-	if len(body.Links) != 1 {
-		t.Fatalf("ожидалась 1 связь: ссылка внутри кода не считается, а ссылка на несуществующий сет — не связь: %+v", body.Links)
+	if len(body.Links) != 2 {
+		t.Fatalf("ожидались 2 связи: ссылка внутри кода не считается, а ссылка на несуществующий сет остаётся видимой как битая: %+v", body.Links)
 	}
 
 	link := findLink(body.Links, "Целевой сет")
@@ -643,8 +649,19 @@ func TestAuthAndSetsFlow(t *testing.T) {
 	if !link.OneSided {
 		t.Fatalf("связь должна быть односторонней, пока целевой сет не ссылается обратно: %+v", link)
 	}
-	if other := findLink(body.Links, "Несуществующий сет"); other != nil {
-		t.Fatalf("ссылка на несуществующий сет не должна попадать в связи: %+v", other)
+	if link.Broken || !link.ResolvedOnce || !link.Own || link.TargetSlug == "" {
+		t.Errorf("разрешённая связь размечена неверно: %+v", link)
+	}
+
+	other := findLink(body.Links, "Несуществующий сет")
+	if other == nil {
+		t.Fatalf("ссылка на несуществующий сет потерялась: %+v", body.Links)
+	}
+	if !other.Broken || other.TargetID != 0 || other.ResolvedOnce {
+		t.Errorf("битая связь размечена неверно: %+v", other)
+	}
+	if findLink(body.Links, "Внутри кода") != nil {
+		t.Errorf("ссылка внутри блока кода попала в связи: %+v", body.Links)
 	}
 
 	resp, body, raw = call(t, app, callOptions{
@@ -703,7 +720,8 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		Path:    fmt.Sprintf("/sets/%d", sourceID),
 		Cookies: authCookies,
 	})
-	if len(body.Links) != 1 || body.Links[0].OneSided {
+	mutualLink := findLink(body.Links, "Целевой сет")
+	if mutualLink == nil || mutualLink.OneSided {
 		t.Fatalf("после появления обратной ссылки связь должна стать двусторонней: %+v", body.Links)
 	}
 
@@ -736,19 +754,20 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		Path:    fmt.Sprintf("/sets/%d", sourceID),
 		Cookies: authCookies,
 	})
-	if len(body.Links) != 0 {
-		t.Fatalf("после переименования цель исчезла, ссылка должна стать обычным текстом: %+v", body.Links)
+	renamedLink := findLink(body.Links, "Целевой сет")
+	if renamedLink == nil || renamedLink.Broken || renamedLink.TargetID != targetID {
+		t.Fatalf("ссылка должна выжить после переименования цели: %+v", body.Links)
+	}
+	if renamedLink.TargetTitle != "Целевой сет v2" {
+		t.Fatalf("заголовок цели не обновился после переименования: %+v", renamedLink)
 	}
 	if len(body.Backlinks) != 1 || body.Backlinks[0].ID != targetID {
 		t.Fatalf("обратная ссылка от переименованного сета должна остаться: %+v", body.Backlinks)
 	}
 
 	resp, body, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/graph", Cookies: authCookies})
-	if edge := findEdge(body.Edges, sourceID, targetID); edge != nil {
-		t.Fatalf("ребро на переименованный сет должно исчезнуть: %+v", edge)
-	}
-	if edge := findEdge(body.Edges, targetID, sourceID); edge == nil || !edge.OneSided {
-		t.Fatalf("оставшееся ребро должно быть односторонним: %+v", edge)
+	if edge := findEdgeAny(body.Edges, sourceID, targetID); edge == nil || edge.OneSided {
+		t.Fatalf("взаимные связи должны остаться в графе после переименования: %+v", body.Edges)
 	}
 
 	resp, _, _ = call(t, app, callOptions{
@@ -1144,5 +1163,325 @@ func TestPublicRoutesRejectInvalidSlug(t *testing.T) {
 		if resp.StatusCode != fiber.StatusNotFound {
 			t.Errorf("%s = %d, ожидалось 404", path, resp.StatusCode)
 		}
+	}
+}
+
+func createSetWithContent(t *testing.T, app *fiber.App, cookies []*http.Cookie, title, content, visibility string) *apiSet {
+	t.Helper()
+
+	resp, body, raw := call(t, app, callOptions{
+		Method:  fiber.MethodPost,
+		Path:    "/sets",
+		Cookies: cookies,
+		Body: map[string]string{
+			"title":       title,
+			"content":     content,
+			"visibility":  visibility,
+			"description": "описание",
+		},
+	})
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("создание сета %q = %d, ожидалось 201: %s", title, resp.StatusCode, raw)
+	}
+	if body.Set == nil {
+		t.Fatalf("ответ создания %q без сета: %s", title, raw)
+	}
+	return body.Set
+}
+
+func renameSet(t *testing.T, app *fiber.App, cookies []*http.Cookie, set *apiSet, title, content, visibility string) *apiSet {
+	t.Helper()
+
+	resp, body, raw := call(t, app, callOptions{
+		Method:  fiber.MethodPut,
+		Path:    fmt.Sprintf("/sets/%d", set.ID),
+		Cookies: cookies,
+		Body: map[string]string{
+			"title":      title,
+			"content":    content,
+			"visibility": visibility,
+		},
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("обновление сета %d = %d, ожидалось 200: %s", set.ID, resp.StatusCode, raw)
+	}
+	if body.Set == nil {
+		t.Fatalf("ответ обновления %d без сета: %s", set.ID, raw)
+	}
+	return body.Set
+}
+
+func loadLinks(t *testing.T, app *fiber.App, cookies []*http.Cookie, setID int) []apiLink {
+	t.Helper()
+
+	resp, body, raw := call(t, app, callOptions{
+		Method:  fiber.MethodGet,
+		Path:    fmt.Sprintf("/sets/%d", setID),
+		Cookies: cookies,
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("чтение сета %d = %d, ожидалось 200: %s", setID, resp.StatusCode, raw)
+	}
+	return body.Links
+}
+
+func requireSingleLink(t *testing.T, links []apiLink) apiLink {
+	t.Helper()
+
+	if len(links) != 1 {
+		t.Fatalf("ссылок = %d (%+v), ожидалась одна", len(links), links)
+	}
+	return links[0]
+}
+
+func TestCatalogueReturnsAuthorAndSupportsSearch(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	login := fmt.Sprintf("ca_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{login}) })
+
+	const password = "sup3r-secret-password"
+	cookies := registerForPrivacy(t, app, login, login+"@example.com", password)
+
+	unique := fmt.Sprintf("Каталог %d", suffix)
+	published := createSetForPrivacy(t, app, cookies, unique, "public")
+	createSetForPrivacy(t, app, cookies, fmt.Sprintf("Спрятанный %d", suffix), "private")
+
+	resp, body, raw := call(t, app, callOptions{
+		Method: fiber.MethodGet,
+		Path:   "/public/sets?q=" + url.QueryEscape(unique),
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("поиск в каталоге = %d, ожидалось 200: %s", resp.StatusCode, raw)
+	}
+
+	found := false
+	for _, set := range body.Sets {
+		if set.ID != published.ID {
+			continue
+		}
+		found = true
+		if set.Author == nil || set.Author.Login != login {
+			t.Errorf("автор в каталоге = %+v, ожидался %q", set.Author, login)
+		}
+	}
+	if !found {
+		t.Fatalf("сет %q не найден поиском в каталоге: %s", unique, raw)
+	}
+
+	resp, body, raw = call(t, app, callOptions{
+		Method: fiber.MethodGet,
+		Path:   "/public/sets?q=" + url.QueryEscape("заведомо-нет-такого-названия"),
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("пустой поиск в каталоге = %d, ожидалось 200: %s", resp.StatusCode, raw)
+	}
+	if len(body.Sets) != 0 {
+		t.Errorf("по несуществующему запросу вернулось %d сетов", len(body.Sets))
+	}
+}
+
+func TestLinkSurvivesTargetRename(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	login := fmt.Sprintf("lr_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{login}) })
+
+	const password = "sup3r-secret-password"
+	cookies := registerForPrivacy(t, app, login, login+"@example.com", password)
+
+	targetTitle := fmt.Sprintf("Цель %d", suffix)
+	target := createSetWithContent(t, app, cookies, targetTitle, "тело", "public")
+	source := createSetWithContent(
+		t, app, cookies, fmt.Sprintf("Источник %d", suffix), "[["+targetTitle+"]]", "private",
+	)
+
+	link := requireSingleLink(t, loadLinks(t, app, cookies, source.ID))
+	if link.Broken || link.TargetID != target.ID {
+		t.Fatalf("до переименования ссылка = %+v, ожидалась на сет %d", link, target.ID)
+	}
+
+	renamed := renameSet(t, app, cookies, target, fmt.Sprintf("Новое имя %d", suffix), "тело", "public")
+	if renamed.Slug != target.Slug {
+		t.Errorf("адрес изменился при переименовании: %q -> %q", target.Slug, renamed.Slug)
+	}
+
+	link = requireSingleLink(t, loadLinks(t, app, cookies, source.ID))
+	if link.Broken || link.TargetID != target.ID {
+		t.Errorf("после переименования ссылка = %+v, ожидалась на сет %d", link, target.ID)
+	}
+	if link.TargetTitle != renamed.Title {
+		t.Errorf("заголовок цели = %q, ожидался %q", link.TargetTitle, renamed.Title)
+	}
+}
+
+func TestLinkMarkedBrokenAfterTargetDeleted(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	login := fmt.Sprintf("lb_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{login}) })
+
+	const password = "sup3r-secret-password"
+	cookies := registerForPrivacy(t, app, login, login+"@example.com", password)
+
+	targetTitle := fmt.Sprintf("Временная цель %d", suffix)
+	target := createSetWithContent(t, app, cookies, targetTitle, "тело", "public")
+	source := createSetWithContent(
+		t, app, cookies, fmt.Sprintf("Зависимый %d", suffix), "[["+targetTitle+"]]", "private",
+	)
+
+	requireSingleLink(t, loadLinks(t, app, cookies, source.ID))
+
+	resp, _, raw := call(t, app, callOptions{
+		Method:  fiber.MethodDelete,
+		Path:    fmt.Sprintf("/sets/%d", target.ID),
+		Cookies: cookies,
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("удаление цели = %d, ожидалось 200: %s", resp.StatusCode, raw)
+	}
+
+	link := requireSingleLink(t, loadLinks(t, app, cookies, source.ID))
+	if !link.Broken {
+		t.Errorf("ссылка %+v не помечена битой после удаления цели", link)
+	}
+	if !link.ResolvedOnce {
+		t.Errorf("ссылка %+v потеряла признак ранее разрешённой", link)
+	}
+	if link.TargetID != 0 {
+		t.Errorf("target_id = %d, ожидался 0", link.TargetID)
+	}
+}
+
+func TestBrokenLinkNotRevivedByRecreatedTitle(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	login := fmt.Sprintf("rv_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{login}) })
+
+	const password = "sup3r-secret-password"
+	cookies := registerForPrivacy(t, app, login, login+"@example.com", password)
+
+	targetTitle := fmt.Sprintf("Возрождённая цель %d", suffix)
+	target := createSetWithContent(t, app, cookies, targetTitle, "тело", "public")
+	source := createSetWithContent(
+		t, app, cookies, fmt.Sprintf("Наблюдатель %d", suffix), "[["+targetTitle+"]]", "private",
+	)
+
+	call(t, app, callOptions{
+		Method:  fiber.MethodDelete,
+		Path:    fmt.Sprintf("/sets/%d", target.ID),
+		Cookies: cookies,
+	})
+
+	fresh := createSetWithContent(t, app, cookies, targetTitle, "тело", "public")
+	if fresh.ID == target.ID {
+		t.Fatalf("пересозданный сет получил тот же id %d", fresh.ID)
+	}
+
+	link := requireSingleLink(t, loadLinks(t, app, cookies, source.ID))
+	if !link.Broken || link.TargetID != 0 {
+		t.Errorf("старая ссылка ожила на новый сет: %+v", link)
+	}
+
+	renameSet(t, app, cookies, source, fmt.Sprintf("Наблюдатель %d", suffix),
+		"[["+targetTitle+"]]", "private")
+
+	link = requireSingleLink(t, loadLinks(t, app, cookies, source.ID))
+	if link.Broken || link.TargetID != fresh.ID {
+		t.Errorf("после пересохранения ссылка = %+v, ожидалась на новый сет %d", link, fresh.ID)
+	}
+}
+
+func TestCrossAuthorLink(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	loginA := fmt.Sprintf("xa_%d", suffix)
+	loginB := fmt.Sprintf("xb_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{loginA, loginB}) })
+
+	const password = "sup3r-secret-password"
+	cookiesA := registerForPrivacy(t, app, loginA, loginA+"@example.com", password)
+	cookiesB := registerForPrivacy(t, app, loginB, loginB+"@example.com", password)
+
+	shared := createSetWithContent(t, app, cookiesA, fmt.Sprintf("Открытая %d", suffix), "тело", "public")
+	hidden := createSetWithContent(t, app, cookiesA, fmt.Sprintf("Тайная %d", suffix), "тело", "private")
+
+	source := createSetWithContent(
+		t, app, cookiesB, fmt.Sprintf("Конспект %d", suffix),
+		fmt.Sprintf("[[@%s/%s]]", loginA, shared.Slug), "private",
+	)
+
+	link := requireSingleLink(t, loadLinks(t, app, cookiesB, source.ID))
+	if link.Broken {
+		t.Fatalf("кросс-ссылка не разрешилась: %+v", link)
+	}
+	if link.TargetID != shared.ID || link.TargetSlug != shared.Slug {
+		t.Errorf("кросс-ссылка = %+v, ожидалась на сет %d (%q)", link, shared.ID, shared.Slug)
+	}
+	if link.Own {
+		t.Error("кросс-ссылка помечена как своя")
+	}
+	if link.TargetUserID != shared.UserID {
+		t.Errorf("target_user_id = %d, ожидался %d", link.TargetUserID, shared.UserID)
+	}
+
+	hiddenSource := createSetWithContent(
+		t, app, cookiesB, fmt.Sprintf("Тайный конспект %d", suffix),
+		fmt.Sprintf("[[@%s/%s]]", loginA, hidden.Slug), "private",
+	)
+
+	link = requireSingleLink(t, loadLinks(t, app, cookiesB, hiddenSource.ID))
+	if !link.Broken {
+		t.Errorf("ссылка на приватный чужой сет = %+v, ожидалась битой", link)
+	}
+	if link.ResolvedOnce {
+		t.Error("ссылка на приватный чужой сет помечена как ранее разрешённая")
+	}
+}
+
+func TestPublicSetExposesReadableLinksOnly(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	login := fmt.Sprintf("pl_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{login}) })
+
+	const password = "sup3r-secret-password"
+	cookies := registerForPrivacy(t, app, login, login+"@example.com", password)
+
+	readable := createSetWithContent(t, app, cookies, fmt.Sprintf("Видимая цель %d", suffix), "тело", "public")
+	hidden := createSetWithContent(t, app, cookies, fmt.Sprintf("Личная цель %d", suffix), "тело", "private")
+
+	source := createSetWithContent(
+		t, app, cookies, fmt.Sprintf("Витрина %d", suffix),
+		fmt.Sprintf("[[%s]] [[%s]]", readable.Title, hidden.Title), "public",
+	)
+
+	resp, body, raw := call(t, app, callOptions{
+		Method: fiber.MethodGet,
+		Path:   "/public/sets/" + source.Slug,
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("публичная страница = %d, ожидалось 200: %s", resp.StatusCode, raw)
+	}
+
+	link := requireSingleLink(t, body.Links)
+	if link.TargetID != readable.ID || link.TargetSlug != readable.Slug {
+		t.Errorf("ссылка на публичной странице = %+v, ожидалась на сет %d", link, readable.ID)
+	}
+	if link.Broken {
+		t.Errorf("разрешённая ссылка на публичной странице помечена битой: %+v", link)
 	}
 }

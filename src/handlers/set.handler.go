@@ -20,6 +20,7 @@ const setTitleConflict = "sets_user_title_key_idx"
 const (
 	publicSetsPageSize    = 50
 	publicSetsMaxPageSize = 100
+	publicSearchMaxLength = 100
 )
 
 func CreateSet(c *fiber.Ctx) error {
@@ -61,7 +62,7 @@ func CreateSet(c *fiber.Ctx) error {
 			return err
 		}
 
-		return db.ReplaceSetLinks(c.Context(), tx, created.ID, parsed)
+		return db.ReplaceSetLinks(c.Context(), tx, created.ID, user.ID, parsed)
 	})
 	if err != nil {
 		return writeSetError(c, err, "Не удалось создать сет")
@@ -149,11 +150,20 @@ func UpdateSet(c *fiber.Ctx) error {
 		return utils.FailValidation(c, validationErrors)
 	}
 
+	existing, err := db.GetSetByID(c.Context(), id, user.ID)
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return utils.Fail(c, fiber.StatusNotFound, "Сет не найден", nil)
+		}
+		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось загрузить сет", err)
+	}
+
 	set := &models.Set{
 		ID:          id,
 		UserID:      user.ID,
 		Title:       strings.TrimSpace(req.Title),
 		TitleKey:    links.NormalizeTitle(req.Title),
+		Slug:        existing.Slug,
 		Visibility:  visibilityOrDefault(req.Visibility),
 		Description: strings.TrimSpace(req.Description),
 		Content:     req.Content,
@@ -162,19 +172,13 @@ func UpdateSet(c *fiber.Ctx) error {
 
 	var updated *models.Set
 	err = db.WithTx(c.Context(), func(tx pgx.Tx) error {
-		slug, txErr := db.ReserveSlug(c.Context(), tx, set.Title, id)
+		var txErr error
+		updated, txErr = db.UpdateSet(c.Context(), tx, set)
 		if txErr != nil {
 			return txErr
 		}
-		set.Slug = slug
 
-		var err error
-		updated, err = db.UpdateSet(c.Context(), tx, set)
-		if err != nil {
-			return err
-		}
-
-		return db.ReplaceSetLinks(c.Context(), tx, updated.ID, parsed)
+		return db.ReplaceSetLinks(c.Context(), tx, updated.ID, user.ID, parsed)
 	})
 	if err != nil {
 		return writeSetError(c, err, "Не удалось сохранить сет")
@@ -216,6 +220,7 @@ func DeleteSet(c *fiber.Ctx) error {
 func GetPublicSets(c *fiber.Ctx) error {
 	limit := c.QueryInt("limit", publicSetsPageSize)
 	offset := c.QueryInt("offset", 0)
+	search := strings.TrimSpace(c.Query("q"))
 
 	if limit <= 0 || limit > publicSetsMaxPageSize {
 		limit = publicSetsPageSize
@@ -223,16 +228,22 @@ func GetPublicSets(c *fiber.Ctx) error {
 	if offset < 0 {
 		offset = 0
 	}
+	if runes := []rune(search); len(runes) > publicSearchMaxLength {
+		search = string(runes[:publicSearchMaxLength])
+	}
 
-	sets, err := db.GetPublicSets(c.Context(), limit, offset)
+	sets, total, err := db.GetPublicSets(c.Context(), search, limit, offset)
 	if err != nil {
 		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось загрузить публичные сеты", err)
 	}
 
 	return utils.Success(c, fiber.StatusOK, fiber.Map{
-		"sets":   sets,
-		"limit":  limit,
-		"offset": offset,
+		"sets":     sets,
+		"query":    search,
+		"limit":    limit,
+		"offset":   offset,
+		"total":    total,
+		"has_more": offset+len(sets) < total,
 	})
 }
 
@@ -256,7 +267,15 @@ func GetPublicSet(c *fiber.Ctx) error {
 	}
 	set.Author = &models.SetAuthor{Login: author.Login}
 
-	return utils.Success(c, fiber.StatusOK, fiber.Map{"set": set})
+	setLinks, err := db.GetPublicSetLinks(c.Context(), set.ID)
+	if err != nil {
+		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось загрузить связи сета", err)
+	}
+
+	return utils.Success(c, fiber.StatusOK, fiber.Map{
+		"set":   set,
+		"links": setLinks,
+	})
 }
 
 func visibilityOrDefault(value models.Visibility) models.Visibility {

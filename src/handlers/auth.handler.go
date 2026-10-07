@@ -13,7 +13,6 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// uniqueViolation — код ошибки PostgreSQL на нарушение UNIQUE.
 const uniqueViolation = "23505"
 
 func Register(c *fiber.Ctx) error {

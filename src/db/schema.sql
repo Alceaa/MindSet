@@ -88,6 +88,39 @@ CREATE TABLE IF NOT EXISTS set_links (
     UNIQUE (from_set_id, target_key)
 );
 
+ALTER TABLE sets ADD COLUMN IF NOT EXISTS forbid_copies boolean NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS author_tombstones (
+    id           serial PRIMARY KEY,
+    login        varchar NOT NULL,
+    date_deleted date NOT NULL DEFAULT CURRENT_DATE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS author_tombstones_login_idx ON author_tombstones (lower(login));
+
+CREATE TABLE IF NOT EXISTS saved_sets (
+    id             serial PRIMARY KEY,
+    owner_user_id  integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    set_id         integer REFERENCES sets (id) ON DELETE SET NULL,
+    source_user_id integer REFERENCES users (id) ON DELETE SET NULL,
+    source_login   varchar NOT NULL DEFAULT '',
+    source_slug    varchar NOT NULL DEFAULT '',
+    title          varchar NOT NULL DEFAULT '',
+    description    varchar NOT NULL DEFAULT '',
+    content        text NOT NULL DEFAULT '',
+    frozen         boolean NOT NULL DEFAULT false,
+    frozen_auto    boolean NOT NULL DEFAULT false,
+    revoked_at     timestamptz,
+    date_saved     date NOT NULL DEFAULT CURRENT_DATE,
+    last_update    date NOT NULL DEFAULT CURRENT_DATE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS saved_sets_owner_set_uq ON saved_sets (owner_user_id, set_id);
+
+CREATE INDEX IF NOT EXISTS saved_sets_owner_idx ON saved_sets (owner_user_id, last_update DESC);
+CREATE INDEX IF NOT EXISTS saved_sets_set_idx ON saved_sets (set_id);
+CREATE INDEX IF NOT EXISTS saved_sets_owner_source_idx ON saved_sets (owner_user_id, source_login, source_slug);
+
 CREATE INDEX IF NOT EXISTS set_links_from_idx ON set_links (from_set_id);
 CREATE INDEX IF NOT EXISTS set_links_target_key_idx ON set_links (target_key);
 
@@ -115,4 +148,43 @@ EXCEPTION
 END $$;
 
 CREATE INDEX IF NOT EXISTS set_links_to_set_idx ON set_links (to_set_id);
+
+ALTER TABLE set_links ADD COLUMN IF NOT EXISTS target_login varchar NOT NULL DEFAULT '';
+ALTER TABLE set_links ADD COLUMN IF NOT EXISTS target_slug varchar NOT NULL DEFAULT '';
+
+UPDATE set_links l
+SET target_login = u.login,
+    target_slug = s.slug
+FROM sets s
+JOIN users u ON u.id = s.user_id
+WHERE l.to_set_id = s.id
+  AND (l.target_login = '' OR l.target_slug = '');
+
+UPDATE set_links l
+SET target_login = u.login
+FROM sets f
+JOIN users u ON u.id = f.user_id
+WHERE f.id = l.from_set_id
+  AND l.to_set_id IS NULL
+  AND l.target_login = ''
+  AND NOT l.target_key LIKE '@%';
+
+CREATE INDEX IF NOT EXISTS set_links_target_owner_idx ON set_links (from_set_id, target_login, target_slug);
+
+CREATE TABLE IF NOT EXISTS set_tombstones (
+    id             serial PRIMARY KEY,
+    set_id         integer NOT NULL UNIQUE,
+    deadline       date    NOT NULL,
+    forbid_applied boolean NOT NULL DEFAULT false
+);
+
+ALTER TABLE set_tombstones ADD COLUMN IF NOT EXISTS owner_user_id integer;
+
+CREATE INDEX IF NOT EXISTS set_tombstones_owner_idx ON set_tombstones (owner_user_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS set_tombstones_set_id_idx ON set_tombstones (set_id);
+
+ALTER TABLE saved_sets
+    ADD COLUMN IF NOT EXISTS tombstone_id integer
+    REFERENCES set_tombstones (id) ON DELETE SET NULL;
 

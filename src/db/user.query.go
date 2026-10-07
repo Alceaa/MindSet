@@ -12,7 +12,6 @@ import (
 
 const userColumns = `id, login, email, password, coalesce(bio, '') AS bio, coalesce(to_char(date_joined, 'YYYY-MM-DD'), '') AS date_joined`
 
-// scanUser читает одну строку users и переводит pgx.ErrNoRows в db.ErrNotFound.
 func scanUser(row pgx.Row) (*models.User, error) {
 	var user models.User
 	err := row.Scan(&user.ID, &user.Login, &user.Email, &user.Password, &user.Bio, &user.DateJoined)
@@ -25,8 +24,6 @@ func scanUser(row pgx.Row) (*models.User, error) {
 	return &user, nil
 }
 
-// CreateUser создаёт пользователя и возвращает его вместе с полями,
-// проставленными базой (id, date_joined по умолчанию CURRENT_DATE).
 func CreateUser(ctx context.Context, user *models.User) (*models.User, error) {
 	conn, err := pool()
 	if err != nil {
@@ -67,8 +64,6 @@ func GetUserById(ctx context.Context, id int) (*models.User, error) {
 	return getSingleUser(ctx, "get user by id", query, pgx.NamedArgs{"id": id})
 }
 
-// FindLoginOrEmailConflict проверяет занятость логина и почты одним запросом,
-// чтобы вернуть пользователю понятную ошибку вместо текста нарушения UNIQUE.
 func FindLoginOrEmailConflict(ctx context.Context, login, email string) (loginTaken bool, emailTaken bool, err error) {
 	conn, err := pool()
 	if err != nil {

@@ -47,6 +47,7 @@ type apiSet struct {
 	Title        string `json:"title"`
 	Slug         string `json:"slug"`
 	Visibility   string `json:"visibility"`
+	ForbidCopies bool   `json:"forbid_copies"`
 	Description  string `json:"description"`
 	Content      string `json:"content"`
 	DateCreated  string `json:"date_created"`
@@ -57,16 +58,19 @@ type apiSet struct {
 }
 
 type apiLink struct {
-	Label        string `json:"label"`
-	Alias        string `json:"alias"`
-	TargetID     int    `json:"target_id"`
-	TargetTitle  string `json:"target_title"`
-	TargetSlug   string `json:"target_slug"`
-	TargetUserID int    `json:"target_user_id"`
-	Own          bool   `json:"own"`
-	OneSided     bool   `json:"one_sided"`
-	Broken       bool   `json:"broken"`
-	ResolvedOnce bool   `json:"resolved_once"`
+	Label         string `json:"label"`
+	Alias         string `json:"alias"`
+	TargetID      int    `json:"target_id"`
+	TargetTitle   string `json:"target_title"`
+	TargetSlug    string `json:"target_slug"`
+	TargetUserID  int    `json:"target_user_id"`
+	Own           bool   `json:"own"`
+	OneSided      bool   `json:"one_sided"`
+	Broken        bool   `json:"broken"`
+	ResolvedOnce  bool   `json:"resolved_once"`
+	SnapshotID    int    `json:"snapshot_id"`
+	SnapshotState string `json:"snapshot_state"`
+	LiveAvailable bool   `json:"live_available"`
 }
 
 type apiBacklink struct {
@@ -76,11 +80,15 @@ type apiBacklink struct {
 }
 
 type apiGraphNode struct {
-	ID        int    `json:"id"`
-	Title     string `json:"title"`
-	Links     int    `json:"links"`
-	Backlinks int    `json:"backlinks"`
-	Updated   string `json:"updated"`
+	ID         int    `json:"id"`
+	Title      string `json:"title"`
+	Links      int    `json:"links"`
+	Backlinks  int    `json:"backlinks"`
+	Updated    string `json:"updated"`
+	Own        bool   `json:"own"`
+	Slug       string `json:"slug"`
+	Login      string `json:"login"`
+	SnapshotID int    `json:"snapshot_id"`
 }
 
 type apiGraphEdge struct {
@@ -89,17 +97,51 @@ type apiGraphEdge struct {
 	OneSided bool `json:"one_sided"`
 }
 
+type apiTombstone struct {
+	ID            int    `json:"id"`
+	SetID         int    `json:"set_id"`
+	Title         string `json:"title"`
+	Deadline      string `json:"deadline"`
+	ForbidApplied bool   `json:"forbid_applied"`
+	OwnerID       int    `json:"owner_id"`
+}
+
+type apiSavedSet struct {
+	ID           int    `json:"id"`
+	SetID        int    `json:"set_id"`
+	SourceLogin  string `json:"source_login"`
+	SourceSlug   string `json:"source_slug"`
+	Title        string `json:"title"`
+	Content      string `json:"content"`
+	Frozen       bool   `json:"frozen"`
+	FrozenAuto   bool   `json:"frozen_auto"`
+	RevokedAt    string `json:"revoked_at"`
+	State        string `json:"state"`
+	DateSaved    string `json:"date_saved"`
+	SnapshotID   int    `json:"snapshot_id"`
+	LiveTitle    string `json:"live_title"`
+	LiveActivity string `json:"live_last_activity"`
+	LastUpdate   string `json:"last_update"`
+}
+
 type apiResponse struct {
-	Status    string            `json:"status"`
-	Message   string            `json:"message"`
-	Errors    []validationError `json:"errors"`
-	User      *apiUser          `json:"user"`
-	Sets      []apiSet          `json:"sets"`
-	Set       *apiSet           `json:"set"`
-	Links     []apiLink         `json:"links"`
-	Backlinks []apiBacklink     `json:"backlinks"`
-	Nodes     []apiGraphNode    `json:"nodes"`
-	Edges     []apiGraphEdge    `json:"edges"`
+	Status         string            `json:"status"`
+	Message        string            `json:"message"`
+	Errors         []validationError `json:"errors"`
+	User           *apiUser          `json:"user"`
+	Sets           []apiSet          `json:"sets"`
+	Set            *apiSet           `json:"set"`
+	Links          []apiLink         `json:"links"`
+	Backlinks      []apiBacklink     `json:"backlinks"`
+	Nodes          []apiGraphNode    `json:"nodes"`
+	Edges          []apiGraphEdge    `json:"edges"`
+	Saved          []apiSavedSet     `json:"saved"`
+	Attention      []apiSavedSet     `json:"attention"`
+	AttentionCount int               `json:"attention_count"`
+	Snapshot       *apiSavedSet      `json:"snapshot"`
+	Tombstones     []apiTombstone    `json:"tombstones"`
+	CopyCount      int               `json:"copy_count"`
+	AccountCount   int               `json:"account_count"`
 }
 
 type callOptions struct {
@@ -255,7 +297,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 	cfg := utils.Config()
 
 	suffix := time.Now().UnixNano()
-	// Логин ограничен 32 символами, поэтому суффикс короткий.
 	login := fmt.Sprintf("it_%d", suffix)
 	email := login + "@example.com"
 	const password = "sup3r-secret-password"
@@ -263,7 +304,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 	logins := []string{login, login + "_alt"}
 	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, logins) })
 
-	// --- 1. Анонимный доступ ---
 	resp, _, _ := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/auth/me"})
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Fatalf("/auth/me без cookie = %d, ожидалось 401", resp.StatusCode)
@@ -277,7 +317,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		t.Fatalf("GET /sets без cookie = %d, ожидалось 401", resp.StatusCode)
 	}
 
-	// --- 2. Валидация регистрации ---
 	resp, body, _ := call(t, app, callOptions{
 		Method: fiber.MethodPost,
 		Path:   "/auth/register",
@@ -297,7 +336,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		}
 	}
 
-	// --- 3. Успешная регистрация ---
 	resp, body, raw := call(t, app, callOptions{
 		Method: fiber.MethodPost,
 		Path:   "/auth/register",
@@ -314,13 +352,11 @@ func TestAuthAndSetsFlow(t *testing.T) {
 	if body.User == nil || body.User.ID == 0 {
 		t.Fatalf("в ответе нет пользователя: %s", raw)
 	}
-	// Хеш пароля не должен попадать в ответ.
 	if strings.Contains(raw, `"password"`) || strings.Contains(raw, "$2a$") {
 		t.Fatalf("ответ регистрации содержит данные пароля: %s", raw)
 	}
 	userID := body.User.ID
 
-	// --- 4. Повторная регистрация ---
 	resp, _, _ = call(t, app, callOptions{
 		Method: fiber.MethodPost,
 		Path:   "/auth/register",
@@ -335,7 +371,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		t.Fatalf("повторная регистрация = %d, ожидалось 409", resp.StatusCode)
 	}
 
-	// --- 5. Неверные учётные данные ---
 	resp, _, _ = call(t, app, callOptions{
 		Method: fiber.MethodPost,
 		Path:   "/auth/login",
@@ -354,7 +389,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		t.Fatalf("несуществующий пользователь = %d, ожидалось 401", resp.StatusCode)
 	}
 
-	// --- 6. Вход: cookie с токенами ---
 	resp, body, raw = call(t, app, callOptions{
 		Method: fiber.MethodPost,
 		Path:   "/auth/login",
@@ -390,7 +424,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 
 	authCookies := []*http.Cookie{accessCookie, refreshCookie}
 
-	// --- 7. Текущий пользователь по cookie и по Bearer ---
 	resp, body, raw = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/auth/me", Cookies: authCookies})
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("/auth/me = %d (%s), ожидалось 200", resp.StatusCode, raw)
@@ -411,7 +444,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		t.Fatalf("/auth/me по Bearer = %d, ожидалось 200", resp.StatusCode)
 	}
 
-	// --- 8. Сеты ---
 	resp, body, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/sets", Cookies: authCookies})
 	if resp.StatusCode != fiber.StatusOK || len(body.Sets) != 0 {
 		t.Fatalf("новый пользователь должен иметь 0 сетов, получено %d (%d)", len(body.Sets), resp.StatusCode)
@@ -456,7 +488,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		t.Fatalf("сет без названия: статус %d, ошибки %+v", resp.StatusCode, body.Errors)
 	}
 
-	// --- 9. Изоляция пользователей ---
 	otherLogin := login + "_alt"
 	otherEmail := otherLogin + "@example.com"
 	resp, _, raw = call(t, app, callOptions{
@@ -497,7 +528,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		t.Fatalf("второй пользователь видит чужие сеты: %+v", body.Sets)
 	}
 
-	// --- 9.1 Содержимое сета: создание, чтение, обновление, удаление ---
 	markdown := "# Заголовок\n\nТекст с **разметкой** и [ссылкой](https://go.dev).\n\n- пункт\n- пункт\n"
 
 	resp, body, raw = call(t, app, callOptions{
@@ -612,7 +642,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		t.Fatalf("повторное удаление = %d, ожидалось 404", resp.StatusCode)
 	}
 
-	// --- 9.2 Связи между сетами и граф ---
 	resp, body, raw = call(t, app, callOptions{
 		Method:  fiber.MethodPost,
 		Path:    "/sets",
@@ -780,7 +809,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		t.Fatalf("дубликат названия = %d, ожидалось 409", resp.StatusCode)
 	}
 
-	// --- 10. Продление сессии ---
 	resp, _, raw = call(t, app, callOptions{
 		Method:  fiber.MethodPost,
 		Path:    "/auth/refresh",
@@ -808,7 +836,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		t.Fatalf("access-токен принят как refresh = %d, ожидалось 401", resp.StatusCode)
 	}
 
-	// --- 11. Тело запроса не в формате JSON ---
 	resp, _, _ = call(t, app, callOptions{
 		Method:      fiber.MethodPost,
 		Path:        "/auth/login",
@@ -819,7 +846,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		t.Fatalf("не-JSON тело = %d, ожидалось 415", resp.StatusCode)
 	}
 
-	// --- 12. Выход ---
 	resp, _, _ = call(t, app, callOptions{Method: fiber.MethodPost, Path: "/auth/logout", Cookies: authCookies})
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("logout = %d, ожидалось 200", resp.StatusCode)
@@ -836,7 +862,6 @@ func TestAuthAndSetsFlow(t *testing.T) {
 		t.Errorf("в Set-Cookie нет expires: %s", setCookieHeaders)
 	}
 
-	// Подделанный токен не проходит проверку подписи.
 	resp, _, _ = call(t, app, callOptions{
 		Method: fiber.MethodGet,
 		Path:   "/auth/me",

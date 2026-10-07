@@ -25,6 +25,19 @@ func SetupRoutes(app fiber.Router) {
 	public := app.Group("/public")
 	public.Get("/sets", handlers.GetPublicSets)
 	public.Get("/sets/:slug", handlers.GetPublicSet)
+	public.Get("/snapshots/:id", handlers.GetPublicSnapshot)
+
+	saved := app.Group("/saved-sets", middlewares.ValidateAccessToken)
+	saved.Get("", handlers.GetSavedSets)
+	saved.Post("", middlewares.RequireJSONBody, handlers.SaveExternalSet)
+	saved.Get("/:id", handlers.GetSavedSet)
+	saved.Post("/:id/refresh", handlers.RefreshSavedSet)
+	saved.Post("/:id/freeze", middlewares.RequireJSONBody, handlers.FreezeSavedSet)
+	saved.Delete("/:id", handlers.DeleteSavedSet)
 
 	app.Get("/graph", middlewares.ValidateAccessToken, handlers.GetGraph)
+	sets.Get("/:id/copy-stats", handlers.GetSetCopyStats)
+
+	app.Get("/set-tombstones", middlewares.ValidateAccessToken, handlers.GetSetTombstones)
+	app.Post("/set-tombstones/:id/forbid-copies", middlewares.ValidateAccessToken, handlers.ForbidSetTombstone)
 }

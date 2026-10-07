@@ -7,8 +7,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// Нужен фронтенду, чтобы при загрузке приложения понять, авторизован ли
-// пользователь: токены лежат в HttpOnly cookie, и прочитать их из JS нельзя.
 func Me(c *fiber.Ctx) error {
 	user, ok := middlewares.CurrentUser(c)
 	if !ok {

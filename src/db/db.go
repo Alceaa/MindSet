@@ -26,7 +26,6 @@ var (
 	openErr    error
 )
 
-// Open создаёт пул соединений ровно один раз за время жизни процесса.
 func Open(url string) error {
 	once.Do(func() {
 		ctx := context.Background()
@@ -49,7 +48,6 @@ func Open(url string) error {
 	return openErr
 }
 
-// Close закрывает пул. Вызывается при graceful shutdown.
 func Close() {
 	if pgInstance == nil || pgInstance.db == nil {
 		return
@@ -57,7 +55,6 @@ func Close() {
 	pgInstance.db.Close()
 }
 
-// Health проверяет живое соединение с БД (используется в /health).
 func Health(ctx context.Context) error {
 	pool, err := pool()
 	if err != nil {
@@ -66,8 +63,6 @@ func Health(ctx context.Context) error {
 	return pool.Ping(ctx)
 }
 
-// pool возвращает пул или ошибку, если Open не выполнялся. Так вместо паники
-// при nil-указателе возвращается понятная ошибка.
 func pool() (*pgxpool.Pool, error) {
 	if pgInstance == nil || pgInstance.db == nil {
 		return nil, ErrNotInitialized

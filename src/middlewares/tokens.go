@@ -12,7 +12,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// UserLocalKey — ключ, под которым пользователь лежит в контексте запроса.
 const UserLocalKey = "user"
 
 func CurrentUser(c *fiber.Ctx) (*models.User, bool) {

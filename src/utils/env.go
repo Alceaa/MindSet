@@ -98,10 +98,6 @@ func (e Env) IsProduction() bool {
 	return strings.EqualFold(e.Env, envProduction)
 }
 
-func (e Env) IsDevelopment() bool {
-	return !e.IsProduction()
-}
-
 func (e Env) Origins() []string {
 	parts := strings.Split(e.AllowedOrigins, ",")
 	origins := make([]string, 0, len(parts))

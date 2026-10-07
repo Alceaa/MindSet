@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"mindset/db"
 	"mindset/links"
@@ -39,12 +40,13 @@ func CreateSet(c *fiber.Ctx) error {
 	}
 
 	set := &models.Set{
-		UserID:      user.ID,
-		Title:       strings.TrimSpace(req.Title),
-		TitleKey:    links.NormalizeTitle(req.Title),
-		Visibility:  visibilityOrDefault(req.Visibility),
-		Description: strings.TrimSpace(req.Description),
-		Content:     req.Content,
+		UserID:       user.ID,
+		Title:        strings.TrimSpace(req.Title),
+		TitleKey:     links.NormalizeTitle(req.Title),
+		Visibility:   visibilityOrDefault(req.Visibility),
+		ForbidCopies: req.ForbidCopies,
+		Description:  strings.TrimSpace(req.Description),
+		Content:      req.Content,
 	}
 	parsed := links.Parse(req.Content)
 
@@ -159,14 +161,15 @@ func UpdateSet(c *fiber.Ctx) error {
 	}
 
 	set := &models.Set{
-		ID:          id,
-		UserID:      user.ID,
-		Title:       strings.TrimSpace(req.Title),
-		TitleKey:    links.NormalizeTitle(req.Title),
-		Slug:        existing.Slug,
-		Visibility:  visibilityOrDefault(req.Visibility),
-		Description: strings.TrimSpace(req.Description),
-		Content:     req.Content,
+		ID:           id,
+		UserID:       user.ID,
+		Title:        strings.TrimSpace(req.Title),
+		TitleKey:     links.NormalizeTitle(req.Title),
+		Slug:         existing.Slug,
+		Visibility:   visibilityOrDefault(req.Visibility),
+		ForbidCopies: req.ForbidCopies,
+		Description:  strings.TrimSpace(req.Description),
+		Content:      req.Content,
 	}
 	parsed := links.Parse(req.Content)
 
@@ -178,7 +181,11 @@ func UpdateSet(c *fiber.Ctx) error {
 			return txErr
 		}
 
-		return db.ReplaceSetLinks(c.Context(), tx, updated.ID, user.ID, parsed)
+		if err := db.ReplaceSetLinks(c.Context(), tx, updated.ID, user.ID, parsed); err != nil {
+			return err
+		}
+
+		return nil
 	})
 	if err != nil {
 		return writeSetError(c, err, "Не удалось сохранить сет")
@@ -207,7 +214,44 @@ func DeleteSet(c *fiber.Ctx) error {
 		return utils.Fail(c, fiber.StatusBadRequest, "Некорректный идентификатор сета", err)
 	}
 
-	if err := db.DeleteSet(c.Context(), id, user.ID); err != nil {
+	var req struct {
+		ForbidCopies bool `json:"forbid_copies"`
+	}
+	var forbidCopies bool
+	if len(c.Body()) > 0 {
+		if err := c.BodyParser(&req); err != nil {
+			return utils.Fail(c, fiber.StatusBadRequest, "Некорректный формат запроса", err)
+		}
+		forbidCopies = req.ForbidCopies
+	}
+
+	err = db.WithTx(c.Context(), func(tx pgx.Tx) error {
+		existing, err := db.LockSetForDelete(c.Context(), tx, id, user.ID)
+		if err != nil {
+			return err
+		}
+
+		if forbidCopies || !existing.Visibility.ReadableByOthers() {
+			if err := db.TombstoneSet(c.Context(), tx, existing, user.Login, forbidCopies); err != nil {
+				return err
+			}
+		} else {
+			deadline := time.Now().AddDate(0, 0, 30)
+			tombstoneID, err := db.SetTombstone(c.Context(), tx, existing.ID, user.ID, deadline, false)
+			if err != nil {
+				return err
+			}
+			if err := db.FreezeSavedSets(c.Context(), tx, existing.ID); err != nil {
+				return err
+			}
+			if err := db.LinkSavedSetsToTombstone(c.Context(), tx, existing.ID, tombstoneID); err != nil {
+				return err
+			}
+		}
+
+		return db.DeleteSetInTx(c.Context(), tx, id, user.ID)
+	})
+	if err != nil {
 		if errors.Is(err, db.ErrNotFound) {
 			return utils.Fail(c, fiber.StatusNotFound, "Сет не найден", nil)
 		}
@@ -267,7 +311,7 @@ func GetPublicSet(c *fiber.Ctx) error {
 	}
 	set.Author = &models.SetAuthor{Login: author.Login}
 
-	setLinks, err := db.GetPublicSetLinks(c.Context(), set.ID)
+	setLinks, err := db.GetPublicSetLinks(c.Context(), set.ID, set.UserID)
 	if err != nil {
 		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось загрузить связи сета", err)
 	}
@@ -296,4 +340,71 @@ func writeSetError(c *fiber.Ctx, err error, fallback string) error {
 	}
 
 	return utils.Fail(c, fiber.StatusInternalServerError, fallback, err)
+}
+
+func GetSetCopyStats(c *fiber.Ctx) error {
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		return utils.Fail(c, fiber.StatusUnauthorized, "Требуется авторизация", nil)
+	}
+
+	setID, err := c.ParamsInt("id")
+	if err != nil {
+		return utils.Fail(c, fiber.StatusBadRequest, "Некорректный идентификатор сета", err)
+	}
+
+	if _, err := db.GetSetByID(c.Context(), setID, user.ID); err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return utils.Fail(c, fiber.StatusNotFound, "Сет не найден", nil)
+		}
+		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось проверить сет", err)
+	}
+
+	copyCount, accountCount, err := db.GetSetCopyStats(c.Context(), setID)
+	if err != nil {
+		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось посчитать статистику копий", err)
+	}
+
+	return utils.Success(c, fiber.StatusOK, fiber.Map{
+		"copy_count":    copyCount,
+		"account_count": accountCount,
+	})
+}
+
+func GetSetTombstones(c *fiber.Ctx) error {
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		return utils.Fail(c, fiber.StatusUnauthorized, "Требуется авторизация", nil)
+	}
+
+	tombstones, err := db.GetSetTombstones(c.Context(), user.ID)
+	if err != nil {
+		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось загрузить ярлыки удалений", err)
+	}
+
+	return utils.Success(c, fiber.StatusOK, fiber.Map{"tombstones": tombstones})
+}
+
+func ForbidSetTombstone(c *fiber.Ctx) error {
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		return utils.Fail(c, fiber.StatusUnauthorized, "Требуется авторизация", nil)
+	}
+
+	tombstoneID, err := c.ParamsInt("id")
+	if err != nil {
+		return utils.Fail(c, fiber.StatusBadRequest, "Некорректный идентификатор ярлыка", err)
+	}
+
+	err = db.WithTx(c.Context(), func(tx pgx.Tx) error {
+		return db.ForbidSetTombstone(c.Context(), tx, tombstoneID, user.ID)
+	})
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return utils.Fail(c, fiber.StatusNotFound, "Ярлык удаления не найден", nil)
+		}
+		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось применить запрет на копии", err)
+	}
+
+	return utils.Success(c, fiber.StatusOK, fiber.Map{"message": "Запрет на копии применён"})
 }

@@ -1,10 +1,9 @@
 package models
 
 type User struct {
-	ID    int    `json:"id,omitempty" db:"id"`
-	Login string `json:"login" db:"login"`
-	Email string `json:"email" db:"email"`
-	// Password всегда исключён из JSON — иначе хеш bcrypt уходил клиенту.
+	ID         int    `json:"id,omitempty" db:"id"`
+	Login      string `json:"login" db:"login"`
+	Email      string `json:"email" db:"email"`
 	Password   string `json:"-" db:"password"`
 	Bio        string `json:"bio" db:"bio"`
 	DateJoined string `json:"date_joined" db:"date_joined"`

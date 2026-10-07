@@ -16,6 +16,11 @@ const STATE_META = {
 const stateMeta = (state) => STATE_META[state] ?? { label: state, badgeClass: "badge" };
 
 const openTargetFor = (item) => {
+    // Замороженный снимок всегда открываем как снимок, чтобы показать
+    // именно сохранённую версию, а не изменённый исходный сет.
+    if (item.frozen) {
+        return `/snapshots/${item.id}`;
+    }
     if (
         item.state === "source_gone" ||
         item.state === "hidden" ||
@@ -26,10 +31,10 @@ const openTargetFor = (item) => {
     if (item.live_slug) {
         return `/s/${item.live_slug}`;
     }
-    return null;
+    return `/snapshots/${item.id}`;
 };
 
-const SavedSets = () => {
+const SavedSets = ({ query = "" }) => {
     const [items, setItems] = useState([]);
     const [attention, setAttention] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -166,7 +171,11 @@ const SavedSets = () => {
         );
     }
 
-    const rest = items.filter((item) => item.state !== "attention");
+    const needle = query.trim().toLowerCase();
+    const matchQuery = (item) => !needle || item.title.toLowerCase().includes(needle);
+    const visibleItems = items.filter(matchQuery);
+    const visibleAttention = attention.filter(matchQuery);
+    const rest = visibleItems.filter((item) => item.state !== "attention");
 
     return (
         <div className="savedPanel">
@@ -176,26 +185,32 @@ const SavedSets = () => {
                 </div>
             )}
 
-            {attention.length > 0 && (
-                <section className="savedSection">
-                    <h2 className="savedSectionTitle">
-                        Требует внимания{" "}
-                        <span className="listMeta">{attention.length}</span>
-                    </h2>
-                    <p className="mutedText savedSectionHint">
-                        Автор изменил исходный сет, а снимок заморожен. Обновите снимок или
-                        оставьте как есть.
-                    </p>
-                    <div className="savedList">{attention.map(renderItem)}</div>
-                </section>
-            )}
+            {visibleItems.length === 0 ? (
+                <p className="mutedText">По запросу «{query}» снимков не найдено.</p>
+            ) : (
+                <>
+                    {visibleAttention.length > 0 && (
+                        <section className="savedSection">
+                            <h2 className="savedSectionTitle">
+                                Требует внимания{" "}
+                                <span className="listMeta">{visibleAttention.length}</span>
+                            </h2>
+                            <p className="mutedText savedSectionHint">
+                                Автор изменил исходный сет, а снимок заморожен. Обновите снимок или
+                                оставьте как есть.
+                            </p>
+                            <div className="savedList">{visibleAttention.map(renderItem)}</div>
+                        </section>
+                    )}
 
-            <section className="savedSection">
-                <h2 className="savedSectionTitle">
-                    Все снимки <span className="listMeta">{items.length}</span>
-                </h2>
-                <div className="savedList">{rest.map(renderItem)}</div>
-            </section>
+                    <section className="savedSection">
+                        <h2 className="savedSectionTitle">
+                            Все снимки <span className="listMeta">{visibleItems.length}</span>
+                        </h2>
+                        <div className="savedList">{rest.map(renderItem)}</div>
+                    </section>
+                </>
+            )}
         </div>
     );
 };

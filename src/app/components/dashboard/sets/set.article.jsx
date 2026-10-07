@@ -46,7 +46,7 @@ const SetArticle = ({ content, links, emptyText }) => {
 
                     const unavailable = target.broken || !target.live_available;
 
-                    if (unavailable && target.snapshot_id) {
+                    if (target.snapshot_id && (unavailable || target.snapshot_own)) {
                         return (
                             <Link
                                 className="articleLink articleLinkSnapshot"

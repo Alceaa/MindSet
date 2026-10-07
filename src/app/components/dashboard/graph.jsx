@@ -31,20 +31,35 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 function buildNodes(graph) {
     return graph.nodes.map((node) => {
         const own = node.own !== false;
+        const frozen = Boolean(node.frozen);
+        const deleted = Boolean(node.deleted);
+        const daysLeft = Number.isFinite(node.days_left) ? node.days_left : 0;
         const shares = `Связей: ${node.links} · Обратных: ${node.backlinks}`;
+
+        let hint;
+        if (own) {
+            hint = `${shares} · Изменён: ${node.updated}`;
+        } else if (deleted) {
+            hint = `Сет @${node.login} удалён. Сохранённая копия хранится ещё ${daysLeft} дн., затем будет удалена. Откроется снимок.`;
+        } else if (frozen) {
+            hint = `Замороженный снимок @${node.login} · ${shares}`;
+        } else {
+            hint = `Внешний сет @${node.login} · ${shares}`;
+        }
 
         return {
             key: setKey(node.id),
             id: node.id,
             title: node.title,
             own,
+            frozen,
+            deleted,
+            daysLeft,
             slug: node.slug ?? "",
             login: node.login ?? "",
             snapshotId: node.snapshot_id ?? 0,
             radius: 10 + Math.min(node.links + node.backlinks, 8) * 1.8,
-            hint: own
-                ? `${shares} · Изменён: ${node.updated}`
-                : `Внешний сет @${node.login} · ${shares}`,
+            hint,
         };
     });
 }
@@ -492,7 +507,16 @@ const Graph = () => {
     const oneSidedCount = graph.edges.filter((edge) => edge.one_sided).length;
 
     const nodeClassName = (node) => {
-        const classes = ["graphNode", node.own ? "graphNodeSet" : "graphNodeExternal"];
+        const classes = ["graphNode"];
+        if (node.own) {
+            classes.push("graphNodeSet");
+        } else if (node.deleted) {
+            classes.push("graphNodeDeleted");
+        } else if (node.frozen) {
+            classes.push("graphNodeFrozen");
+        } else {
+            classes.push("graphNodeExternal");
+        }
         if (activeKey) {
             if (node.key === activeKey) {
                 classes.push("graphNodeActive");
@@ -674,8 +698,9 @@ const Graph = () => {
             <p className="graphHint">
                 Клик по кругу — открыть сет, перетаскивание — подвинуть (узлы расступаются),
                 колесо — зум, фон — сдвинуть граф. Сплошная линия — взаимные ссылки, стрелка —
-                односторонняя: сет ссылается на соседа, но на него не ссылаются. Пунктирный
-                круг — чужой публичный сет, на который ссылаются ваши сеты.
+                односторонняя: сет ссылается на соседа, но на него не ссылаются. Золотой пунктирный
+                круг — чужой публичный сет; бирюзовый — замороженный снимок; серый пунктир — сет
+                удалён, сохранённая копия ещё хранится (наведите, чтобы узнать срок).
             </p>
         </div>
     );

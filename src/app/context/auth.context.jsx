@@ -64,6 +64,10 @@ export const AuthProvider = ({ children }) => {
         setStatus(AUTH_STATUS.anonymous);
     }, []);
 
+    const updateUser = useCallback((nextUser) => {
+        setUser(nextUser ?? null);
+    }, []);
+
     const value = useMemo(
         () => ({
             user,
@@ -73,8 +77,9 @@ export const AuthProvider = ({ children }) => {
             login,
             register,
             logout,
+            updateUser,
         }),
-        [user, status, login, register, logout]
+        [user, status, login, register, logout, updateUser]
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

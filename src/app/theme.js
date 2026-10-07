@@ -1,18 +1,18 @@
 import { createTheme } from "@mui/material/styles";
 export const tokens = {
-    canvas: "#0d1117",
-    surface: "#161b22",
-    surfaceMuted: "#21262d",
-    border: "#30363d",
-    borderMuted: "#21262d",
-    text: "#e6edf3",
-    textMuted: "#8b949e",
-    accent: "#2f81f7",
-    accentHover: "#1f6feb",
-    accentSoft: "rgba(56, 139, 253, 0.15)",
-    success: "#3fb950",
-    danger: "#f85149",
-    warning: "#d29922",
+    canvas: "#0d0f14",
+    surface: "#151821",
+    surfaceMuted: "#1d202b",
+    border: "#262a35",
+    borderMuted: "#1c2029",
+    text: "#ece7dc",
+    textMuted: "#9a948a",
+    accent: "#e2b053",
+    accentHover: "#c99a37",
+    accentSoft: "rgba(226, 176, 83, 0.14)",
+    success: "#57c469",
+    danger: "#f0655f",
+    warning: "#e0913f",
 };
 
 const theme = createTheme({
@@ -37,10 +37,11 @@ const theme = createTheme({
         divider: tokens.border,
     },
     shape: {
-        borderRadius: 6,
+        borderRadius: 10,
     },
     typography: {
         fontFamily: [
+            "Manrope",
             "-apple-system",
             "BlinkMacSystemFont",
             "Segoe UI",
@@ -49,12 +50,13 @@ const theme = createTheme({
             "Arial",
             "sans-serif",
         ].join(", "),
-        h1: { fontSize: "2rem", fontWeight: 600 },
-        h2: { fontSize: "1.5rem", fontWeight: 600 },
-        h3: { fontSize: "1.25rem", fontWeight: 600 },
-        h4: { fontSize: "1.125rem", fontWeight: 600 },
+        h1: { fontSize: "2rem", fontWeight: 600, fontFamily: '"Fraunces", Georgia, serif' },
+        h2: { fontSize: "1.5rem", fontWeight: 600, fontFamily: '"Fraunces", Georgia, serif' },
+        h3: { fontSize: "1.25rem", fontWeight: 600, fontFamily: '"Fraunces", Georgia, serif' },
+        h4: { fontSize: "1.125rem", fontWeight: 600, fontFamily: '"Fraunces", Georgia, serif' },
         h5: { fontSize: "1rem", fontWeight: 600 },
-        button: { textTransform: "none", fontWeight: 500 },
+        h6: { fontSize: "0.95rem", fontWeight: 600 },
+        button: { textTransform: "none", fontWeight: 600 },
     },
     components: {
         MuiCssBaseline: {
@@ -93,7 +95,7 @@ const theme = createTheme({
         MuiButton: {
             defaultProps: { disableElevation: true },
             styleOverrides: {
-                root: { borderRadius: 6, paddingInline: 16 },
+                root: { borderRadius: 8, paddingInline: 16 },
             },
         },
         MuiAvatar: {

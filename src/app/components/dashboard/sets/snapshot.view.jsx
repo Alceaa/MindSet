@@ -141,7 +141,9 @@ const SnapshotView = () => {
                     </div>
                     <h1 className="articleTitle">{snapshot.title}</h1>
                     <div className="articleMeta">
-                        <span>автор @{snapshot.source_login}</span>
+                        <span>
+                            автор <Link to={`/u/${snapshot.source_login}`}>@{snapshot.source_login}</Link>
+                        </span>
                         <span>сохранён {snapshot.date_saved}</span>
                         <span>обновлён {snapshot.last_update}</span>
                         {snapshot.live_last_activity && (

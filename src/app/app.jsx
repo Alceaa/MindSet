@@ -19,6 +19,8 @@ import LoadingScreen from "./components/common/loading.screen.jsx";
 import PublicSet from "./components/dashboard/sets/public.set.jsx";
 import SnapshotView from "./components/dashboard/sets/snapshot.view.jsx";
 import Explore from "./components/explore/explore.jsx";
+import UserProfile from "./components/profile/user.profile.jsx";
+import ProfileSettings from "./components/profile/profile.settings.jsx";
 
 const SetEditor = React.lazy(() => import("./components/dashboard/sets/set.editor.jsx"));
 
@@ -62,6 +64,18 @@ const router = createBrowserRouter([
             {
                 path: "snapshots/:id",
                 element: <SnapshotView />,
+            },
+            {
+                path: "u/:login",
+                element: <UserProfile />,
+            },
+            {
+                path: "settings",
+                element: (
+                    <RequireAuth>
+                        <ProfileSettings />
+                    </RequireAuth>
+                ),
             },
             {
                 path: "dashboard",

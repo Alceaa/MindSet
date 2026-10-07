@@ -16,6 +16,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: var(--gap);
+    align-items: start;
 }
 
 .setCard {
@@ -28,12 +29,15 @@
     background-color: var(--bg-surface-muted);
     color: var(--text);
     text-decoration: none;
-    transition: border-color 0.15s ease, background-color 0.15s ease;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease,
+        transform 0.15s ease;
 }
 
 .setCard:hover {
-    border-color: #48a0f8;
-    background-color: #262c36;
+    border-color: rgba(226, 176, 83, 0.5);
+    background-color: rgba(226, 176, 83, 0.08);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
     text-decoration: none;
 }
 
@@ -92,6 +96,12 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     background-color: var(--bg-surface-muted);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.savedItem:hover {
+    border-color: rgba(226, 176, 83, 0.5);
+    background-color: rgba(226, 176, 83, 0.08);
 }
 
 .savedItemMain {
@@ -248,4 +258,42 @@
 .mdxEditorHost .mdxContent:focus,
 .mdxEditorHost [class*="_contentEditable_"]:focus {
     outline: none;
+}
+
+.homeSetRow {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: var(--gap-sm);
+    padding: var(--gap-sm) var(--gap);
+    border: 1px solid var(--border-muted);
+    border-radius: var(--radius);
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.homeSetRow:last-child {
+    margin-bottom: 0;
+}
+
+.homeSetRow:hover {
+    border-color: rgba(226, 176, 83, 0.5);
+    background-color: rgba(226, 176, 83, 0.08);
+    text-decoration: none;
+}
+
+.homeSetTitle {
+    color: var(--text);
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.homeSetPreview {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

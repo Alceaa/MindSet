@@ -93,6 +93,14 @@
     text-align: center;
 }
 
+.searchTrigger {
+    gap: 6px;
+}
+
+.searchTriggerLabel {
+    white-space: nowrap;
+}
+
 @media (max-width: 640px) {
     .headerInner {
         gap: var(--gap-sm);
@@ -100,6 +108,10 @@
     }
 
     .mainNav {
+        display: none;
+    }
+
+    .searchTriggerLabel {
         display: none;
     }
 

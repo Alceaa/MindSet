@@ -6,6 +6,7 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import { useAuth } from "../context/auth.context";
+import SearchModal from "./common/search.modal.jsx";
 
 const initialOf = (login) => (login ? login.trim().charAt(0).toUpperCase() : "?");
 
@@ -15,12 +16,13 @@ const Header = () => {
     const location = useLocation();
     const [searchParams] = useSearchParams();
     const [anchorEl, setAnchorEl] = useState(null);
+    const [searchOpen, setSearchOpen] = useState(false);
 
     const isSetsTab = searchParams.get("tab") === "sets";
     const isGraphTab = searchParams.get("tab") === "graph";
     const isExploreTab = location.pathname === "/explore";
-    const isSavedTab = searchParams.get("tab") === "saved";
-    const isHomeTab = !isExploreTab && !isSavedTab && !isSetsTab && !isGraphTab;
+    const isProfileTab = location.pathname.startsWith("/u/") || location.pathname === "/settings";
+    const isHomeTab = !isExploreTab && !isSetsTab && !isGraphTab && !isProfileTab;
 
     const closeMenu = () => setAnchorEl(null);
 
@@ -65,17 +67,21 @@ const Header = () => {
                             >
                                 Граф
                             </Link>
-                            <Link
-                                className={`navLink${isSavedTab ? " navLinkActive" : ""}`}
-                                to="/dashboard?tab=saved"
-                            >
-                                Сохранённые
-                            </Link>
                         </>
                     )}
                 </nav>
 
                 <div className="headerActions">
+                    <button
+                        className="btn btnGhost btnSmall searchTrigger"
+                        type="button"
+                        onClick={() => setSearchOpen(true)}
+                        aria-label="Поиск сетов"
+                    >
+                        <span aria-hidden="true">🔍</span>
+                        <span className="searchTriggerLabel">Поиск</span>
+                    </button>
+
                     {isAuthenticated ? (
                         <>
                             <Link className="btn btnPrimary btnSmall" to="/sets/new">
@@ -86,7 +92,7 @@ const Header = () => {
                                 size="small"
                                 aria-label="Меню пользователя"
                             >
-                                <Avatar src={undefined}>{initialOf(user?.login)}</Avatar>
+                                <Avatar src={user?.avatar || undefined}>{initialOf(user?.login)}</Avatar>
                             </IconButton>
                             <Menu
                                 anchorEl={anchorEl}
@@ -99,6 +105,17 @@ const Header = () => {
                                     <strong>{user?.login}</strong>
                                     <span>{user?.email}</span>
                                 </div>
+                                <Divider />
+                                <MenuItem
+                                    component={Link}
+                                    to={`/u/${user?.login ?? ""}`}
+                                    onClick={closeMenu}
+                                >
+                                    Мой профиль
+                                </MenuItem>
+                                <MenuItem component={Link} to="/settings" onClick={closeMenu}>
+                                    Настройки профиля
+                                </MenuItem>
                                 <Divider />
                                 <MenuItem onClick={handleLogout}>Выйти</MenuItem>
                             </Menu>
@@ -115,6 +132,8 @@ const Header = () => {
                     )}
                 </div>
             </div>
+
+            <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
         </header>
     );
 };

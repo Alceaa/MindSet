@@ -21,7 +21,8 @@ const setColumns = `id, user_id, title, title_key, slug, visibility, forbid_copi
 const setSummaryColumns = `id, user_id, title, slug, visibility, forbid_copies,
 	coalesce(description, '') AS description,
 	to_char(date_created, 'YYYY-MM-DD') AS date_created,
-	to_char(last_activity, 'YYYY-MM-DD') AS last_activity`
+	to_char(last_activity, 'YYYY-MM-DD') AS last_activity,
+	left(coalesce(content, ''), 280) AS preview`
 
 func scanSet(row pgx.Row) (*models.Set, error) {
 	var set models.Set
@@ -59,6 +60,7 @@ func scanSetSummary(row pgx.Row) (*models.Set, error) {
 		&set.Description,
 		&set.DateCreated,
 		&set.LastActivity,
+		&set.Preview,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -305,15 +307,21 @@ const publicSetColumns = `s.id, s.user_id, s.title, s.slug, s.visibility, s.forb
 	coalesce(s.description, '') AS description,
 	to_char(s.date_created, 'YYYY-MM-DD') AS date_created,
 	to_char(s.last_activity, 'YYYY-MM-DD') AS last_activity,
-	u.login AS author_login`
+	u.login AS author_login,
+	coalesce(u.avatar, '') AS author_avatar,
+	left(coalesce(s.content, ''), 280) AS preview,
+	(SELECT count(*) FROM set_likes l WHERE l.set_id = s.id) AS likes_count,
+	(SELECT count(*) FROM set_comments cm WHERE cm.set_id = s.id) AS comments_count,
+	(@viewer > 0 AND EXISTS(SELECT 1 FROM set_likes l2 WHERE l2.set_id = s.id AND l2.user_id = @viewer)) AS is_liked`
 
 const publicSetsFilter = `s.visibility = 'public'
 	  AND (@search = '' OR s.title ILIKE '%' || @search || '%' OR coalesce(s.description, '') ILIKE '%' || @search || '%')`
 
 func scanPublicSet(row pgx.Row) (*models.Set, error) {
 	var (
-		set   models.Set
-		login string
+		set    models.Set
+		login  string
+		avatar string
 	)
 	err := row.Scan(
 		&set.ID,
@@ -326,6 +334,11 @@ func scanPublicSet(row pgx.Row) (*models.Set, error) {
 		&set.DateCreated,
 		&set.LastActivity,
 		&login,
+		&avatar,
+		&set.Preview,
+		&set.LikesCount,
+		&set.CommentsCount,
+		&set.IsLiked,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -334,11 +347,11 @@ func scanPublicSet(row pgx.Row) (*models.Set, error) {
 		return nil, fmt.Errorf("scan public set: %w", err)
 	}
 
-	set.Author = &models.SetAuthor{Login: login}
+	set.Author = &models.SetAuthor{Login: login, Avatar: avatar}
 	return &set, nil
 }
 
-func GetPublicSets(ctx context.Context, search string, limit, offset int) ([]*models.Set, int, error) {
+func GetPublicSets(ctx context.Context, search string, viewerID, limit, offset int) ([]*models.Set, int, error) {
 	conn, err := pool()
 	if err != nil {
 		return nil, 0, err
@@ -353,6 +366,7 @@ func GetPublicSets(ctx context.Context, search string, limit, offset int) ([]*mo
 
 	rows, err := conn.Query(ctx, query, pgx.NamedArgs{
 		"search": search,
+		"viewer": viewerID,
 		"limit":  limit,
 		"offset": offset,
 	})
@@ -378,6 +392,70 @@ func GetPublicSets(ctx context.Context, search string, limit, offset int) ([]*mo
 	var total int
 	if err := conn.QueryRow(ctx, countQuery, pgx.NamedArgs{"search": search}).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count public sets: %w", err)
+	}
+
+	return sets, total, nil
+}
+
+// GetPublicSetsByUser возвращает публичные сеты конкретного автора.
+// sort = "popular" — по числу сохранённых копий, затем по беклинкам и дате;
+// иначе — по дате последней активности.
+func GetPublicSetsByUser(ctx context.Context, userID, viewerID int, sort string, limit, offset int) ([]*models.Set, int, error) {
+	conn, err := pool()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	order := "s.last_activity DESC, s.id DESC"
+	join := ""
+	if sort == "popular" {
+		join = `LEFT JOIN (
+			SELECT set_id, count(*) AS copies
+			FROM saved_sets
+			WHERE set_id IS NOT NULL
+			GROUP BY set_id
+		) c ON c.set_id = s.id
+		`
+		order = "coalesce(c.copies, 0) DESC, s.last_activity DESC, s.id DESC"
+	}
+
+	query := `SELECT ` + publicSetColumns + `
+	FROM sets s
+	JOIN users u ON u.id = s.user_id
+	` + join + `
+	WHERE s.user_id = @user_id AND s.visibility = 'public'
+	ORDER BY ` + order + `
+	LIMIT @limit OFFSET @offset`
+
+	rows, err := conn.Query(ctx, query, pgx.NamedArgs{
+		"user_id": userID,
+		"viewer":  viewerID,
+		"limit":   limit,
+		"offset":  offset,
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("list user public sets: %w", err)
+	}
+	defer rows.Close()
+
+	sets := make([]*models.Set, 0)
+	for rows.Next() {
+		set, err := scanPublicSet(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		sets = append(sets, set)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("list user public sets: %w", err)
+	}
+
+	var total int
+	if err := conn.QueryRow(ctx,
+		`SELECT count(*) FROM sets WHERE user_id = @user_id AND visibility = 'public'`,
+		pgx.NamedArgs{"user_id": userID},
+	).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count user public sets: %w", err)
 	}
 
 	return sets, total, nil

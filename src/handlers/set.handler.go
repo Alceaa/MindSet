@@ -276,7 +276,12 @@ func GetPublicSets(c *fiber.Ctx) error {
 		search = string(runes[:publicSearchMaxLength])
 	}
 
-	sets, total, err := db.GetPublicSets(c.Context(), search, limit, offset)
+	viewerID := 0
+	if viewer, ok := middlewares.CurrentUser(c); ok {
+		viewerID = viewer.ID
+	}
+
+	sets, total, err := db.GetPublicSets(c.Context(), search, viewerID, limit, offset)
 	if err != nil {
 		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось загрузить публичные сеты", err)
 	}

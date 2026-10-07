@@ -27,6 +27,10 @@ go.work.sum
 # Logs
 *.log
 
+# Загруженные файлы (аватары и др.)
+uploads/
+
+
 # Editor/IDE
 # .idea/
 # .vscode/

@@ -23,9 +23,25 @@ func SetupRoutes(app fiber.Router) {
 	sets.Delete("/:id", handlers.DeleteSet)
 
 	public := app.Group("/public")
-	public.Get("/sets", handlers.GetPublicSets)
+	public.Get("/sets", middlewares.OptionalAuth, handlers.GetPublicSets)
 	public.Get("/sets/:slug", handlers.GetPublicSet)
+	public.Get("/sets/:slug/likes", middlewares.OptionalAuth, handlers.GetSetLikes)
+	public.Get("/sets/:slug/comments", handlers.ListSetComments)
+	public.Post("/sets/:slug/like", middlewares.ValidateAccessToken, handlers.LikeSet)
+	public.Delete("/sets/:slug/like", middlewares.ValidateAccessToken, handlers.UnlikeSet)
+	public.Post("/sets/:slug/comments", middlewares.ValidateAccessToken, middlewares.RequireJSONBody, handlers.CreateComment)
 	public.Get("/snapshots/:id", handlers.GetPublicSnapshot)
+	public.Get("/users/:login", middlewares.OptionalAuth, handlers.GetPublicProfile)
+	public.Get("/users/:login/sets", middlewares.OptionalAuth, handlers.GetPublicUserSets)
+
+	app.Get("/feed", middlewares.OptionalAuth, handlers.GetFeed)
+	app.Delete("/comments/:id", middlewares.ValidateAccessToken, handlers.DeleteComment)
+
+	users := app.Group("/users", middlewares.ValidateAccessToken)
+	users.Put("/me", handlers.UpdateMe)
+	users.Post("/me/avatar", handlers.UploadAvatar)
+	users.Post("/:id/follow", handlers.Follow)
+	users.Delete("/:id/follow", handlers.Unfollow)
 
 	saved := app.Group("/saved-sets", middlewares.ValidateAccessToken)
 	saved.Get("", handlers.GetSavedSets)

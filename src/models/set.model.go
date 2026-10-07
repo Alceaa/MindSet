@@ -30,13 +30,18 @@ type Set struct {
 	ForbidCopies bool       `json:"forbid_copies" db:"forbid_copies"`
 	Description  string     `json:"description" db:"description"`
 	Content      string     `json:"content,omitempty" db:"content"`
-	DateCreated  string     `json:"date_created" db:"date_created"`
-	LastActivity string     `json:"last_activity" db:"last_activity"`
-	Author       *SetAuthor `json:"author,omitempty" db:"-"`
+	DateCreated   string     `json:"date_created" db:"date_created"`
+	LastActivity  string     `json:"last_activity" db:"last_activity"`
+	Preview       string     `json:"preview,omitempty" db:"-"`
+	LikesCount    int        `json:"likes_count" db:"-"`
+	CommentsCount int        `json:"comments_count" db:"-"`
+	IsLiked       bool       `json:"is_liked" db:"-"`
+	Author        *SetAuthor `json:"author,omitempty" db:"-"`
 }
 
 type SetAuthor struct {
-	Login string `json:"login"`
+	Login  string `json:"login"`
+	Avatar string `json:"avatar,omitempty"`
 }
 
 type SnapshotState string

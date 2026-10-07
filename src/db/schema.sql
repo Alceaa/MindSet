@@ -188,3 +188,64 @@ ALTER TABLE saved_sets
     ADD COLUMN IF NOT EXISTS tombstone_id integer
     REFERENCES set_tombstones (id) ON DELETE SET NULL;
 
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar varchar NOT NULL DEFAULT '';
+
+-- Логин хранится в исходном регистре (для отображения), но уникален без учёта регистра,
+-- чтобы «Admin» и «admin» не создавали два разных профиля.
+-- Индекс создаётся только если в данных ещё нет логинов, отличающихся лишь регистром.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM users GROUP BY lower(login) HAVING count(*) > 1) THEN
+        RAISE NOTICE 'users_login_lower_idx не создан: есть логины, различающиеся только регистром';
+    ELSE
+        EXECUTE 'CREATE UNIQUE INDEX IF NOT EXISTS users_login_lower_idx ON users (lower(login))';
+    END IF;
+END $$;
+
+CREATE TABLE IF NOT EXISTS follows (
+    follower_id   integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    followed_id   integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    date_followed date    NOT NULL DEFAULT CURRENT_DATE,
+    PRIMARY KEY (follower_id, followed_id)
+);
+
+ALTER TABLE follows DROP CONSTRAINT IF EXISTS follows_not_self_check;
+
+DO $$
+BEGIN
+    ALTER TABLE follows
+        ADD CONSTRAINT follows_not_self_check
+        CHECK (follower_id <> followed_id);
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE INDEX IF NOT EXISTS follows_followed_idx ON follows (followed_id);
+CREATE INDEX IF NOT EXISTS follows_follower_idx ON follows (follower_id);
+
+CREATE TABLE IF NOT EXISTS set_likes (
+    set_id     integer NOT NULL REFERENCES sets (id) ON DELETE CASCADE,
+    user_id    integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    date_liked timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (set_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS set_likes_set_idx ON set_likes (set_id);
+
+CREATE TABLE IF NOT EXISTS set_comments (
+    id           serial PRIMARY KEY,
+    set_id       integer NOT NULL REFERENCES sets (id) ON DELETE CASCADE,
+    user_id      integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    body         text NOT NULL,
+    date_created timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS set_comments_set_idx ON set_comments (set_id, id);
+
+CREATE TABLE IF NOT EXISTS announcements (
+    id          serial PRIMARY KEY,
+    title       varchar NOT NULL,
+    body        text NOT NULL,
+    date_posted date NOT NULL DEFAULT CURRENT_DATE
+);
+

@@ -39,6 +39,31 @@ func ValidateAccessToken(c *fiber.Ctx) error {
 	return c.Next()
 }
 
+// OptionalAuth извлекает пользователя из access-токена, если он валиден,
+// но не завершает запрос ошибкой для анонимных посетителей.
+func OptionalAuth(c *fiber.Ctx) error {
+	token := accessTokenFromRequest(c)
+	if token == "" {
+		return c.Next()
+	}
+
+	claims, err := utils.ParseAccessToken(token)
+	if err != nil {
+		return c.Next()
+	}
+
+	userID, err := strconv.Atoi(claims.Subject)
+	if err != nil {
+		return c.Next()
+	}
+
+	user, err := db.GetUserById(c.Context(), userID)
+	if err == nil && user != nil {
+		c.Locals(UserLocalKey, user)
+	}
+	return c.Next()
+}
+
 func ValidateRefreshToken(c *fiber.Ctx) error {
 	token := refreshTokenFromRequest(c)
 	if token == "" {

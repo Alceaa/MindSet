@@ -39,6 +39,8 @@ type apiUser struct {
 	Login    string `json:"login"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	Bio      string `json:"bio"`
+	Avatar   string `json:"avatar"`
 }
 
 type apiSet struct {

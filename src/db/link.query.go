@@ -189,6 +189,7 @@ func GetSetLinks(ctx context.Context, setID, userID int) ([]*models.SetLink, err
 			snapshot.LiveActivity = link.TargetActivity
 			link.SnapshotID = snapshot.ID
 			link.SnapshotTitle = snapshot.Title
+			link.SnapshotOwn = true
 			link.SnapshotState = string(SnapshotStateOf(&snapshot, models.Visibility(targetVisibility)))
 		}
 		result = append(result, &link)
@@ -227,6 +228,7 @@ func annotateLinksWithSnapshots(ctx context.Context, userID int, links []*models
 
 		link.SnapshotID = saved.ID
 		link.SnapshotTitle = saved.Title
+		link.SnapshotOwn = true
 		link.SnapshotState = string(saved.State)
 	}
 
@@ -387,7 +389,10 @@ func GetGraph(ctx context.Context, userID int) (*models.Graph, error) {
 	  n.own,
 	  n.slug,
 	  n.login,
-	  n.snapshot_id
+	  n.snapshot_id,
+	  n.frozen,
+	  n.deleted,
+	  n.days_left
 	FROM (
 	  SELECT
 	    s.id,
@@ -407,7 +412,10 @@ func GetGraph(ctx context.Context, userID int) (*models.Graph, error) {
 	    true AS own,
 	    s.slug,
 	    u.login,
-	    0 AS snapshot_id
+	    0 AS snapshot_id,
+	    false AS frozen,
+	    false AS deleted,
+	    0 AS days_left
 	  FROM sets s
 	  JOIN users u ON u.id = s.user_id
 	  WHERE s.user_id = @user_id
@@ -428,7 +436,10 @@ func GetGraph(ctx context.Context, userID int) (*models.Graph, error) {
 	    false,
 	    t.slug,
 	    tu.login,
-	    coalesce(ss.id, 0)
+	    coalesce(ss.id, 0),
+	    coalesce(ss.frozen, false),
+	    false,
+	    0
 	  FROM (
 	    SELECT DISTINCT l.to_set_id AS id
 	    FROM set_links l
@@ -443,6 +454,25 @@ func GetGraph(ctx context.Context, userID int) (*models.Graph, error) {
 	   AND ss.set_id = t.id
 	  WHERE t.user_id <> @user_id
 	    AND t.visibility IN ('public', 'unlisted')
+
+	  UNION ALL
+
+	  SELECT
+	    st.set_id,
+	    ss.title,
+	    0,
+	    0,
+	    ss.last_update,
+	    false,
+	    ss.source_slug,
+	    ss.source_login,
+	    ss.id,
+	    ss.frozen,
+	    true,
+	    greatest(st.deadline - CURRENT_DATE, 0)
+	  FROM saved_sets ss
+	  JOIN set_tombstones st ON st.id = ss.tombstone_id
+	  WHERE ss.owner_user_id = @user_id
 	) n
 	ORDER BY n.own DESC, n.id`
 
@@ -467,6 +497,9 @@ func GetGraph(ctx context.Context, userID int) (*models.Graph, error) {
 			&node.Slug,
 			&node.Login,
 			&node.SnapshotID,
+			&node.Frozen,
+			&node.Deleted,
+			&node.DaysLeft,
 		); err != nil {
 			nodes.Close()
 			return nil, fmt.Errorf("scan graph node: %w", err)
@@ -509,6 +542,20 @@ directed AS (
           AND source.id IN (SELECT ext_id FROM scope)
         )
       )
+    UNION ALL
+    SELECT source.id AS from_id, st.set_id AS to_id
+    FROM set_links l
+    JOIN sets source ON source.id = l.from_set_id
+    JOIN saved_sets ss
+      ON ss.owner_user_id = @user_id
+     AND lower(ss.source_login) = lower(l.target_login)
+     AND ss.source_slug = l.target_slug
+    JOIN set_tombstones st ON st.id = ss.tombstone_id
+    WHERE source.user_id = @user_id
+      AND l.to_set_id IS NULL
+      AND l.target_login <> ''
+      AND l.target_slug <> ''
+      AND st.set_id <> source.id
 )
 SELECT
     CASE WHEN p.directions > 1 OR p.low_to_high THEN p.low  ELSE p.high END AS from_id,
@@ -543,4 +590,76 @@ ORDER BY 1, 2`
 	}
 
 	return graph, nil
+}
+
+// ResolveBioLinks разрешает вики-ссылки [[Сет]] в биографии профиля в связи
+// с сетами автора. Для гостей и других пользователей ведут на публичный/по-ссылке
+// адрес, для самого автора — на редактируемый сет.
+func ResolveBioLinks(ctx context.Context, authorID, viewerID int, bio string) ([]*models.SetLink, error) {
+	parsed := links.Parse(bio)
+	if len(parsed) == 0 {
+		return []*models.SetLink{}, nil
+	}
+
+	conn, err := pool()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := conn.Query(ctx,
+		`SELECT title_key, id, title, slug, visibility
+		 FROM sets
+		 WHERE user_id = @user_id`,
+		pgx.NamedArgs{"user_id": authorID},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("bio links: %w", err)
+	}
+	defer rows.Close()
+
+	type bioTarget struct {
+		id         int
+		title      string
+		slug       string
+		visibility string
+	}
+
+	byKey := map[string]bioTarget{}
+	for rows.Next() {
+		var key string
+		var target bioTarget
+		if err := rows.Scan(&key, &target.id, &target.title, &target.slug, &target.visibility); err != nil {
+			return nil, fmt.Errorf("scan bio target: %w", err)
+		}
+		byKey[key] = target
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("bio links: %w", err)
+	}
+
+	own := viewerID > 0 && viewerID == authorID
+
+	result := make([]*models.SetLink, 0, len(parsed))
+	for _, link := range parsed {
+		item := &models.SetLink{Label: link.Label, Alias: link.Alias}
+
+		target, ok := byKey[link.Key]
+		if !ok {
+			result = append(result, item)
+			continue
+		}
+
+		readable := target.visibility == string(models.VisibilityPublic) ||
+			target.visibility == string(models.VisibilityUnlisted)
+
+		item.TargetID = target.id
+		item.TargetTitle = target.title
+		item.TargetSlug = target.slug
+		item.Own = own
+		item.LiveAvailable = readable || own
+
+		result = append(result, item)
+	}
+
+	return result, nil
 }

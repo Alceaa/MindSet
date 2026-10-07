@@ -35,6 +35,7 @@ func main() {
 	app := fiber.New(fiber.Config{
 		AppName:      "MindSet API",
 		BodyLimit:    4 * 1024 * 1024,
+		UnescapePath: true,
 		ErrorHandler: jsonErrorHandler,
 	})
 
@@ -63,6 +64,7 @@ func main() {
 
 	app.Get("/health", handlers.Health)
 	routes.SetupRoutes(app)
+	app.Static("/media", "./uploads")
 
 	go waitForShutdown(app)
 

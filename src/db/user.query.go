@@ -10,11 +10,11 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const userColumns = `id, login, email, password, coalesce(bio, '') AS bio, coalesce(to_char(date_joined, 'YYYY-MM-DD'), '') AS date_joined`
+const userColumns = `id, login, email, password, coalesce(bio, '') AS bio, coalesce(avatar, '') AS avatar, coalesce(to_char(date_joined, 'YYYY-MM-DD'), '') AS date_joined`
 
 func scanUser(row pgx.Row) (*models.User, error) {
 	var user models.User
-	err := row.Scan(&user.ID, &user.Login, &user.Email, &user.Password, &user.Bio, &user.DateJoined)
+	err := row.Scan(&user.ID, &user.Login, &user.Email, &user.Password, &user.Bio, &user.Avatar, &user.DateJoined)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -53,7 +53,7 @@ func GetUserByEmail(ctx context.Context, email string) (*models.User, error) {
 }
 
 func GetUserByLogin(ctx context.Context, login string) (*models.User, error) {
-	query := `SELECT ` + userColumns + ` FROM users WHERE login = @login`
+	query := `SELECT ` + userColumns + ` FROM users WHERE lower(login) = lower(@login)`
 
 	return getSingleUser(ctx, "get user by login", query, pgx.NamedArgs{"login": login})
 }
@@ -71,7 +71,7 @@ func FindLoginOrEmailConflict(ctx context.Context, login, email string) (loginTa
 	}
 
 	query := `SELECT
-	  EXISTS(SELECT 1 FROM users WHERE login = @login),
+	  EXISTS(SELECT 1 FROM users WHERE lower(login) = lower(@login)),
 	  EXISTS(SELECT 1 FROM users WHERE email = @email)`
 
 	err = conn.QueryRow(ctx, query, pgx.NamedArgs{"login": login, "email": email}).
@@ -80,6 +80,84 @@ func FindLoginOrEmailConflict(ctx context.Context, login, email string) (loginTa
 		return false, false, fmt.Errorf("check login/email conflict: %w", err)
 	}
 	return loginTaken, emailTaken, nil
+}
+
+const profileQuery = `SELECT
+	u.id,
+	u.login,
+	coalesce(u.avatar, '') AS avatar,
+	coalesce(u.bio, '') AS bio,
+	coalesce(to_char(u.date_joined, 'YYYY-MM-DD'), '') AS date_joined,
+	coalesce((SELECT to_char(MAX(last_activity), 'YYYY-MM-DD')
+	          FROM sets
+	          WHERE user_id = u.id AND visibility = 'public'), '') AS last_public_activity,
+	(SELECT count(*) FROM sets WHERE user_id = u.id AND visibility = 'public') AS public_set_count,
+	(SELECT count(*) FROM sets WHERE user_id = u.id AND visibility <> 'public') AS private_set_count,
+	(SELECT count(*) FROM follows WHERE followed_id = u.id) AS followers_count,
+	(SELECT count(*) FROM follows WHERE follower_id = u.id) AS following_count
+FROM users u
+WHERE lower(u.login) = lower(@login)`
+
+func GetProfileByLogin(ctx context.Context, login string) (*models.Profile, error) {
+	conn, err := pool()
+	if err != nil {
+		return nil, err
+	}
+
+	var profile models.Profile
+	err = conn.QueryRow(ctx, profileQuery, pgx.NamedArgs{"login": login}).Scan(
+		&profile.ID,
+		&profile.Login,
+		&profile.Avatar,
+		&profile.Bio,
+		&profile.DateJoined,
+		&profile.LastPublicActivity,
+		&profile.PublicSetCount,
+		&profile.PrivateSetCount,
+		&profile.FollowersCount,
+		&profile.FollowingCount,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("get profile: %w", err)
+	}
+	return &profile, nil
+}
+
+func UpdateUserBio(ctx context.Context, userID int, bio string) (*models.User, error) {
+	conn, err := pool()
+	if err != nil {
+		return nil, err
+	}
+
+	query := `UPDATE users SET bio = @bio WHERE id = @id RETURNING ` + userColumns
+	updated, err := scanUser(conn.QueryRow(ctx, query, pgx.NamedArgs{"id": userID, "bio": bio}))
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("update user bio: %w", err)
+	}
+	return updated, nil
+}
+
+func SetUserAvatar(ctx context.Context, userID int, avatar string) (*models.User, error) {
+	conn, err := pool()
+	if err != nil {
+		return nil, err
+	}
+
+	query := `UPDATE users SET avatar = @avatar WHERE id = @id RETURNING ` + userColumns
+	updated, err := scanUser(conn.QueryRow(ctx, query, pgx.NamedArgs{"id": userID, "avatar": avatar}))
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("set user avatar: %w", err)
+	}
+	return updated, nil
 }
 
 func getSingleUser(ctx context.Context, operation, query string, args pgx.NamedArgs) (*models.User, error) {

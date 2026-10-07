@@ -15,6 +15,7 @@ type SetLink struct {
 	SnapshotState  string `json:"snapshot_state,omitempty"`
 	SnapshotID     int    `json:"snapshot_id,omitempty"`
 	SnapshotTitle  string `json:"snapshot_title,omitempty"`
+	SnapshotOwn    bool   `json:"snapshot_own,omitempty"`
 	LiveAvailable  bool   `json:"live_available"`
 	TargetLogin    string `json:"target_login,omitempty"`
 	TargetSlugKey  string `json:"target_slug_key,omitempty"`
@@ -37,6 +38,9 @@ type GraphNode struct {
 	Slug       string `json:"slug"`
 	Login      string `json:"login"`
 	SnapshotID int    `json:"snapshot_id"`
+	Frozen     bool   `json:"frozen"`
+	Deleted    bool   `json:"deleted"`
+	DaysLeft   int    `json:"days_left"`
 }
 
 type GraphEdge struct {

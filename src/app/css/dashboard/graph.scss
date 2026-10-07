@@ -66,6 +66,17 @@
     transition: fill 0.15s ease;
 }
 
+.graphNodeExternal circle {
+    fill: rgba(210, 153, 34, 0.16);
+    stroke: #d29922;
+    stroke-dasharray: 5 4;
+    stroke-width: 2;
+}
+
+.graphNodeExternal text {
+    fill: var(--text-faint);
+}
+
 .graphNode text {
     fill: var(--text-muted);
     font-size: 12px;
@@ -190,6 +201,13 @@
 .wikilinkOptionTitle {
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wikilinkOptionBadge {
+    flex-shrink: 0;
+    color: var(--text-faint);
+    font-size: 11px;
     white-space: nowrap;
 }
 

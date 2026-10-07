@@ -29,13 +29,24 @@ const setKey = (id) => `s${id}`;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 function buildNodes(graph) {
-    return graph.nodes.map((node) => ({
-        key: setKey(node.id),
-        id: node.id,
-        title: node.title,
-        radius: 10 + Math.min(node.links + node.backlinks, 8) * 1.8,
-        hint: `Связей: ${node.links} · Обратных: ${node.backlinks} · Изменён: ${node.updated}`,
-    }));
+    return graph.nodes.map((node) => {
+        const own = node.own !== false;
+        const shares = `Связей: ${node.links} · Обратных: ${node.backlinks}`;
+
+        return {
+            key: setKey(node.id),
+            id: node.id,
+            title: node.title,
+            own,
+            slug: node.slug ?? "",
+            login: node.login ?? "",
+            snapshotId: node.snapshot_id ?? 0,
+            radius: 10 + Math.min(node.links + node.backlinks, 8) * 1.8,
+            hint: own
+                ? `${shares} · Изменён: ${node.updated}`
+                : `Внешний сет @${node.login} · ${shares}`,
+        };
+    });
 }
 
 function buildEdges(graph, nodes) {
@@ -328,6 +339,11 @@ const Graph = () => {
         }
     }, [applyData]);
 
+    const resetView = useCallback(() => {
+        setView({ scale: 1, x: 0, y: 0 });
+        animateTo(new Map(Object.entries(restRef.current)));
+    }, [animateTo]);
+
     useEffect(() => {
         load();
     }, [load]);
@@ -457,20 +473,30 @@ const Graph = () => {
             dragged.current = false;
             return;
         }
-        if (node.kind === "set") {
+        if (node.own) {
             navigate(`/sets/${node.id}`);
+            return;
+        }
+        if (node.snapshotId > 0) {
+            navigate(`/snapshots/${node.snapshotId}`);
+            return;
+        }
+        if (node.slug) {
+            navigate(`/s/${node.slug}`);
         }
     };
 
+    const ownCount = graph.nodes.filter((node) => node.own !== false).length;
+    const externalCount = graph.nodes.length - ownCount;
     const isolated = graph.nodes.filter((node) => node.links + node.backlinks === 0).length;
     const oneSidedCount = graph.edges.filter((edge) => edge.one_sided).length;
 
-    const nodeClassName = (key) => {
-        const classes = ["graphNode", "graphNodeSet"];
+    const nodeClassName = (node) => {
+        const classes = ["graphNode", node.own ? "graphNodeSet" : "graphNodeExternal"];
         if (activeKey) {
-            if (key === activeKey) {
+            if (node.key === activeKey) {
                 classes.push("graphNodeActive");
-            } else if (neighbors.get(activeKey)?.has(key)) {
+            } else if (neighbors.get(activeKey)?.has(node.key)) {
                 classes.push("graphNodeNeighbor");
             } else {
                 classes.push("graphNodeDim");
@@ -523,7 +549,13 @@ const Graph = () => {
     return (
         <div className="graphPanel">
             <div className="graphToolbar">
-                <span className="badge">Сетов: {graph.nodes.length}</span>
+                <span className="badge">Своих сетов: {ownCount}</span>
+                {externalCount > 0 && (
+                    <span className="badge">
+                        <span className="oneSidedMark">◇</span>
+                        Внешних: {externalCount}
+                    </span>
+                )}
                 <span className="badge">Связей: {graph.edges.length}</span>
                 {oneSidedCount > 0 && (
                     <span className="badge">
@@ -535,11 +567,14 @@ const Graph = () => {
                 <div className="graphActions">
                     <button
                         className="btn btnGhost btnSmall"
-                        onClick={() => setView({ scale: 1, x: 0, y: 0 })}
+                        onClick={resetView}
                     >
                         Сбросить вид
                     </button>
-                    <button className="btn btnGhost btnSmall" onClick={load}>
+                    <button
+                        className="btn btnGhost btnSmall"
+                        onClick={load}
+                    >
                         Обновить
                     </button>
                 </div>
@@ -583,14 +618,28 @@ const Graph = () => {
                         if (!from || !to) {
                             return null;
                         }
+
+                        let x2 = to.x;
+                        let y2 = to.y;
+
+                        if (edge.oneSided) {
+                            const target = nodes.find((node) => node.key === edge.to);
+                            const gap = (target?.radius ?? 10) + 5;
+                            const dx = to.x - from.x;
+                            const dy = to.y - from.y;
+                            const distance = Math.hypot(dx, dy) || 1;
+                            x2 = to.x - (dx / distance) * gap;
+                            y2 = to.y - (dy / distance) * gap;
+                        }
+
                         return (
                             <line
                                 key={edge.key}
                                 className={edgeClassName(edge)}
                                 x1={from.x}
                                 y1={from.y}
-                                x2={to.x}
-                                y2={to.y}
+                                x2={x2}
+                                y2={y2}
                                 markerEnd={edge.oneSided ? "url(#graphArrow)" : undefined}
                             />
                         );
@@ -604,7 +653,7 @@ const Graph = () => {
                         return (
                             <g
                                 key={node.key}
-                                className={nodeClassName(node.key)}
+                                className={nodeClassName(node)}
                                 transform={`translate(${position.x}, ${position.y})`}
                                 onMouseDown={(event) => nodeMouseDown(event, node.key)}
                                 onClick={() => nodeClick(node)}
@@ -625,7 +674,8 @@ const Graph = () => {
             <p className="graphHint">
                 Клик по кругу — открыть сет, перетаскивание — подвинуть (узлы расступаются),
                 колесо — зум, фон — сдвинуть граф. Сплошная линия — взаимные ссылки, стрелка —
-                односторонняя: сет ссылается на соседа, но на него не ссылаются.
+                односторонняя: сет ссылается на соседа, но на него не ссылаются. Пунктирный
+                круг — чужой публичный сет, на который ссылаются ваши сеты.
             </p>
         </div>
     );

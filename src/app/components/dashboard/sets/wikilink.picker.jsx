@@ -35,7 +35,7 @@ const WikilinkPicker = ({ query, options, activeIndex, position, error, onPick, 
             ) : (
                 <ul className="wikilinkList">
                     {options.map((option, index) => (
-                        <li key={option.title}>
+                        <li key={option.key ?? option.title}>
                             <button
                                 type="button"
                                 className={`wikilinkOption${
@@ -47,6 +47,9 @@ const WikilinkPicker = ({ query, options, activeIndex, position, error, onPick, 
                                 }}
                             >
                                 <span className="wikilinkOptionTitle">{option.title}</span>
+                                {option.badge ? (
+                                    <span className="wikilinkOptionBadge">{option.badge}</span>
+                                ) : null}
                             </button>
                         </li>
                     ))}

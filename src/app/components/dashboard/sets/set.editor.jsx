@@ -36,6 +36,7 @@ import parseApiError from "../../../utils/api.error";
 import LoadingScreen from "../../common/loading.screen.jsx";
 import SetArticle from "./set.article.jsx";
 import SetSidebar from "./set.sidebar.jsx";
+import { buildPickerOptions } from "./picker.options";
 import WikilinkPicker from "./wikilink.picker.jsx";
 import ReaderSettings from "./reader.settings.jsx";
 import useReaderSettings from "../../../hooks/use.reader.settings";
@@ -169,9 +170,11 @@ const SetEditorInner = () => {
     const [links, setLinks] = useState([]);
     const [backlinks, setBacklinks] = useState([]);
     const [allSets, setAllSets] = useState([]);
+    const [savedSets, setSavedSets] = useState([]);
 
     const [saving, setSaving] = useState(false);
     const [removing, setRemoving] = useState(false);
+    const [deleteDialog, setDeleteDialog] = useState(null);
     const [actionError, setActionError] = useState("");
     const [fieldErrors, setFieldErrors] = useState({});
     const [savedAt, setSavedAt] = useState("");
@@ -279,6 +282,19 @@ const SetEditorInner = () => {
                 }
             });
 
+        setService
+            .getSavedSets()
+            .then((data) => {
+                if (active) {
+                    setSavedSets(data.saved ?? []);
+                }
+            })
+            .catch(() => {
+                if (active) {
+                    setSavedSets([]);
+                }
+            });
+
         return () => {
             active = false;
         };
@@ -345,21 +361,34 @@ const SetEditorInner = () => {
             return;
         }
 
-        if (!window.confirm(`Удалить сет «${set.title}»? Это действие необратимо.`)) {
-            return;
-        }
+        const stats = await setService.getSetCopyStats(set.id).catch(() => null);
 
-        setRemoving(true);
-        setActionError("");
+        setDeleteDialog({
+            copyCount: stats?.copy_count ?? 0,
+            accountCount: stats?.account_count ?? 0,
+        });
+    }, [set, removing]);
 
-        try {
-            await setService.deleteSet(set.id);
-            navigate("/dashboard?tab=sets", { replace: true });
-        } catch (error) {
-            setActionError(parseApiError(error).message);
-            setRemoving(false);
-        }
-    }, [set, removing, navigate]);
+    const performDelete = useCallback(
+        async (forbidCopies) => {
+            if (!set) {
+                return;
+            }
+
+            setDeleteDialog(null);
+            setRemoving(true);
+            setActionError("");
+
+            try {
+                await setService.deleteSet(set.id, { forbid_copies: forbidCopies });
+                navigate("/dashboard?tab=sets", { replace: true });
+            } catch (error) {
+                setActionError(parseApiError(error).message);
+                setRemoving(false);
+            }
+        },
+        [set, navigate]
+    );
 
     useEffect(() => {
         const handleKeyDown = (event) => {
@@ -398,7 +427,7 @@ const SetEditorInner = () => {
     }, [dirty]);
 
     const insertWikilink = useCallback(
-        (value, withAlias) => {
+        (value, withAlias, alias) => {
             const editor = realm?.getValue(rootEditor$);
 
             if (!editor) {
@@ -415,7 +444,14 @@ const SetEditorInner = () => {
                 return;
             }
 
-            const instruction = withAlias ? `[[${value}|]]` : `[[${value}]]`;
+            const instruction =
+                alias != null
+                    ? `[[${value}|${alias}]]`
+                    : withAlias
+                      ? `[[${value}|]]`
+                      : `[[${value}]]`;
+            const caretOffset =
+                alias != null || !withAlias ? instruction.length : instruction.length - 2;
             let placed = false;
 
             editor.update(() => {
@@ -442,7 +478,7 @@ const SetEditorInner = () => {
                     text.slice(0, range.start) + instruction + text.slice(range.end)
                 );
 
-                const caret = range.start + (withAlias ? instruction.length - 2 : instruction.length);
+                const caret = range.start + caretOffset;
                 anchorNode.select(caret, caret);
                 placed = true;
             });
@@ -489,17 +525,23 @@ const SetEditorInner = () => {
         setPicker({ query: "", left: 16, top: 64 });
     }, []);
 
-    const pickerOptions = useMemo(() => {
-        const needle = (picker?.query ?? "").trim().toLowerCase();
-        return allSets
-            .filter((item) => item.id !== set?.id)
-            .filter((item) => !needle || item.title.toLowerCase().includes(needle))
-            .slice(0, 12)
-            .map((item) => ({ title: item.title }));
-    }, [picker, allSets, set]);
+    const pickerOptions = useMemo(
+        () =>
+            buildPickerOptions({
+                allSets,
+                savedSets,
+                currentSetId: set?.id,
+                query: picker?.query ?? "",
+            }),
+        [picker, allSets, savedSets, set]
+    );
 
     const handlePick = useCallback(
         (option, withAlias) => {
+            if (option.ref) {
+                insertWikilink(option.ref, withAlias, option.title);
+                return;
+            }
             insertWikilink(option.title, withAlias);
         },
         [insertWikilink]
@@ -910,6 +952,56 @@ const SetEditorInner = () => {
                     </div>
                 )}
             </div>
+
+            {deleteDialog && (
+                <div
+                    className="confirmOverlay"
+                    role="presentation"
+                    onClick={() => setDeleteDialog(null)}
+                >
+                    <div
+                        className="confirmDialog"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="deleteDialogTitle"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h2 className="confirmTitle" id="deleteDialogTitle">
+                            Удалить сет «{title || "Без названия"}»?
+                        </h2>
+                        <p className="mutedText">
+                            Действие необратимо.
+                            {deleteDialog.copyCount > 0
+                                ? ` У сета ${deleteDialog.copyCount} сохранённых копий у ${deleteDialog.accountCount} других авторов.`
+                                : " Сохранённых копий у других авторов нет."}
+                            {visibility === "private" && deleteDialog.copyCount > 0
+                                ? " Личный сет удаляется всегда вместе с копиями."
+                                : ""}
+                        </p>
+                        <div className="confirmActions">
+                            <button
+                                className="btn btnDanger"
+                                onClick={() => performDelete(visibility === "private")}
+                            >
+                                Удалить вместе с копиями
+                            </button>
+                            <button
+                                className="btn btnGhost"
+                                onClick={() => performDelete(false)}
+                                disabled={visibility === "private" || deleteDialog.copyCount === 0}
+                            >
+                                Оставить копии (заморозить на 30 дней)
+                            </button>
+                            <button
+                                className="btn btnGhost"
+                                onClick={() => setDeleteDialog(null)}
+                            >
+                                Отмена
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

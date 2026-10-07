@@ -91,7 +91,7 @@ const PublicSet = () => {
                         <span>изменён {set.last_activity}</span>
                     </div>
                 </header>
-                <SetArticle content={set.content} links={links} />
+                <SetArticle content={set.content} links={links} emptyText="В этом сете пока нет содержимого." />
             </article>
         </div>
     );

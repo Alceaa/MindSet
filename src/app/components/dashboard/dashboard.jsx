@@ -7,10 +7,11 @@ import { useAuth } from "../../context/auth.context";
 import Home from "./home.jsx";
 import Sets from "./sets.jsx";
 import Graph from "./graph.jsx";
+import SavedSets from "./saved.sets.jsx";
 import "../../css/dashboard/dashboard.scss";
 import "../../css/dashboard/graph.scss";
 
-const TABS = ["home", "sets", "graph"];
+const TABS = ["home", "sets", "graph", "saved"];
 
 const Dashboard = () => {
     const { user } = useAuth();
@@ -29,6 +30,8 @@ const Dashboard = () => {
                 return <Sets />;
             case "graph":
                 return <Graph />;
+            case "saved":
+                return <SavedSets />;
             default:
                 return <Home />;
         }
@@ -58,6 +61,7 @@ const Dashboard = () => {
                     <Tab label="Домашняя страница" />
                     <Tab label="Сеты" />
                     <Tab label="Граф связей" />
+                    <Tab label="Сохранённые" />
                 </Tabs>
                 <Box className="tabsContent">{renderTabContent()}</Box>
             </Box>

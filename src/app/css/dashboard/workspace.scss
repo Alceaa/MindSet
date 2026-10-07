@@ -4,6 +4,44 @@
     gap: var(--gap);
 }
 
+.confirmOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--gap);
+    background-color: rgba(0, 0, 0, 0.55);
+}
+
+.confirmDialog {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    width: min(520px, 100%);
+    padding: var(--gap-lg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.confirmTitle {
+    margin: 0;
+    font-size: 18px;
+}
+
+.confirmActions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    margin-top: var(--gap-xs);
+}
+
+.confirmActions .btn {
+    width: 100%;
+}
+
 .setSidebar {
     position: relative;
     flex-shrink: 0;

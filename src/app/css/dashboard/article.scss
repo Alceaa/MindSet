@@ -17,6 +17,17 @@
     cursor: help;
 }
 
+.articleLinkSnapshot {
+    color: var(--accent);
+    border-bottom: 1px dashed var(--accent);
+}
+
+.snapshotMark {
+    margin-left: 3px;
+    font-size: 0.8em;
+    opacity: 0.75;
+}
+
 .article {
     max-width: var(--reader-width);
     margin: 0 auto;

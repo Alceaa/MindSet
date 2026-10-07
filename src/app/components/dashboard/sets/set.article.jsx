@@ -7,7 +7,7 @@ import "../../../css/dashboard/article.scss";
 
 const WIKILINK_PREFIX = "wikilink:";
 
-const SetArticle = ({ content, links }) => {
+const SetArticle = ({ content, links, emptyText }) => {
     const markdown = useMemo(() => prepareMarkdown(content), [content]);
     const targets = useMemo(
         () => new Map(links.map((link) => [normalizeTitle(stripEscapes(link.label)), link])),
@@ -21,17 +21,53 @@ const SetArticle = ({ content, links }) => {
                     const key = decodeURIComponent(href.slice(WIKILINK_PREFIX.length));
                     const target = targets.get(key);
 
-                    if (!target || target.broken) {
-                        const wasResolved = Boolean(target?.resolved_once);
+                    if (!target) {
+                        return (
+                            <span
+                                className="articleLinkMissing"
+                                title={`Сета «${String(children)}» нет — создайте его`}
+                            >
+                                {children}
+                            </span>
+                        );
+                    }
 
+                    if (target.own && !target.broken) {
+                        return (
+                            <Link
+                                className="articleLink"
+                                to={`/sets/${target.target_id}`}
+                                title={target.target_title}
+                            >
+                                {children}
+                            </Link>
+                        );
+                    }
+
+                    const unavailable = target.broken || !target.live_available;
+
+                    if (unavailable && target.snapshot_id) {
+                        return (
+                            <Link
+                                className="articleLink articleLinkSnapshot"
+                                to={`/snapshots/${target.snapshot_id}`}
+                                title={`Снимок сета «${target.snapshot_title || target.target_title}»`}
+                            >
+                                {children}
+                                <span className="snapshotMark">⧉</span>
+                            </Link>
+                        );
+                    }
+
+                    if (unavailable) {
                         return (
                             <span
                                 className={
-                                    wasResolved ? "articleLinkBroken" : "articleLinkMissing"
+                                    target.resolved_once ? "articleLinkBroken" : "articleLinkMissing"
                                 }
                                 title={
-                                    wasResolved
-                                        ? `Сет «${target.label}» удалён или переименован`
+                                    target.resolved_once
+                                        ? `Сет «${target.label}» удалён, переименован или закрыт`
                                         : `Сета «${String(children)}» нет — создайте его`
                                 }
                             >
@@ -40,12 +76,12 @@ const SetArticle = ({ content, links }) => {
                         );
                     }
 
-                    const to = target.own
-                        ? `/sets/${target.target_id}`
-                        : `/s/${target.target_slug}`;
-
                     return (
-                        <Link className="articleLink" to={to} title={target.target_title}>
+                        <Link
+                            className="articleLink"
+                            to={`/s/${target.target_slug}`}
+                            title={target.target_title}
+                        >
                             {children}
                         </Link>
                     );
@@ -73,7 +109,7 @@ const SetArticle = ({ content, links }) => {
     if (!markdown.trim()) {
         return (
             <p className="articleEmpty mutedText">
-                Сет пустой. Нажмите «Редактировать», чтобы добавить содержимое.
+                {emptyText || "Сет пустой. Нажмите «Редактировать», чтобы добавить содержимое."}
             </p>
         );
     }

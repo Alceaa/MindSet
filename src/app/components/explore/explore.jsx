@@ -1,18 +1,23 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import setService from "../../api/set.service";
 import parseApiError from "../../utils/api.error";
+import { useAuth } from "../../context/auth.context";
 import "../../css/dashboard/dashboard.scss";
 
 const PAGE_SIZE = 12;
 
 const Explore = () => {
+    const navigate = useNavigate();
+    const { isAuthenticated, user } = useAuth();
     const [sets, setSets] = useState([]);
     const [total, setTotal] = useState(0);
     const [hasMore, setHasMore] = useState(false);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState("");
+    const [notice, setNotice] = useState(null);
+    const [savingId, setSavingId] = useState(null);
     const [search, setSearch] = useState("");
     const [query, setQuery] = useState("");
 
@@ -82,6 +87,27 @@ const Explore = () => {
         setQuery("");
     };
 
+    const handleSave = async (set) => {
+        if (!isAuthenticated) {
+            navigate("/signin");
+            return;
+        }
+
+        setSavingId(set.id);
+        setNotice(null);
+        try {
+            await setService.saveExternalSet(set.slug);
+            setNotice({
+                kind: "success",
+                text: `Сет «${set.title}» сохранён в вашу библиотеку`,
+            });
+        } catch (err) {
+            setNotice({ kind: "error", text: parseApiError(err).message });
+        } finally {
+            setSavingId(null);
+        }
+    };
+
     return (
         <section className="explore">
             <header className="exploreHead">
@@ -117,6 +143,15 @@ const Explore = () => {
                 </div>
             )}
 
+            {notice && (
+                <div
+                    className={`alert ${notice.kind === "success" ? "alertSuccess" : "alertError"}`}
+                    role="status"
+                >
+                    {notice.text}
+                </div>
+            )}
+
             {loading ? (
                 <p className="mutedText">Загружаем публичные сеты...</p>
             ) : sets.length === 0 ? (
@@ -141,22 +176,47 @@ const Explore = () => {
                 <>
                     <p className="exploreCount mutedText">Найдено: {total}</p>
                     <div className="setGrid">
-                        {sets.map((set) => (
-                            <Link className="setCard" key={set.id} to={`/s/${set.slug}`}>
-                                <h3 className="setTitle">{set.title}</h3>
-                                {set.description ? (
-                                    <p className="setDescription">{set.description}</p>
-                                ) : (
-                                    <p className="setDescription mutedText">Без описания</p>
-                                )}
-                                <div className="setMeta">
-                                    <span className="badge">
-                                        {set.author ? `@${set.author.login}` : "автор скрыт"}
-                                    </span>
-                                    <span className="listMeta">Изменён {set.last_activity}</span>
+                        {sets.map((set) => {
+                            const isOwn =
+                                Boolean(set.author) &&
+                                Boolean(user) &&
+                                set.author.login === user.login;
+
+                            return (
+                                <div className="setCard" key={set.id}>
+                                    <Link className="setCardMain" to={`/s/${set.slug}`}>
+                                        <h3 className="setTitle">{set.title}</h3>
+                                        {set.description ? (
+                                            <p className="setDescription">{set.description}</p>
+                                        ) : (
+                                            <p className="setDescription mutedText">
+                                                Без описания
+                                            </p>
+                                        )}
+                                    </Link>
+                                    <div className="setMeta">
+                                        <span className="badge">
+                                            {set.author ? `@${set.author.login}` : "автор скрыт"}
+                                        </span>
+                                        <span className="listMeta">
+                                            Изменён {set.last_activity}
+                                        </span>
+                                    </div>
+                                    {!isOwn && (
+                                        <button
+                                            className="btn btnGhost btnSmall"
+                                            type="button"
+                                            disabled={savingId === set.id}
+                                            onClick={() => handleSave(set)}
+                                        >
+                                            {savingId === set.id
+                                                ? "Сохраняем..."
+                                                : "Сохранить"}
+                                        </button>
+                                    )}
                                 </div>
-                            </Link>
-                        ))}
+                            );
+                        })}
                     </div>
                     {hasMore && (
                         <div className="exploreMore">

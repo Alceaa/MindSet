@@ -74,8 +74,6 @@ a:hover {
     text-decoration: underline;
 }
 
-/* Бренд: используется и в шапке приложения, и на страницах входа */
-
 .brand,
 .authBrand {
     display: inline-flex;
@@ -154,8 +152,6 @@ a:hover {
 }
 
 
-/* Кнопки */
-
 .btn {
     display: inline-flex;
     align-items: center;
@@ -222,8 +218,6 @@ a:hover {
 .btnBlock {
     width: 100%;
 }
-
-/* Формы */
 
 .field {
     display: flex;
@@ -292,8 +286,6 @@ a:hover {
     gap: var(--gap-sm);
 }
 
-/* Сообщения */
-
 .alert {
     padding: 10px 14px;
     border: 1px solid var(--border);
@@ -314,8 +306,6 @@ a:hover {
     color: #56d364;
 }
 
-/* Карточки и сетка */
-
 .card {
     padding: var(--gap-lg);
     border: 1px solid var(--border);
@@ -334,8 +324,6 @@ a:hover {
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: var(--gap);
 }
-
-/* Страница */
 
 .page {
     display: flex;
@@ -360,8 +348,6 @@ a:hover {
     color: var(--text-muted);
     font-size: 13px;
 }
-
-/* Списки */
 
 .plainList {
     display: flex;
@@ -396,8 +382,6 @@ a:hover {
     white-space: nowrap;
 }
 
-/* Пустое состояние */
-
 .emptyState {
     display: flex;
     flex-direction: column;
@@ -418,8 +402,6 @@ a:hover {
     max-width: 460px;
     margin-bottom: var(--gap-sm);
 }
-
-/* Загрузка */
 
 .loadingScreen {
     display: flex;
@@ -446,8 +428,6 @@ a:hover {
         transform: rotate(360deg);
     }
 }
-
-/* Страница-заглушка (404) */
 
 .statusPage {
     display: flex;

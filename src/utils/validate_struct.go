@@ -17,9 +17,19 @@ var fieldLabels = map[string]string{
 	"email":            "Почта",
 	"password":         "Пароль",
 	"password_confirm": "Подтверждение пароля",
+	"current_password": "Текущий пароль",
+	"new_password":     "Новый пароль",
+	"confirm_password": "Подтверждение пароля",
 	"title":            "Название",
 	"description":      "Описание",
 	"content":          "Содержимое",
+	"code":             "Код",
+	"enabled":          "Двухфакторный вход",
+	"topic":            "Тема",
+	"page":             "Страница",
+	"invite":           "Приглашение",
+	"note":             "Заметка",
+	"days":             "Срок действия",
 }
 
 func ValidateStruct[T any](payload T) []*models.ErrorResponse {
@@ -61,6 +71,10 @@ func validationMessage(field string, err validator.FieldError) string {
 		return fmt.Sprintf("%s: максимальная длина — %s", label, err.Param())
 	case "email":
 		return "Некорректный адрес почты"
+	case "len":
+		return fmt.Sprintf("%s: длина — %s", label, err.Param())
+	case "numeric":
+		return fmt.Sprintf("%s: только цифры", label)
 	case "excludesall":
 		return fmt.Sprintf("%s содержит недопустимые символы: %s", label, err.Param())
 	case "eqfield":

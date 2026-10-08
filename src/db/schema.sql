@@ -190,9 +190,114 @@ ALTER TABLE saved_sets
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar varchar NOT NULL DEFAULT '';
 
--- Логин хранится в исходном регистре (для отображения), но уникален без учёта регистра,
--- чтобы «Admin» и «admin» не создавали два разных профиля.
--- Индекс создаётся только если в данных ещё нет логинов, отличающихся лишь регистром.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_epoch integer NOT NULL DEFAULT 0;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified boolean NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS email_tokens (
+    id         serial PRIMARY KEY,
+    user_id    integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    kind       varchar NOT NULL,
+    token_hash varchar NOT NULL,
+    expires_at timestamptz NOT NULL,
+    used_at    timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS email_tokens_hash_idx ON email_tokens (token_hash);
+CREATE INDEX IF NOT EXISTS email_tokens_user_kind_idx ON email_tokens (user_id, kind);
+
+ALTER TABLE email_tokens ADD COLUMN IF NOT EXISTS attempts integer NOT NULL DEFAULT 0;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_email boolean NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS pending_registrations (
+    id         serial PRIMARY KEY,
+    login      varchar NOT NULL,
+    email      varchar NOT NULL,
+    password   varchar NOT NULL,
+    token_hash varchar NOT NULL,
+    expires_at timestamptz NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS pending_registrations_login_idx ON pending_registrations (lower(login));
+CREATE UNIQUE INDEX IF NOT EXISTS pending_registrations_email_idx ON pending_registrations (lower(email));
+CREATE INDEX IF NOT EXISTS pending_registrations_token_idx ON pending_registrations (token_hash);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_by integer REFERENCES users (id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS invites (
+    id         serial PRIMARY KEY,
+    token_hash varchar NOT NULL,
+    note       varchar NOT NULL DEFAULT '',
+    created_by integer REFERENCES users (id) ON DELETE SET NULL,
+    used_at    timestamptz,
+    used_by    integer REFERENCES users (id) ON DELETE SET NULL,
+    expires_at timestamptz NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS invites_token_idx ON invites (token_hash);
+CREATE INDEX IF NOT EXISTS invites_created_idx ON invites (created_at DESC);
+
+ALTER TABLE pending_registrations ADD COLUMN IF NOT EXISTS invite_id integer REFERENCES invites (id) ON DELETE SET NULL;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role varchar NOT NULL DEFAULT 'user';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS blocked_at timestamptz;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS blocked_reason varchar NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS blocked_by integer REFERENCES users (id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS users_role_idx ON users (role);
+CREATE INDEX IF NOT EXISTS users_blocked_idx ON users (blocked_at);
+
+CREATE TABLE IF NOT EXISTS news (
+    id           serial PRIMARY KEY,
+    title        varchar NOT NULL,
+    body         text NOT NULL DEFAULT '',
+    is_published boolean NOT NULL DEFAULT true,
+    author_id    integer REFERENCES users (id) ON DELETE SET NULL,
+    published_at timestamptz NOT NULL DEFAULT now(),
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    updated_at   timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS news_published_idx ON news (published_at DESC);
+
+ALTER TABLE news ADD COLUMN IF NOT EXISTS is_pinned boolean NOT NULL DEFAULT false;
+CREATE INDEX IF NOT EXISTS news_pinned_idx ON news (is_pinned DESC, published_at DESC);
+
+CREATE TABLE IF NOT EXISTS admin_actions (
+    id          serial PRIMARY KEY,
+    admin_id    integer REFERENCES users (id) ON DELETE SET NULL,
+    admin_login varchar NOT NULL DEFAULT '',
+    action      varchar NOT NULL,
+    target_type varchar NOT NULL,
+    target_id   integer,
+    details     varchar NOT NULL DEFAULT '',
+    created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS admin_actions_created_idx ON admin_actions (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS bug_reports (
+    id         serial PRIMARY KEY,
+    user_id    integer REFERENCES users (id) ON DELETE SET NULL,
+    login      varchar NOT NULL DEFAULT '',
+    page       varchar NOT NULL DEFAULT '',
+    topic      varchar NOT NULL,
+    message    text NOT NULL,
+    status     varchar NOT NULL DEFAULT 'new',
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS bug_reports_created_idx ON bug_reports (created_at DESC);
+
+INSERT INTO news (title, body, is_published, published_at)
+SELECT a.title, a.body, true, a.date_posted
+FROM announcements a
+WHERE NOT EXISTS (SELECT 1 FROM news);
+
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM users GROUP BY lower(login) HAVING count(*) > 1) THEN
@@ -248,4 +353,3 @@ CREATE TABLE IF NOT EXISTS announcements (
     body        text NOT NULL,
     date_posted date NOT NULL DEFAULT CURRENT_DATE
 );
-

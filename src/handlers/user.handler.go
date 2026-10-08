@@ -193,7 +193,6 @@ func UploadAvatar(c *fiber.Ctx) error {
 		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось подготовить хранилище", err)
 	}
 
-	// Ровно один аватар на пользователя: прежние файлы удаляем перед записью.
 	removeAvatarFiles(user.ID)
 
 	filename := fmt.Sprintf("%d%s", user.ID, ext)
@@ -283,6 +282,96 @@ func writeFollowState(c *fiber.Ctx, targetID int, following bool) error {
 		"followers_count": followers,
 		"following_count": followingCount,
 	})
+}
+
+func ChangePassword(c *fiber.Ctx) error {
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		return utils.Fail(c, fiber.StatusUnauthorized, "Требуется авторизация", nil)
+	}
+
+	var req models.ChangePasswordPayload
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Fail(c, fiber.StatusBadRequest, "Некорректный формат запроса", err)
+	}
+	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
+		return utils.FailValidation(c, validationErrors)
+	}
+
+	if !utils.CheckPasswordHash(req.CurrentPassword, user.Password) {
+		return utils.Fail(c, fiber.StatusBadRequest, "Неверный текущий пароль", nil)
+	}
+
+	hashed, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось сохранить пароль", err)
+	}
+	if err := db.UpdatePassword(c.Context(), user.ID, hashed); err != nil {
+		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось обновить пароль", err)
+	}
+
+	if err := db.BumpTokenEpoch(c.Context(), user.ID); err != nil {
+		return utils.Fail(c, fiber.StatusInternalServerError, "Пароль изменён, но сессии не сброшены", err)
+	}
+
+	if fresh, freshErr := db.GetUserById(c.Context(), user.ID); freshErr == nil {
+		_ = issueTokens(c, fresh)
+	}
+
+	return utils.Success(c, fiber.StatusOK, fiber.Map{"message": "Пароль изменён"})
+}
+
+func UpdateTwoFactor(c *fiber.Ctx) error {
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		return utils.Fail(c, fiber.StatusUnauthorized, "Требуется авторизация", nil)
+	}
+
+	var req models.TwoFactorPayload
+	if err := c.BodyParser(&req); err != nil {
+		return utils.Fail(c, fiber.StatusBadRequest, "Некорректный формат запроса", err)
+	}
+	if validationErrors := utils.ValidateStruct(req); validationErrors != nil {
+		return utils.FailValidation(c, validationErrors)
+	}
+
+	if !utils.CheckPasswordHash(req.Password, user.Password) {
+		return utils.Fail(c, fiber.StatusBadRequest, "Неверный пароль", nil)
+	}
+
+	if req.Enabled && !user.EmailVerified {
+		return utils.Fail(c, fiber.StatusConflict, "Сначала подтвердите почту", nil)
+	}
+
+	updated, err := db.SetTwoFactorEmail(c.Context(), user.ID, req.Enabled)
+	if err != nil {
+		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось изменить настройку", err)
+	}
+
+	message := "Вход по коду выключен"
+	if req.Enabled {
+		message = "Вход по коду включён: при следующем входе понадобится код из письма"
+	}
+
+	return utils.Success(c, fiber.StatusOK, fiber.Map{
+		"message": message,
+		"user":    updated.Public(),
+	})
+}
+
+func LogoutAll(c *fiber.Ctx) error {
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		return utils.Fail(c, fiber.StatusUnauthorized, "Требуется авторизация", nil)
+	}
+
+	if err := db.BumpTokenEpoch(c.Context(), user.ID); err != nil {
+		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось завершить сессии", err)
+	}
+
+	utils.ClearAuthCookies(c)
+
+	return utils.Success(c, fiber.StatusOK, fiber.Map{"message": "Вы вышли на всех устройствах"})
 }
 
 func avatarStorageDir() string {

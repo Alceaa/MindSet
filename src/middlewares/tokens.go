@@ -30,7 +30,7 @@ func ValidateAccessToken(c *fiber.Ctx) error {
 		return utils.Fail(c, fiber.StatusUnauthorized, "Сессия истекла, войдите заново", err)
 	}
 
-	user, err := loadUserFromSubject(c, claims.Subject)
+	user, err := loadUserFromSubject(c, claims.Subject, claims.Epoch)
 	if err != nil {
 		return err
 	}
@@ -39,8 +39,6 @@ func ValidateAccessToken(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-// OptionalAuth извлекает пользователя из access-токена, если он валиден,
-// но не завершает запрос ошибкой для анонимных посетителей.
 func OptionalAuth(c *fiber.Ctx) error {
 	token := accessTokenFromRequest(c)
 	if token == "" {
@@ -75,7 +73,7 @@ func ValidateRefreshToken(c *fiber.Ctx) error {
 		return utils.Fail(c, fiber.StatusUnauthorized, "Сессия истекла, войдите заново", err)
 	}
 
-	user, err := loadUserFromSubject(c, claims.Subject)
+	user, err := loadUserFromSubject(c, claims.Subject, claims.Epoch)
 	if err != nil {
 		return err
 	}
@@ -84,7 +82,7 @@ func ValidateRefreshToken(c *fiber.Ctx) error {
 	return c.Next()
 }
 
-func loadUserFromSubject(c *fiber.Ctx, subject string) (*models.User, error) {
+func loadUserFromSubject(c *fiber.Ctx, subject string, epoch int) (*models.User, error) {
 	userID, err := strconv.Atoi(subject)
 	if err != nil {
 		return nil, utils.Fail(c, fiber.StatusUnauthorized, "Некорректный токен", err)
@@ -97,6 +95,15 @@ func loadUserFromSubject(c *fiber.Ctx, subject string) (*models.User, error) {
 	case err != nil:
 		return nil, utils.Fail(c, fiber.StatusInternalServerError, "Ошибка сервера, повторите позже", err)
 	}
+
+	if user.TokenEpoch != epoch {
+		return nil, utils.Fail(c, fiber.StatusUnauthorized, "Сессия недействительна, войдите заново", nil)
+	}
+
+	if user.IsBlocked() {
+		return nil, utils.Fail(c, fiber.StatusForbidden, "Аккаунт заблокирован", nil)
+	}
+
 	return user, nil
 }
 

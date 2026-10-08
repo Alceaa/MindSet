@@ -15,8 +15,6 @@ import (
 
 const feedPageSize = 12
 
-// resolvePublicSet находит публичный/по-ссылке сет по slug.
-// Возвращает (nil, false), если ответ уже отправлен (ошибка), и (set, true) при успехе.
 func resolvePublicSet(c *fiber.Ctx) (*models.Set, bool) {
 	slug := strings.TrimSpace(c.Params("slug"))
 	if slug == "" || !links.IsValidSlug(slug) {

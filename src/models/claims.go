@@ -11,5 +11,6 @@ const (
 
 type TokenClaims struct {
 	TokenType TokenType `json:"type"`
+	Epoch     int       `json:"epoch"`
 	jwt.StandardClaims
 }

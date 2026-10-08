@@ -26,6 +26,7 @@ go.work.sum
 
 # Logs
 *.log
+run.err
 
 # Загруженные файлы (аватары и др.)
 uploads/

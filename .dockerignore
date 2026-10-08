@@ -1,0 +1,6 @@
+.git
+.env
+*.log
+server.err.log
+server.log
+cmd/debugdump

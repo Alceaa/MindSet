@@ -10,11 +10,11 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-const userColumns = `id, login, email, password, coalesce(bio, '') AS bio, coalesce(avatar, '') AS avatar, coalesce(to_char(date_joined, 'YYYY-MM-DD'), '') AS date_joined`
+const userColumns = `id, login, email, password, coalesce(bio, '') AS bio, coalesce(avatar, '') AS avatar, coalesce(to_char(date_joined, 'YYYY-MM-DD'), '') AS date_joined, email_verified, two_factor_email, role, coalesce(to_char(blocked_at, 'YYYY-MM-DD HH24:MI'), '') AS blocked_at, coalesce(blocked_reason, '') AS blocked_reason, token_epoch`
 
 func scanUser(row pgx.Row) (*models.User, error) {
 	var user models.User
-	err := row.Scan(&user.ID, &user.Login, &user.Email, &user.Password, &user.Bio, &user.Avatar, &user.DateJoined)
+	err := row.Scan(&user.ID, &user.Login, &user.Email, &user.Password, &user.Bio, &user.Avatar, &user.DateJoined, &user.EmailVerified, &user.TwoFactorEmail, &user.Role, &user.BlockedAt, &user.BlockedReason, &user.TokenEpoch)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -96,7 +96,8 @@ const profileQuery = `SELECT
 	(SELECT count(*) FROM follows WHERE followed_id = u.id) AS followers_count,
 	(SELECT count(*) FROM follows WHERE follower_id = u.id) AS following_count
 FROM users u
-WHERE lower(u.login) = lower(@login)`
+WHERE lower(u.login) = lower(@login)
+  AND u.blocked_at IS NULL`
 
 func GetProfileByLogin(ctx context.Context, login string) (*models.Profile, error) {
 	conn, err := pool()
@@ -139,6 +140,77 @@ func UpdateUserBio(ctx context.Context, userID int, bio string) (*models.User, e
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("update user bio: %w", err)
+	}
+	return updated, nil
+}
+
+func UpdatePassword(ctx context.Context, userID int, hashed string) error {
+	conn, err := pool()
+	if err != nil {
+		return err
+	}
+
+	tag, err := conn.Exec(ctx,
+		`UPDATE users SET password = @password WHERE id = @id`,
+		pgx.NamedArgs{"password": hashed, "id": userID},
+	)
+	if err != nil {
+		return fmt.Errorf("update password: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func BumpTokenEpoch(ctx context.Context, userID int) error {
+	conn, err := pool()
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.Exec(ctx,
+		`UPDATE users SET token_epoch = token_epoch + 1 WHERE id = @id`,
+		pgx.NamedArgs{"id": userID},
+	)
+	if err != nil {
+		return fmt.Errorf("bump token epoch: %w", err)
+	}
+	return nil
+}
+
+func SetEmailVerified(ctx context.Context, userID int) error {
+	conn, err := pool()
+	if err != nil {
+		return err
+	}
+
+	tag, err := conn.Exec(ctx,
+		`UPDATE users SET email_verified = true WHERE id = @id`,
+		pgx.NamedArgs{"id": userID},
+	)
+	if err != nil {
+		return fmt.Errorf("set email verified: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func SetTwoFactorEmail(ctx context.Context, userID int, enabled bool) (*models.User, error) {
+	conn, err := pool()
+	if err != nil {
+		return nil, err
+	}
+
+	query := `UPDATE users SET two_factor_email = @enabled WHERE id = @id RETURNING ` + userColumns
+	updated, err := scanUser(conn.QueryRow(ctx, query, pgx.NamedArgs{"id": userID, "enabled": enabled}))
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("set two factor email: %w", err)
 	}
 	return updated, nil
 }

@@ -151,6 +151,106 @@ func DeleteSetInTx(ctx context.Context, tx pgx.Tx, id, userID int) error {
 	return nil
 }
 
+func LockSetForAdminDelete(ctx context.Context, tx pgx.Tx, id int) (*models.Set, error) {
+	set, err := scanSet(tx.QueryRow(ctx,
+		`SELECT `+setColumns+` FROM sets WHERE id = @id FOR UPDATE`,
+		pgx.NamedArgs{"id": id},
+	))
+	if err != nil {
+		return nil, err
+	}
+	return set, nil
+}
+
+func DeleteSetAsAdmin(ctx context.Context, tx pgx.Tx, id int) error {
+	tag, err := tx.Exec(ctx, `DELETE FROM sets WHERE id = @id`, pgx.NamedArgs{"id": id})
+	if err != nil {
+		return fmt.Errorf("admin delete set: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+const adminSetQuery = `SELECT
+	s.id,
+	s.user_id,
+	s.title,
+	s.slug,
+	s.visibility,
+	s.forbid_copies,
+	coalesce(u.login, '') AS author_login,
+	coalesce(to_char(s.last_activity, 'YYYY-MM-DD'), '') AS last_activity,
+	length(coalesce(s.content, '')) AS content_length
+FROM sets s
+LEFT JOIN users u ON u.id = s.user_id
+WHERE (@q = '' OR s.title ILIKE '%' || @q || '%' OR u.login ILIKE '%' || @q || '%')
+ORDER BY s.last_activity DESC, s.id DESC
+LIMIT @limit OFFSET @offset`
+
+func ListAdminSets(ctx context.Context, query string, limit, offset int) ([]*models.AdminSet, error) {
+	conn, err := pool()
+	if err != nil {
+		return nil, err
+	}
+
+	if limit <= 0 || limit > 100 {
+		limit = 30
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	rows, err := conn.Query(ctx, adminSetQuery, pgx.NamedArgs{
+		"q":      query,
+		"limit":  limit,
+		"offset": offset,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list admin sets: %w", err)
+	}
+	defer rows.Close()
+
+	sets := make([]*models.AdminSet, 0, limit)
+	for rows.Next() {
+		var item models.AdminSet
+		if err := rows.Scan(
+			&item.ID,
+			&item.UserID,
+			&item.Title,
+			&item.Slug,
+			&item.Visibility,
+			&item.ForbidCopies,
+			&item.AuthorLogin,
+			&item.LastActivity,
+			&item.ContentLength,
+		); err != nil {
+			return nil, fmt.Errorf("scan admin set: %w", err)
+		}
+		sets = append(sets, &item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list admin sets: %w", err)
+	}
+	return sets, nil
+}
+
+func PurgeSavedSetsOfSet(ctx context.Context, tx pgx.Tx, setID int) error {
+	if _, err := tx.Exec(
+		ctx,
+		`UPDATE saved_sets
+		 SET content = '', description = '',
+		     frozen = true, frozen_auto = true,
+		     revoked_at = COALESCE(revoked_at, CURRENT_TIMESTAMP)
+		 WHERE set_id = @set_id`,
+		pgx.NamedArgs{"set_id": setID},
+	); err != nil {
+		return fmt.Errorf("purge saved set bodies: %w", err)
+	}
+	return nil
+}
+
 func TombstoneSet(ctx context.Context, tx pgx.Tx, set *models.Set, authorLogin string, forbidCopies bool) error {
 	purge := forbidCopies || !set.Visibility.ReadableByOthers()
 
@@ -361,6 +461,7 @@ func GetPublicSets(ctx context.Context, search string, viewerID, limit, offset i
 	FROM sets s
 	JOIN users u ON u.id = s.user_id
 	WHERE ` + publicSetsFilter + `
+	  AND u.blocked_at IS NULL
 	ORDER BY s.last_activity DESC, s.id DESC
 	LIMIT @limit OFFSET @offset`
 
@@ -387,7 +488,7 @@ func GetPublicSets(ctx context.Context, search string, viewerID, limit, offset i
 		return nil, 0, fmt.Errorf("list public sets: %w", err)
 	}
 
-	countQuery := `SELECT count(*) FROM sets s WHERE ` + publicSetsFilter
+	countQuery := `SELECT count(*) FROM sets s JOIN users u ON u.id = s.user_id WHERE ` + publicSetsFilter + ` AND u.blocked_at IS NULL`
 
 	var total int
 	if err := conn.QueryRow(ctx, countQuery, pgx.NamedArgs{"search": search}).Scan(&total); err != nil {
@@ -397,9 +498,6 @@ func GetPublicSets(ctx context.Context, search string, viewerID, limit, offset i
 	return sets, total, nil
 }
 
-// GetPublicSetsByUser возвращает публичные сеты конкретного автора.
-// sort = "popular" — по числу сохранённых копий, затем по беклинкам и дате;
-// иначе — по дате последней активности.
 func GetPublicSetsByUser(ctx context.Context, userID, viewerID int, sort string, limit, offset int) ([]*models.Set, int, error) {
 	conn, err := pool()
 	if err != nil {
@@ -424,6 +522,7 @@ func GetPublicSetsByUser(ctx context.Context, userID, viewerID int, sort string,
 	JOIN users u ON u.id = s.user_id
 	` + join + `
 	WHERE s.user_id = @user_id AND s.visibility = 'public'
+	  AND u.blocked_at IS NULL
 	ORDER BY ` + order + `
 	LIMIT @limit OFFSET @offset`
 

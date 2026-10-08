@@ -117,3 +117,61 @@ func TestBcryptCostIsClampedToSafeRange(t *testing.T) {
 		t.Errorf("слишком высокий cost не был исправлен: %d", high.BcryptCost)
 	}
 }
+
+func TestS3EnvBindingAndLegacyR2Alias(t *testing.T) {
+	for _, kv := range []struct{ k, v string }{
+		{"ENV_FILE", t.TempDir() + "/missing.env"},
+		{"JWT_ACCESS_SECRET", "access"},
+		{"JWT_REFRESH_SECRET", "refresh"},
+		{"DATABASE_URL", "postgres://u:p@127.0.0.1:5432/d"},
+	} {
+		t.Setenv(kv.k, kv.v)
+	}
+
+	t.Run("новые имена S3_*", func(t *testing.T) {
+		t.Setenv("S3_ENDPOINT", "https://s3.twcstorage.ru")
+		t.Setenv("S3_REGION", "ru-1")
+		t.Setenv("S3_BUCKET", "mindset-media")
+		t.Setenv("S3_PUBLIC_BASE_URL", "https://s3.twcstorage.ru/mindset-media")
+
+		cfg, err := LoadEnv(t.TempDir())
+		if err != nil {
+			t.Fatalf("LoadEnv вернул ошибку: %v", err)
+		}
+		if cfg.S3Endpoint != "https://s3.twcstorage.ru" {
+			t.Errorf("S3Endpoint = %q", cfg.S3Endpoint)
+		}
+		if cfg.S3Region != "ru-1" {
+			t.Errorf("S3Region = %q", cfg.S3Region)
+		}
+		if cfg.S3Bucket != "mindset-media" {
+			t.Errorf("S3Bucket = %q", cfg.S3Bucket)
+		}
+	})
+
+	t.Run("старые имена R2_* как алиасы", func(t *testing.T) {
+		t.Setenv("R2_ENDPOINT", "https://acct.r2.cloudflarestorage.com")
+		t.Setenv("R2_BUCKET", "old-bucket")
+
+		cfg, err := LoadEnv(t.TempDir())
+		if err != nil {
+			t.Fatalf("LoadEnv вернул ошибку: %v", err)
+		}
+		if cfg.S3Endpoint != "https://acct.r2.cloudflarestorage.com" {
+			t.Errorf("R2_ENDPOINT не подхватился как алиас: %q", cfg.S3Endpoint)
+		}
+		if cfg.S3Bucket != "old-bucket" {
+			t.Errorf("R2_BUCKET не подхватился как алиас: %q", cfg.S3Bucket)
+		}
+	})
+
+	t.Run("регион по умолчанию ru-1", func(t *testing.T) {
+		cfg, err := LoadEnv(t.TempDir())
+		if err != nil {
+			t.Fatalf("LoadEnv вернул ошибку: %v", err)
+		}
+		if cfg.S3Region != "ru-1" {
+			t.Errorf("S3Region = %q, ожидался ru-1 по умолчанию", cfg.S3Region)
+		}
+	})
+}

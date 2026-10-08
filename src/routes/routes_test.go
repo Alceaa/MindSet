@@ -25,6 +25,17 @@ import (
 
 func TestMain(m *testing.M) {
 	_ = os.Setenv("ENV_FILE", filepath.Join("..", ".env"))
+
+	_ = os.Setenv("RATE_LIMIT_GLOBAL_PER_MINUTE", "100000")
+	_ = os.Setenv("RATE_LIMIT_AUTH_PER_15MIN", "10000")
+	_ = os.Setenv("RATE_LIMIT_EMAIL_PER_HOUR", "10000")
+	_ = os.Setenv("RATE_LIMIT_REPORT_PER_HOUR", "10000")
+
+	if err := setupTestMailer(); err != nil {
+		fmt.Fprintf(os.Stderr, "не удалось поднять мини-SMTP: %v\n", err)
+		os.Exit(1)
+	}
+
 	os.Exit(m.Run())
 }
 
@@ -35,12 +46,14 @@ type validationError struct {
 }
 
 type apiUser struct {
-	ID       int    `json:"id"`
-	Login    string `json:"login"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Bio      string `json:"bio"`
-	Avatar   string `json:"avatar"`
+	ID             int    `json:"id"`
+	Login          string `json:"login"`
+	Email          string `json:"email"`
+	Password       string `json:"password"`
+	Bio            string `json:"bio"`
+	Avatar         string `json:"avatar"`
+	EmailVerified  bool   `json:"email_verified"`
+	TwoFactorEmail bool   `json:"two_factor_email"`
 }
 
 type apiSet struct {
@@ -144,6 +157,9 @@ type apiResponse struct {
 	Tombstones     []apiTombstone    `json:"tombstones"`
 	CopyCount      int               `json:"copy_count"`
 	AccountCount   int               `json:"account_count"`
+
+	EmailVerificationSent bool `json:"email_verification_sent"`
+	TwoFactorRequired     bool `json:"two_factor_required"`
 }
 
 type callOptions struct {
@@ -160,7 +176,7 @@ func setupApp(t *testing.T) *fiber.App {
 
 	cfg := utils.Config()
 	if err := utils.ConfigErr(); err != nil {
-		t.Skipf("конфигурация недоступна (%v), интеграционные тесты пропущены", err)
+		t.Fatalf("конфигурация недоступна (%v) — проверьте ENV_FILE и back/.env", err)
 	}
 	if err := db.Open(cfg.DBUrl); err != nil {
 		t.Skipf("БД недоступна (%v), интеграционные тесты пропущены", err)
@@ -245,6 +261,14 @@ func deleteUsers(t *testing.T, url string, logins []string) {
 
 	if _, err := conn.Exec(ctx, `DELETE FROM users WHERE login = ANY($1)`, logins); err != nil {
 		t.Logf("cleanup: %v", err)
+	}
+
+	lowered := make([]string, 0, len(logins))
+	for _, login := range logins {
+		lowered = append(lowered, strings.ToLower(login))
+	}
+	if _, err := conn.Exec(ctx, `DELETE FROM pending_registrations WHERE lower(login) = ANY($1)`, lowered); err != nil {
+		t.Logf("cleanup pending: %v", err)
 	}
 }
 
@@ -348,14 +372,20 @@ func TestAuthAndSetsFlow(t *testing.T) {
 			"password_confirm": password,
 		},
 	})
-	if resp.StatusCode != fiber.StatusCreated {
-		t.Fatalf("регистрация = %d (%s), ожидалось 201", resp.StatusCode, raw)
-	}
-	if body.User == nil || body.User.ID == 0 {
-		t.Fatalf("в ответе нет пользователя: %s", raw)
+	if resp.StatusCode != fiber.StatusAccepted {
+		t.Fatalf("регистрация = %d (%s), ожидалось 202", resp.StatusCode, raw)
 	}
 	if strings.Contains(raw, `"password"`) || strings.Contains(raw, "$2a$") {
 		t.Fatalf("ответ регистрации содержит данные пароля: %s", raw)
+	}
+
+	resp, body, raw = call(t, app, callOptions{
+		Method: fiber.MethodPost,
+		Path:   "/auth/verify-email",
+		Body:   map[string]string{"token": readVerificationToken(t)},
+	})
+	if resp.StatusCode != fiber.StatusOK || body.User == nil || body.User.ID == 0 {
+		t.Fatalf("подтверждение почты = %d (%s)", resp.StatusCode, raw)
 	}
 	userID := body.User.ID
 
@@ -502,8 +532,17 @@ func TestAuthAndSetsFlow(t *testing.T) {
 			"password_confirm": password,
 		},
 	})
-	if resp.StatusCode != fiber.StatusCreated {
+	if resp.StatusCode != fiber.StatusAccepted {
 		t.Fatalf("регистрация второго пользователя = %d (%s)", resp.StatusCode, raw)
+	}
+
+	resp, _, raw = call(t, app, callOptions{
+		Method: fiber.MethodPost,
+		Path:   "/auth/verify-email",
+		Body:   map[string]string{"token": readVerificationToken(t)},
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("подтверждение почты второго пользователя = %d (%s)", resp.StatusCode, raw)
 	}
 
 	resp, _, raw = call(t, app, callOptions{
@@ -877,30 +916,7 @@ func TestAuthAndSetsFlow(t *testing.T) {
 func registerForPrivacy(t *testing.T, app *fiber.App, login, email, password string) []*http.Cookie {
 	t.Helper()
 
-	_, _, raw := call(t, app, callOptions{
-		Method: fiber.MethodPost,
-		Path:   "/auth/register",
-		Body: map[string]string{
-			"login":            login,
-			"email":            email,
-			"password":         password,
-			"password_confirm": password,
-		},
-	})
-	if !strings.Contains(raw, `"status":"success"`) {
-		t.Fatalf("регистрация %s не удалась: %s", login, raw)
-	}
-
-	resp, _, raw := call(t, app, callOptions{
-		Method: fiber.MethodPost,
-		Path:   "/auth/login",
-		Body:   map[string]string{"login": login, "password": password},
-	})
-	if resp.StatusCode != fiber.StatusOK {
-		t.Fatalf("вход %s = %d, ожидалось 200: %s", login, resp.StatusCode, raw)
-	}
-
-	return []*http.Cookie{cookieByName(t, resp.Cookies(), "access_token")}
+	return registerVerified(t, app, login, email, password)
 }
 
 func createSetForPrivacy(t *testing.T, app *fiber.App, cookies []*http.Cookie, title, visibility string) *apiSet {

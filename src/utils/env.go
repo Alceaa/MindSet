@@ -34,6 +34,41 @@ type Env struct {
 	AllowedOrigins string `mapstructure:"ALLOWED_ORIGINS"`
 
 	BcryptCost int `mapstructure:"BCRYPT_COST"`
+
+	S3Endpoint      string `mapstructure:"S3_ENDPOINT"`
+	S3Region        string `mapstructure:"S3_REGION"`
+	S3AccessKeyID   string `mapstructure:"S3_ACCESS_KEY_ID"`
+	S3SecretKey     string `mapstructure:"S3_SECRET_ACCESS_KEY"`
+	S3Bucket        string `mapstructure:"S3_BUCKET"`
+	S3PublicBaseURL string `mapstructure:"S3_PUBLIC_BASE_URL"`
+
+	AppBaseURL               string `mapstructure:"APP_BASE_URL"`
+	RequireEmailVerification bool   `mapstructure:"REQUIRE_EMAIL_VERIFICATION"`
+
+	SMTPHost     string `mapstructure:"SMTP_HOST"`
+	SMTPPort     int    `mapstructure:"SMTP_PORT"`
+	SMTPUser     string `mapstructure:"SMTP_USER"`
+	SMTPPassword string `mapstructure:"SMTP_PASSWORD"`
+	SMTPFrom     string `mapstructure:"SMTP_FROM"`
+	SMTPTLS      string `mapstructure:"SMTP_TLS"`
+
+	TelegramBotToken    string        `mapstructure:"TELEGRAM_BOT_TOKEN"`
+	TelegramChatID      string        `mapstructure:"TELEGRAM_CHAT_ID"`
+	HealthCheckInterval time.Duration `mapstructure:"HEALTH_CHECK_INTERVAL"`
+	HeartbeatURL        string        `mapstructure:"HEARTBEAT_URL"`
+	HeartbeatInterval   time.Duration `mapstructure:"HEARTBEAT_INTERVAL"`
+
+	RateLimitEnabled         bool `mapstructure:"RATE_LIMIT_ENABLED"`
+	RateLimitGlobalPerMinute int  `mapstructure:"RATE_LIMIT_GLOBAL_PER_MINUTE"`
+	RateLimitAuthPer15Min    int  `mapstructure:"RATE_LIMIT_AUTH_PER_15MIN"`
+	RateLimitEmailPerHour    int  `mapstructure:"RATE_LIMIT_EMAIL_PER_HOUR"`
+	RateLimitReportPerHour   int  `mapstructure:"RATE_LIMIT_REPORT_PER_HOUR"`
+
+	TrustProxyHeader string `mapstructure:"TRUST_PROXY_HEADER"`
+
+	AdminToken             string `mapstructure:"ADMIN_TOKEN"`
+	RegistrationInviteOnly bool   `mapstructure:"REGISTRATION_INVITE_ONLY"`
+	InviteTTLDays          int    `mapstructure:"INVITE_TTL_DAYS"`
 }
 
 const (
@@ -59,6 +94,7 @@ func LoadEnv(dir string) (Env, error) {
 	}
 
 	setDefaults(v)
+	bindEnvs(v)
 	v.AutomaticEnv()
 
 	if err := v.ReadInConfig(); err != nil {
@@ -130,6 +166,16 @@ func (e Env) SameSite() string {
 	return "Lax"
 }
 
+func (e Env) BaseURL() string {
+	if base := strings.TrimRight(strings.TrimSpace(e.AppBaseURL), "/"); base != "" {
+		return base
+	}
+	if origins := e.Origins(); len(origins) > 0 {
+		return strings.TrimRight(origins[0], "/")
+	}
+	return "http://localhost:3000"
+}
+
 func (e Env) SecureCookie() bool {
 	if strings.EqualFold(e.SameSite(), "None") {
 		return true
@@ -153,6 +199,9 @@ func (e *Env) applyDefaults() {
 	if e.BcryptCost < 10 || e.BcryptCost > 15 {
 		e.BcryptCost = 12
 	}
+	if strings.TrimSpace(e.SMTPTLS) == "" {
+		e.SMTPTLS = "starttls"
+	}
 }
 
 func (e Env) validate() error {
@@ -174,7 +223,60 @@ func (e Env) validate() error {
 	if len(missing) > 0 {
 		return fmt.Errorf("в .env не заданы обязательные параметры: %s", strings.Join(missing, ", "))
 	}
+	if e.IsProduction() {
+		return e.validateProductionSecrets()
+	}
 	return nil
+}
+
+func (e Env) validateProductionSecrets() error {
+	checks := []struct {
+		name     string
+		value    string
+		required bool
+	}{
+		{"JWT_ACCESS_SECRET", e.JwtAccessSecret, true},
+		{"JWT_REFRESH_SECRET", e.JwtRefreshSecret, true},
+		{"ADMIN_TOKEN", e.AdminToken, false},
+	}
+
+	for _, check := range checks {
+		value := strings.TrimSpace(check.value)
+		if value == "" {
+			if check.required {
+				return fmt.Errorf("%s не задан", check.name)
+			}
+			continue
+		}
+		if isPlaceholder(value) {
+			return fmt.Errorf("%s всё ещё содержит значение-заглушку из шаблона .env", check.name)
+		}
+		if len(value) < 24 {
+			return fmt.Errorf("%s слишком короткий: нужно не меньше 24 символов", check.name)
+		}
+	}
+
+	password := strings.TrimSpace(e.DBPassword)
+	if password != "" {
+		if isPlaceholder(password) {
+			return errors.New("DATABASE_PASSWORD всё ещё содержит пароль-заглушку из шаблона .env")
+		}
+		if len(password) < 12 {
+			return errors.New("DATABASE_PASSWORD слишком короткий: нужно не меньше 12 символов")
+		}
+	} else if isPlaceholder(e.DBUrl) {
+		return errors.New("DATABASE_URL содержит пароль-заглушку из шаблона .env")
+	}
+
+	if isPlaceholder(e.JwtAccessSecret) == false && e.JwtAccessSecret == e.JwtRefreshSecret {
+		return errors.New("JWT_ACCESS_SECRET и JWT_REFRESH_SECRET должны различаться")
+	}
+	return nil
+}
+
+func isPlaceholder(value string) bool {
+	lower := strings.ToLower(value)
+	return strings.Contains(lower, "change-me") || strings.Contains(lower, "changeme")
 }
 
 func findEnvFile(dir string) string {
@@ -212,4 +314,50 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("COOKIE_SECURE", false)
 	v.SetDefault("COOKIE_SAME_SITE", "")
 	v.SetDefault("BCRYPT_COST", 12)
+	v.SetDefault("S3_REGION", "ru-1")
+	v.SetDefault("SMTP_PORT", 587)
+	v.SetDefault("SMTP_TLS", "starttls")
+	v.SetDefault("HEALTH_CHECK_INTERVAL", "2h")
+	v.SetDefault("HEARTBEAT_INTERVAL", "5m")
+	v.SetDefault("RATE_LIMIT_ENABLED", true)
+	v.SetDefault("RATE_LIMIT_GLOBAL_PER_MINUTE", 240)
+	v.SetDefault("RATE_LIMIT_AUTH_PER_15MIN", 10)
+	v.SetDefault("RATE_LIMIT_EMAIL_PER_HOUR", 5)
+	v.SetDefault("RATE_LIMIT_REPORT_PER_HOUR", 5)
+	v.SetDefault("TRUST_PROXY_HEADER", "X-Forwarded-For")
+	v.SetDefault("INVITE_TTL_DAYS", 7)
+}
+
+func bindEnvs(v *viper.Viper) {
+	keys := []string{
+		"ENV", "PORT",
+		"DATABASE_USERNAME", "DATABASE_NAME", "DATABASE_PASSWORD", "DATABASE_URL",
+		"JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET", "JWT_ACCESS_EXPIRES_IN", "JWT_REFRESH_EXPIRES_IN",
+		"COOKIE_DOMAIN", "COOKIE_SECURE", "COOKIE_SAME_SITE",
+		"ALLOWED_ORIGINS", "BCRYPT_COST",
+		"APP_BASE_URL", "REQUIRE_EMAIL_VERIFICATION",
+		"SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM", "SMTP_TLS",
+		"TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "HEALTH_CHECK_INTERVAL",
+		"HEARTBEAT_URL", "HEARTBEAT_INTERVAL",
+		"RATE_LIMIT_ENABLED", "RATE_LIMIT_GLOBAL_PER_MINUTE", "RATE_LIMIT_AUTH_PER_15MIN",
+		"RATE_LIMIT_EMAIL_PER_HOUR", "RATE_LIMIT_REPORT_PER_HOUR", "TRUST_PROXY_HEADER",
+		"ADMIN_TOKEN", "REGISTRATION_INVITE_ONLY", "INVITE_TTL_DAYS",
+	}
+	for _, key := range keys {
+		_ = v.BindEnv(key)
+	}
+
+	s3Keys := map[string][]string{
+		"S3_ENDPOINT":          {"S3_ENDPOINT", "R2_ENDPOINT"},
+		"S3_REGION":            {"S3_REGION", "R2_REGION"},
+		"S3_ACCESS_KEY_ID":     {"S3_ACCESS_KEY_ID", "R2_ACCESS_KEY_ID"},
+		"S3_SECRET_ACCESS_KEY": {"S3_SECRET_ACCESS_KEY", "R2_SECRET_ACCESS_KEY"},
+		"S3_BUCKET":            {"S3_BUCKET", "R2_BUCKET"},
+		"S3_PUBLIC_BASE_URL":   {"S3_PUBLIC_BASE_URL", "R2_PUBLIC_BASE_URL"},
+	}
+	for key, envs := range s3Keys {
+		for _, env := range envs {
+			_ = v.BindEnv(key, env)
+		}
+	}
 }

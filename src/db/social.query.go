@@ -148,9 +148,10 @@ func ListAnnouncements(ctx context.Context, limit int) ([]*models.Announcement, 
 	}
 
 	rows, err := conn.Query(ctx,
-		`SELECT id, title, body, to_char(date_posted, 'YYYY-MM-DD') AS date_posted
-		 FROM announcements
-		 ORDER BY id DESC
+		`SELECT id, title, body, is_pinned, to_char(published_at, 'YYYY-MM-DD') AS date_posted
+		 FROM news
+		 WHERE is_published
+		 ORDER BY is_pinned DESC, published_at DESC
 		 LIMIT @limit`,
 		pgx.NamedArgs{"limit": limit},
 	)
@@ -166,6 +167,7 @@ func ListAnnouncements(ctx context.Context, limit int) ([]*models.Announcement, 
 			&announcement.ID,
 			&announcement.Title,
 			&announcement.Body,
+			&announcement.IsPinned,
 			&announcement.DatePosted,
 		); err != nil {
 			return nil, fmt.Errorf("scan announcement: %w", err)
@@ -193,7 +195,6 @@ func scanPublicSets(rows pgx.Rows) ([]*models.Set, error) {
 	return sets, nil
 }
 
-// FeedFollowingSets возвращает свежие публичные сеты авторов, на которых подписан зритель.
 func FeedFollowingSets(ctx context.Context, viewerID, limit int) ([]*models.Set, error) {
 	conn, err := pool()
 	if err != nil {
@@ -205,6 +206,7 @@ func FeedFollowingSets(ctx context.Context, viewerID, limit int) ([]*models.Set,
 		 FROM sets s
 		 JOIN users u ON u.id = s.user_id
 		 WHERE s.visibility = 'public'
+		   AND u.blocked_at IS NULL
 		   AND s.user_id IN (SELECT followed_id FROM follows WHERE follower_id = @viewer)
 		 ORDER BY s.last_activity DESC, s.id DESC
 		 LIMIT @limit`,
@@ -218,8 +220,6 @@ func FeedFollowingSets(ctx context.Context, viewerID, limit int) ([]*models.Set,
 	return scanPublicSets(rows)
 }
 
-// FeedPopularSets возвращает публичные сеты, набравшие за последнюю неделю больше
-// всего лайков, комментариев и входящих ссылок.
 func FeedPopularSets(ctx context.Context, viewerID, limit int) ([]*models.Set, error) {
 	conn, err := pool()
 	if err != nil {
@@ -231,6 +231,7 @@ func FeedPopularSets(ctx context.Context, viewerID, limit int) ([]*models.Set, e
 		 FROM sets s
 		 JOIN users u ON u.id = s.user_id
 		 WHERE s.visibility = 'public'
+		   AND u.blocked_at IS NULL
 		   AND s.last_activity >= CURRENT_DATE - 7
 		 ORDER BY (
 		     (SELECT count(*) FROM set_likes l WHERE l.set_id = s.id)
@@ -247,4 +248,3 @@ func FeedPopularSets(ctx context.Context, viewerID, limit int) ([]*models.Set, e
 
 	return scanPublicSets(rows)
 }
-

@@ -12,5 +12,8 @@ func Health(c *fiber.Ctx) error {
 		return utils.Fail(c, fiber.StatusServiceUnavailable, "База данных недоступна", err)
 	}
 
-	return utils.Success(c, fiber.StatusOK, fiber.Map{"message": "ok"})
+	return utils.Success(c, fiber.StatusOK, fiber.Map{
+		"message": "ok",
+		"version": utils.Version,
+	})
 }

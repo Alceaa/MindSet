@@ -164,7 +164,6 @@ func TestProfileFollowAndPrivacy(t *testing.T) {
 		t.Fatalf("в публичном профиле утекли приватные поля: %s", raw)
 	}
 
-	// Публичные сеты профиля: только public, без приватного.
 	resp, _, raw = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/public/users/" + authorLogin + "/sets"})
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("сеты профиля = %d: %s", resp.StatusCode, raw)
@@ -275,7 +274,6 @@ func TestProfileAvatarAndBio(t *testing.T) {
 		t.Fatalf("биография не сохранилась: %s", raw)
 	}
 
-	// /auth/me отдаёт аватар вместе с остальными полями.
 	resp, _, raw = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/auth/me", Cookies: cookies})
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("/auth/me = %d: %s", resp.StatusCode, raw)
@@ -294,7 +292,6 @@ func TestProfileAvatarAndBio(t *testing.T) {
 		t.Fatalf("профиль не обновил аватар: %+v", uploaded.User)
 	}
 
-	// Повторная загрузка перезаписывает единственный файл пользователя.
 	resp, raw = callMultipart(t, app, "/users/me/avatar", "avatar", "b.png", samplePNG(t), cookies)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("повторная загрузка аватара = %d: %s", resp.StatusCode, raw)
@@ -341,18 +338,18 @@ func TestLoginCaseInsensitiveAndUnique(t *testing.T) {
 		deleteUsers(t, cfg.DBUrl, []string{mixed})
 	})
 
-	resp, _, raw := call(t, app, callOptions{
-		Method: fiber.MethodPost,
-		Path:   "/auth/register",
-		Body: map[string]string{
-			"login":            mixed,
-			"email":            mixed + "@example.com",
-			"password":         password,
-			"password_confirm": password,
-		},
-	})
-	if resp.StatusCode != fiber.StatusCreated {
+	resp, _, raw := registerUser(t, app, mixed, mixed+"@example.com", password)
+	if resp.StatusCode != fiber.StatusAccepted {
 		t.Fatalf("регистрация = %d: %s", resp.StatusCode, raw)
+	}
+
+	resp, _, raw = call(t, app, callOptions{
+		Method: fiber.MethodPost,
+		Path:   "/auth/verify-email",
+		Body:   map[string]string{"token": readVerificationToken(t)},
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("подтверждение почты = %d: %s", resp.StatusCode, raw)
 	}
 
 	// Тот же логин в другом регистре занят.
@@ -370,7 +367,6 @@ func TestLoginCaseInsensitiveAndUnique(t *testing.T) {
 		t.Fatalf("регистр-дубликат = %d, ожидалось 409: %s", resp.StatusCode, raw)
 	}
 
-	// Вход по логину в другом регистре успешен, отображается исходный регистр.
 	resp, body, raw := call(t, app, callOptions{
 		Method: fiber.MethodPost,
 		Path:   "/auth/login",
@@ -383,7 +379,6 @@ func TestLoginCaseInsensitiveAndUnique(t *testing.T) {
 		t.Fatalf("логин должен сохранять исходный регистр %q, получено %+v", mixed, body.User)
 	}
 
-	// Профиль открывается по логину в любом регистре.
 	resp, _, raw = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/public/users/" + lower})
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("профиль по нижнему регистру = %d: %s", resp.StatusCode, raw)

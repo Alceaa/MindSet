@@ -18,5 +18,6 @@ type Announcement struct {
 	ID         int    `json:"id"`
 	Title      string `json:"title"`
 	Body       string `json:"body"`
+	IsPinned   bool   `json:"is_pinned"`
 	DatePosted string `json:"date_posted"`
 }

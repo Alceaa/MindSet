@@ -592,9 +592,6 @@ ORDER BY 1, 2`
 	return graph, nil
 }
 
-// ResolveBioLinks разрешает вики-ссылки [[Сет]] в биографии профиля в связи
-// с сетами автора. Для гостей и других пользователей ведут на публичный/по-ссылке
-// адрес, для самого автора — на редактируемый сет.
 func ResolveBioLinks(ctx context.Context, authorID, viewerID int, bio string) ([]*models.SetLink, error) {
 	parsed := links.Parse(bio)
 	if len(parsed) == 0 {

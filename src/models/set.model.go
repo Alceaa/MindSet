@@ -21,15 +21,15 @@ func (v Visibility) ReadableByOthers() bool {
 }
 
 type Set struct {
-	ID           int        `json:"id,omitempty" db:"id"`
-	UserID       int        `json:"user_id" db:"user_id"`
-	Title        string     `json:"title" db:"title"`
-	TitleKey     string     `json:"-" db:"title_key"`
-	Slug         string     `json:"slug" db:"slug"`
-	Visibility   Visibility `json:"visibility" db:"visibility"`
-	ForbidCopies bool       `json:"forbid_copies" db:"forbid_copies"`
-	Description  string     `json:"description" db:"description"`
-	Content      string     `json:"content,omitempty" db:"content"`
+	ID            int        `json:"id,omitempty" db:"id"`
+	UserID        int        `json:"user_id" db:"user_id"`
+	Title         string     `json:"title" db:"title"`
+	TitleKey      string     `json:"-" db:"title_key"`
+	Slug          string     `json:"slug" db:"slug"`
+	Visibility    Visibility `json:"visibility" db:"visibility"`
+	ForbidCopies  bool       `json:"forbid_copies" db:"forbid_copies"`
+	Description   string     `json:"description" db:"description"`
+	Content       string     `json:"content,omitempty" db:"content"`
 	DateCreated   string     `json:"date_created" db:"date_created"`
 	LastActivity  string     `json:"last_activity" db:"last_activity"`
 	Preview       string     `json:"preview,omitempty" db:"-"`

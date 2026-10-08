@@ -14,8 +14,6 @@ func RequireJSONBody(c *fiber.Ctx) error {
 		if len(c.Body()) == 0 {
 			return c.Next()
 		}
-		// Загрузка файлов (например, аватара) приходит как multipart/form-data
-		// и не должна блокироваться JSON-фильтром.
 		if strings.Contains(strings.ToLower(c.Get(fiber.HeaderContentType)), "multipart/form-data") {
 			return c.Next()
 		}

@@ -11,7 +11,11 @@ import (
 
 	"mindset/db"
 	"mindset/handlers"
+	"mindset/mailer"
+	"mindset/media"
 	"mindset/middlewares"
+	"mindset/monitor"
+	"mindset/notify"
 	"mindset/routes"
 	"mindset/utils"
 
@@ -32,11 +36,39 @@ func main() {
 	}
 	defer db.Close()
 
+	if err := media.Setup(media.Config{
+		Endpoint:   cfg.S3Endpoint,
+		Region:     cfg.S3Region,
+		AccessKey:  cfg.S3AccessKeyID,
+		SecretKey:  cfg.S3SecretKey,
+		Bucket:     cfg.S3Bucket,
+		PublicBase: cfg.S3PublicBaseURL,
+	}); err != nil {
+		log.Printf("[media] загрузка изображений в объектное хранилище недоступна: %v", err)
+	} else {
+		log.Print("Хранилище изображений (S3) подключено")
+	}
+
+	mailer.Setup(mailer.Config{
+		Host:     cfg.SMTPHost,
+		Port:     cfg.SMTPPort,
+		User:     cfg.SMTPUser,
+		Password: cfg.SMTPPassword,
+		From:     cfg.SMTPFrom,
+		TLS:      cfg.SMTPTLS,
+	})
+
+	notify.Setup(notify.Config{
+		Token:  cfg.TelegramBotToken,
+		ChatID: cfg.TelegramChatID,
+	})
+
 	app := fiber.New(fiber.Config{
 		AppName:      "MindSet API",
 		BodyLimit:    4 * 1024 * 1024,
 		UnescapePath: true,
 		ErrorHandler: jsonErrorHandler,
+		ProxyHeader:  cfg.TrustProxyHeader,
 	})
 
 	app.Use(recover.New())
@@ -60,15 +92,28 @@ func main() {
 		AllowCredentials: true,
 	}))
 
+	app.Use(middlewares.RateLimiter(middlewares.RateLimitRule{
+		Name:       "global",
+		Max:        cfg.RateLimitGlobalPerMinute,
+		Expiration: time.Minute,
+	}))
+
 	app.Use(middlewares.RequireJSONBody)
+	app.Use(middlewares.AlertServerErrors)
 
 	app.Get("/health", handlers.Health)
 	routes.SetupRoutes(app)
 	app.Static("/media", "./uploads")
 
+	monitor.Start(monitor.Config{
+		Interval:          cfg.HealthCheckInterval,
+		HeartbeatURL:      cfg.HeartbeatURL,
+		HeartbeatInterval: cfg.HeartbeatInterval,
+	})
+
 	go waitForShutdown(app)
 
-	log.Printf("Сервер запущен на %s (окружение: %s)", cfg.Address(), cfg.Env)
+	log.Printf("Сервер запущен на %s (окружение: %s, версия: %s)", cfg.Address(), cfg.Env, utils.Version)
 	if err := app.Listen(cfg.Address()); err != nil {
 		log.Fatalf("Ошибка запуска сервера: %v", err)
 	}

@@ -14,33 +14,7 @@ import (
 func registerSnapshotUser(t *testing.T, app *fiber.App, login, password string) []*http.Cookie {
 	t.Helper()
 
-	resp, _, raw := call(t, app, callOptions{
-		Method: fiber.MethodPost,
-		Path:   "/auth/register",
-		Body: map[string]string{
-			"login":            login,
-			"email":            login + "@example.com",
-			"password":         password,
-			"password_confirm": password,
-		},
-	})
-	if resp.StatusCode != fiber.StatusCreated {
-		t.Fatalf("регистрация %s = %d (%s), ожидалось 201", login, resp.StatusCode, raw)
-	}
-
-	resp, _, raw = call(t, app, callOptions{
-		Method: fiber.MethodPost,
-		Path:   "/auth/login",
-		Body: map[string]string{
-			"login":    login,
-			"password": password,
-		},
-	})
-	if resp.StatusCode != fiber.StatusOK {
-		t.Fatalf("логин %s = %d (%s), ожидалось 200", login, resp.StatusCode, raw)
-	}
-
-	return resp.Cookies()
+	return registerVerified(t, app, login, login+"@example.com", password)
 }
 
 func TestSavedSetLibraryLifecycle(t *testing.T) {

@@ -41,6 +41,7 @@ func createToken(user *models.User, tokenType models.TokenType, secret string, e
 	now := time.Now().UTC()
 	claims := models.TokenClaims{
 		TokenType: tokenType,
+		Epoch:     user.TokenEpoch,
 		StandardClaims: jwt.StandardClaims{
 			Subject:   strconv.Itoa(user.ID),
 			Issuer:    "mindset",

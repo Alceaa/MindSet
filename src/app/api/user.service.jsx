@@ -25,6 +25,20 @@ class UserService {
         return api.put("/users/me", payload).then((response) => response.data);
     }
 
+    changePassword(payload) {
+        return api.put("/users/me/password", payload).then((response) => response.data);
+    }
+
+    setTwoFactor(enabled, password) {
+        return api
+            .put("/users/me/2fa", { enabled: enabled, password: password })
+            .then((response) => response.data);
+    }
+
+    logoutAll() {
+        return api.post("/users/me/logout-all").then((response) => response.data);
+    }
+
     uploadAvatar(file) {
         const formData = new FormData();
         formData.append("avatar", file);

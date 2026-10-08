@@ -1,4 +1,3 @@
-// Превращает markdown в короткий плоский текст для превью в карточках сетов.
 import { stripEscapes } from "../markdown/wikilink";
 
 export function stripMarkdown(markdown) {
@@ -6,8 +5,6 @@ export function stripMarkdown(markdown) {
         return "";
     }
 
-    // Сначала снимаем экранирование (\[\[ -> [[, \* -> * и т.п.),
-    // иначе regex-очистка не распознаёт экранированные конструкции.
     return stripEscapes(String(markdown))
         .replace(/```[\s\S]*?```/g, " ")
         .replace(/`([^`]+)`/g, "$1")

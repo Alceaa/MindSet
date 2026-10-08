@@ -16,8 +16,6 @@ const STATE_META = {
 const stateMeta = (state) => STATE_META[state] ?? { label: state, badgeClass: "badge" };
 
 const openTargetFor = (item) => {
-    // Замороженный снимок всегда открываем как снимок, чтобы показать
-    // именно сохранённую версию, а не изменённый исходный сет.
     if (item.frozen) {
         return `/snapshots/${item.id}`;
     }

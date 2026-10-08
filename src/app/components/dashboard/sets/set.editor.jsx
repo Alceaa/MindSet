@@ -6,6 +6,7 @@ import {
     CodeToggle,
     CreateLink,
     DiffSourceToggleWrapper,
+    InsertImage,
     InsertTable,
     InsertThematicBreak,
     ListsToggle,
@@ -17,6 +18,7 @@ import {
     codeMirrorPlugin,
     diffSourcePlugin,
     headingsPlugin,
+    imagePlugin,
     lexical,
     linkDialogPlugin,
     linkPlugin,
@@ -33,6 +35,7 @@ import {
 import "@mdxeditor/editor/style.css";
 import setService from "../../../api/set.service";
 import parseApiError from "../../../utils/api.error";
+import { uploadImage } from "../../../utils/image.upload";
 import LoadingScreen from "../../common/loading.screen.jsx";
 import SetArticle from "./set.article.jsx";
 import SetSidebar from "./set.sidebar.jsx";
@@ -104,6 +107,15 @@ const findWikilinkRange = (text, caret) => {
     };
 };
 
+const imageUploadHandler = async (file) => {
+    try {
+        return await uploadImage(file);
+    } catch (err) {
+        window.alert(err?.message || "Не удалось загрузить изображение");
+        throw err;
+    }
+};
+
 const useEditorPlugins = (onOpenPicker) =>
     useMemo(
         () => [
@@ -114,6 +126,7 @@ const useEditorPlugins = (onOpenPicker) =>
             markdownShortcutPlugin(),
             linkPlugin(),
             linkDialogPlugin(),
+            imagePlugin({ imageUploadHandler }),
             tablePlugin(),
             codeBlockPlugin({ defaultCodeBlockLanguage: "go" }),
             codeMirrorPlugin({ codeBlockLanguages: CODE_LANGUAGES }),
@@ -128,6 +141,7 @@ const useEditorPlugins = (onOpenPicker) =>
                         <CodeToggle />
                         <ListsToggle />
                         <CreateLink />
+                        <InsertImage />
                         <button
                             type="button"
                             className="toolbarWikilink"

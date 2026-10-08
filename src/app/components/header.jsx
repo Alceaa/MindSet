@@ -114,8 +114,13 @@ const Header = () => {
                                     Мой профиль
                                 </MenuItem>
                                 <MenuItem component={Link} to="/settings" onClick={closeMenu}>
-                                    Настройки профиля
+                                    Настройки
                                 </MenuItem>
+                                {user?.role === "admin" && (
+                                    <MenuItem component={Link} to="/admin" onClick={closeMenu}>
+                                        Админка
+                                    </MenuItem>
+                                )}
                                 <Divider />
                                 <MenuItem onClick={handleLogout}>Выйти</MenuItem>
                             </Menu>

@@ -37,7 +37,6 @@ const Sets = () => {
         try {
             window.localStorage.setItem(VIEW_KEY, view);
         } catch {
-            // игнорируем недоступность localStorage
         }
     }, [view]);
 
@@ -258,4 +257,3 @@ const Sets = () => {
 };
 
 export default Sets;
-

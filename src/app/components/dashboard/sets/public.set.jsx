@@ -84,7 +84,6 @@ const PublicSet = () => {
             setLiked(data.liked);
             setLikes(data.count);
         } catch {
-            // тихо игнорируем
         } finally {
             setLikeBusy(false);
         }
@@ -167,4 +166,3 @@ const PublicSet = () => {
 };
 
 export default PublicSet;
-

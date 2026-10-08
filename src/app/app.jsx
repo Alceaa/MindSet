@@ -12,6 +12,9 @@ import AppLayout from "./layouts/app.layout.jsx";
 import AuthLayout from "./layouts/auth.layout.jsx";
 import Login from "./components/auth/login/login.jsx";
 import Registration from "./components/auth/registration/registration.jsx";
+import ForgotPassword from "./components/auth/forgot.password.jsx";
+import ResetPassword from "./components/auth/reset.password.jsx";
+import VerifyEmail from "./components/auth/verify.email.jsx";
 import Logout from "./components/auth/logout.jsx";
 import Dashboard from "./components/dashboard/dashboard.jsx";
 import CreateSet from "./components/dashboard/sets/create.set.jsx";
@@ -20,11 +23,12 @@ import PublicSet from "./components/dashboard/sets/public.set.jsx";
 import SnapshotView from "./components/dashboard/sets/snapshot.view.jsx";
 import Explore from "./components/explore/explore.jsx";
 import UserProfile from "./components/profile/user.profile.jsx";
-import ProfileSettings from "./components/profile/profile.settings.jsx";
+import Settings from "./components/settings/settings.jsx";
+import Admin from "./components/admin/admin.jsx";
 
 const SetEditor = React.lazy(() => import("./components/dashboard/sets/set.editor.jsx"));
 
-const router = createBrowserRouter([
+const routes = [
     {
         path: "/",
         element: <RootRedirect />,
@@ -52,6 +56,18 @@ const router = createBrowserRouter([
                     </RedirectIfAuthed>
                 ),
             },
+            {
+                path: "forgot",
+                element: <ForgotPassword />,
+            },
+            {
+                path: "reset",
+                element: <ResetPassword />,
+            },
+            {
+                path: "verify-email",
+                element: <VerifyEmail />,
+            },
         ],
     },
     {
@@ -60,6 +76,14 @@ const router = createBrowserRouter([
             {
                 path: "explore",
                 element: <Explore />,
+            },
+            {
+                path: "admin",
+                element: (
+                    <RequireAuth>
+                        <Admin />
+                    </RequireAuth>
+                ),
             },
             {
                 path: "snapshots/:id",
@@ -73,7 +97,7 @@ const router = createBrowserRouter([
                 path: "settings",
                 element: (
                     <RequireAuth>
-                        <ProfileSettings />
+                        <Settings />
                     </RequireAuth>
                 ),
             },
@@ -117,7 +141,9 @@ const router = createBrowserRouter([
         path: "*",
         element: <NotFound />,
     },
-]);
+];
+
+const router = createBrowserRouter(routes, { basename: process.env.PUBLIC_URL || "/" });
 
 const App = () => (
     <ThemeProvider theme={theme}>
@@ -129,4 +155,3 @@ const App = () => (
 );
 
 export default App;
-

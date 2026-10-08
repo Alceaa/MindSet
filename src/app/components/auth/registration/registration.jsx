@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import authService from "../../../api/auth.service";
 import { useAuth } from "../../../context/auth.context";
 import parseApiError from "../../../utils/api.error";
 
@@ -11,13 +12,25 @@ const EMPTY_FORM = {
 };
 
 const Registration = () => {
-    const navigate = useNavigate();
     const { register } = useAuth();
+    const [params] = useSearchParams();
+    const invite = params.get("invite") || "";
 
     const [form, setForm] = useState(EMPTY_FORM);
     const [fieldErrors, setFieldErrors] = useState({});
     const [error, setError] = useState("");
     const [pending, setPending] = useState(false);
+    const [sentTo, setSentTo] = useState("");
+    const [resendNotice, setResendNotice] = useState("");
+    const [resending, setResending] = useState(false);
+    const [closed, setClosed] = useState(false);
+
+    useEffect(() => {
+        authService
+            .registrationConfig()
+            .then((data) => setClosed(Boolean(data.invite_only) && !invite))
+            .catch(() => setClosed(false));
+    }, [invite]);
 
     const updateField = (field) => (event) =>
         setForm((previous) => ({ ...previous, [field]: event.target.value }));
@@ -34,8 +47,8 @@ const Registration = () => {
 
         setPending(true);
         try {
-            await register(form.login, form.email, form.password, form.passwordConfirm);
-            navigate("/signin", { replace: true, state: { registered: true } });
+            const data = await register(form.login, form.email, form.password, form.passwordConfirm, invite);
+            setSentTo(data?.email || form.email);
         } catch (err) {
             const parsed = parseApiError(err);
             setError(parsed.message);
@@ -44,6 +57,75 @@ const Registration = () => {
             setPending(false);
         }
     };
+
+    const handleResend = async () => {
+        setResending(true);
+        setResendNotice("");
+        try {
+            const data = await authService.requestEmailVerification(sentTo);
+            setResendNotice(data?.message || "Письмо отправлено повторно");
+        } catch (err) {
+            setResendNotice(parseApiError(err).message);
+        } finally {
+            setResending(false);
+        }
+    };
+
+    if (closed) {
+        return (
+            <div className="formCard">
+                <h1 className="formTitle">Регистрация по приглашению</h1>
+                <p className="formSubtitle">Новые аккаунты создаются только по персональным ссылкам</p>
+
+                <div className="alert" role="status">
+                    Если у вас есть ссылка-приглашение, откройте её: она ведёт на страницу регистрации
+                    с параметром <span className="visibilitySlug">?invite=…</span>
+                </div>
+
+                <p className="formFooter">
+                    Уже есть аккаунт?{" "}
+                    <Link className="link" to="/signin">
+                        Войти
+                    </Link>
+                </p>
+            </div>
+        );
+    }
+
+    if (sentTo) {
+        return (
+            <div className="formCard">
+                <h1 className="formTitle">Подтвердите почту</h1>
+                <p className="formSubtitle">Аккаунт появится после перехода по ссылке из письма</p>
+
+                <div className="alert alertSuccess" role="status">
+                    Мы отправили письмо на <strong>{sentTo}</strong>. Ссылка действует 24 часа.
+                </div>
+
+                {resendNotice && (
+                    <div className="alert" role="status">
+                        {resendNotice}
+                    </div>
+                )}
+
+                <button
+                    className="btn btnBlock"
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resending}
+                >
+                    {resending ? "Отправляем…" : "Отправить письмо ещё раз"}
+                </button>
+
+                <p className="formFooter">
+                    Уже подтвердили?{" "}
+                    <Link className="link" to="/signin">
+                        Войти
+                    </Link>
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="formCard">
@@ -85,6 +167,7 @@ const Registration = () => {
                         autoComplete="email"
                         required
                     />
+                    <span className="fieldHint">На неё придёт ссылка подтверждения.</span>
                     {fieldErrors.email && <span className="fieldError">{fieldErrors.email}</span>}
                 </label>
 
@@ -121,7 +204,7 @@ const Registration = () => {
                 </label>
 
                 <button className="btn btnPrimary btnBlock" type="submit" disabled={pending}>
-                    {pending ? "Создаём аккаунт..." : "Зарегистрироваться"}
+                    {pending ? "Отправляем письмо..." : "Зарегистрироваться"}
                 </button>
             </form>
 

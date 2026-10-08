@@ -1,0 +1,163 @@
+.adminLayout {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: var(--gap-lg);
+    align-items: start;
+}
+
+.adminNav {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xs);
+    padding: var(--gap);
+    border: 1px solid var(--border-muted);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.adminNavTitle {
+    margin-bottom: var(--gap-xs);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.adminNavItem {
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.adminNavItem:hover {
+    background-color: var(--bg-surface-muted);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.adminNavItemActive {
+    background-color: var(--bg-surface-muted);
+    color: var(--text);
+}
+
+.adminPanel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+}
+
+.adminHead {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+}
+
+.adminTitle {
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.adminToolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+}
+
+.adminToolbar .input {
+    flex: 1 1 240px;
+    min-width: 0;
+}
+
+.adminTableWrap {
+    overflow-x: auto;
+    border: 1px solid var(--border-muted);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.adminTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.adminTable th,
+.adminTable td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-muted);
+    text-align: left;
+    vertical-align: top;
+}
+
+.adminTable th {
+    color: var(--text-muted);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.adminTable tr:last-child td {
+    border-bottom: none;
+}
+
+.adminTableCellMuted {
+    color: var(--text-muted);
+}
+
+.adminRowActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-xs);
+}
+
+.adminBadge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.adminBadgeDanger {
+    border-color: rgba(240, 101, 95, 0.4);
+    background-color: rgba(240, 101, 95, 0.12);
+    color: var(--danger);
+}
+
+.adminBadgeSuccess {
+    border-color: rgba(87, 196, 105, 0.4);
+    background-color: rgba(87, 196, 105, 0.12);
+    color: var(--success);
+}
+
+.adminEditor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    padding: var(--gap);
+    border: 1px solid var(--border-muted);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.adminEmpty {
+    padding: var(--gap-lg);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.adminBody {
+    max-width: 520px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+@media (max-width: 900px) {
+    .adminLayout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

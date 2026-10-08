@@ -30,7 +30,7 @@ const BIO_MAX = 500;
 
 const initialOf = (login) => (login ? login.trim().charAt(0).toUpperCase() : "?");
 
-const ProfileSettings = () => {
+const ProfileSettingsPanel = () => {
     const { user, updateUser } = useAuth();
     const [bio, setBio] = useState(user?.bio ?? "");
     const [file, setFile] = useState(null);
@@ -170,11 +170,12 @@ const ProfileSettings = () => {
     const avatarPreview = previewUrl || (!removeAvatar ? user?.avatar : "") || undefined;
 
     return (
-        <section className="profileSettings">
-            <header className="publicMessage" style={{ maxWidth: "100%", marginTop: 0, textAlign: "left", alignItems: "stretch" }}>
-                <h1 className="profileLogin">Настройки профиля</h1>
+        <section className="settingsPanel">
+            <header className="settingsPanelHead">
+                <h2 className="settingsPanelTitle">Профиль</h2>
                 <p className="mutedText">
-                    Публичную страницу видят все: <Link to={`/u/${user?.login ?? ""}`}>/{user?.login}</Link>
+                    Публичную страницу видят все:{" "}
+                    <Link to={`/u/${user?.login ?? ""}`}>/{user?.login}</Link>
                 </p>
             </header>
 
@@ -280,4 +281,4 @@ const ProfileSettings = () => {
     );
 };
 
-export default ProfileSettings;
+export default ProfileSettingsPanel;

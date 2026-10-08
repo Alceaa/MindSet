@@ -66,7 +66,6 @@ const SetCard = ({
             setLiked(data.liked);
             setLikes(data.count);
         } catch {
-            // тихо игнорируем — состояние не меняем
         } finally {
             setBusy(false);
         }

@@ -1,0 +1,176 @@
+.settingsPage {
+    padding-top: var(--gap);
+}
+
+.settingsLayout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 0;
+}
+
+.settingsNav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-right: var(--gap-lg);
+    border-right: 1px solid var(--border);
+}
+
+.settingsNavTitle {
+    margin: 0 0 var(--gap);
+    padding-left: 10px;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.settingsNavItem {
+    padding: 8px 10px;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.settingsNavItem:hover {
+    background-color: var(--bg-surface-muted);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.settingsNavItemActive {
+    background-color: var(--accent-soft);
+    color: var(--accent);
+}
+
+.settingsContent {
+    min-width: 0;
+    padding-left: var(--gap-lg);
+}
+
+.settingsPanel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-lg);
+    max-width: 720px;
+}
+
+.settingsPanelHead {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xs);
+}
+
+.settingsPanelTitle {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.settingsForm {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+}
+
+.settingsSectionLabel {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.settingsField {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xs);
+}
+
+.settingsFieldLabel {
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.settingsActions {
+    display: flex;
+    justify-content: flex-start;
+    gap: var(--gap-sm);
+}
+
+.settingsRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--gap);
+    padding: var(--gap);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+}
+
+.settingsRowMain {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.settingsRowTitle {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.settingsBadge {
+    margin-left: 6px;
+    padding: 1px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background-color: var(--accent-soft);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.settingsThanks {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--gap-sm);
+    padding: var(--gap-xl);
+    text-align: center;
+}
+
+.settingsThanksIcon {
+    font-size: 40px;
+}
+
+@media (max-width: 820px) {
+    .settingsLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .settingsNav {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: var(--gap-xs);
+        padding-right: 0;
+        padding-bottom: var(--gap);
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .settingsNavTitle {
+        width: 100%;
+        margin-bottom: var(--gap-sm);
+    }
+
+    .settingsContent {
+        padding-left: 0;
+        padding-top: var(--gap-lg);
+    }
+}

@@ -1,0 +1,157 @@
+.articleCard {
+    --reader-bg: var(--bg-surface);
+    --reader-text: var(--text);
+    --reader-muted: var(--text-muted);
+    --reader-faint: var(--text-faint);
+    --reader-border: var(--border-muted);
+    --reader-strong: var(--border);
+    --reader-code-bg: var(--bg-surface-muted);
+    --reader-code-block-bg: var(--bg-inset);
+    --reader-accent: var(--accent);
+    --reader-width: 72ch;
+    --reader-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial,
+        sans-serif;
+    --reader-size: 15px;
+    --reader-leading: 1.7;
+
+    border-color: var(--reader-strong);
+    background-color: var(--reader-bg);
+}
+
+.articleCard[data-reader-theme="sepia"] {
+    --reader-bg: #f6efe1;
+    --reader-text: #3a352c;
+    --reader-muted: #6d6454;
+    --reader-faint: #948b78;
+    --reader-border: #ded2b8;
+    --reader-strong: #cdbf9f;
+    --reader-code-bg: #ece1cb;
+    --reader-code-block-bg: #efe6d3;
+    --reader-accent: #8a5a12;
+}
+
+.articleCard[data-reader-theme="nord"] {
+    --reader-bg: #2e3440;
+    --reader-text: #d8dee9;
+    --reader-muted: #a6b0c1;
+    --reader-faint: #7c8699;
+    --reader-border: #3b4252;
+    --reader-strong: #4c566a;
+    --reader-code-bg: #3b4252;
+    --reader-code-block-bg: #272c36;
+    --reader-accent: #88c0d0;
+}
+
+.articleCard[data-reader-theme="contrast"] {
+    --reader-bg: #000000;
+    --reader-text: #ffffff;
+    --reader-muted: #cfd6dd;
+    --reader-faint: #97a1ab;
+    --reader-border: #3d444d;
+    --reader-strong: #565f69;
+    --reader-code-bg: #1b2129;
+    --reader-code-block-bg: #0d1117;
+    --reader-accent: #58a6ff;
+}
+
+.articleCard[data-reader-width="narrow"] {
+    --reader-width: 54ch;
+}
+
+.articleCard[data-reader-width="wide"] {
+    --reader-width: 96ch;
+}
+
+.articleCard[data-reader-font="serif"] {
+    --reader-font: Georgia, "Times New Roman", "Noto Serif", serif;
+}
+
+.articleCard[data-reader-scale="s"] {
+    --reader-size: 14px;
+}
+
+.articleCard[data-reader-scale="l"] {
+    --reader-size: 17.5px;
+}
+
+.readerSettings {
+    position: relative;
+}
+
+.btnActive {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.readerPopover {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    width: 264px;
+    padding: var(--gap-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+    box-shadow: var(--shadow);
+}
+
+.readerRow {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xs);
+}
+
+.readerRowLabel {
+    color: var(--text-faint);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.readerChoices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-xs);
+}
+
+.readerChoice {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.readerChoice:hover {
+    background-color: #30363d;
+    color: var(--text);
+}
+
+.readerChoiceActive {
+    border-color: var(--accent);
+    background-color: var(--accent-soft);
+    color: var(--text);
+}
+
+.readerReset {
+    padding: 4px 0;
+    border: none;
+    background: none;
+    color: var(--text-faint);
+    font-family: inherit;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.readerReset:hover {
+    color: var(--text);
+    text-decoration: underline;
+}

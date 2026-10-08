@@ -1,0 +1,299 @@
+
+.tabsBox {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+    overflow: hidden;
+}
+
+.tabsContent {
+    padding: var(--gap-lg);
+}
+
+.setGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--gap);
+    align-items: start;
+}
+
+.setCard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    padding: var(--gap-lg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface-muted);
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease,
+        transform 0.15s ease;
+}
+
+.setCard:hover {
+    border-color: rgba(226, 176, 83, 0.5);
+    background-color: rgba(226, 176, 83, 0.08);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+.setCardMain {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.setCardMain:hover {
+    text-decoration: none;
+}
+
+.savedPanel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-lg);
+}
+
+.savedSection {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+}
+
+.savedSectionTitle {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+}
+
+.savedSectionHint {
+    font-size: 13px;
+}
+
+.savedList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+}
+
+.savedItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--gap);
+    padding: var(--gap);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface-muted);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.savedItem:hover {
+    border-color: rgba(226, 176, 83, 0.5);
+    background-color: rgba(226, 176, 83, 0.08);
+}
+
+.savedItemMain {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    min-width: 0;
+}
+
+.savedItemTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    text-decoration: none;
+    word-break: break-word;
+}
+
+.savedItemTitle:hover {
+    text-decoration: underline;
+}
+
+.savedItemMeta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+}
+
+.savedItemActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+    margin-left: auto;
+}
+
+.setTitle {
+    font-size: 15px;
+    font-weight: 600;
+    word-break: break-word;
+}
+
+.setDescription {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 13px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+.setMeta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+    margin-top: auto;
+    padding-top: var(--gap-sm);
+    border-top: 1px solid var(--border);
+}
+
+@media (max-width: 640px) {
+    .tabsContent {
+        padding: var(--gap);
+    }
+}
+
+.editorCard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    padding: var(--gap-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.editorHint {
+    padding: 0 var(--gap-sm);
+    color: var(--text-faint);
+    font-size: 12px;
+}
+
+.mdxEditorHost {
+    position: relative;
+    display: block;
+}
+
+.toolbarWikilink {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.toolbarWikilink:hover {
+    background-color: #30363d;
+}
+
+.mdxEditorHost .mdxEditorTheme,
+.mdxEditorHost [class*="_editorRoot_"] {
+    --basePageBg: var(--bg-inset);
+    --baseBase: var(--bg-surface);
+    --baseBgSubtle: var(--bg-surface-muted);
+    --baseBg: var(--bg-surface);
+    --baseBgHover: var(--bg-surface-muted);
+    --baseBgActive: #30363d;
+    --baseLine: var(--border);
+    --baseBorder: var(--border);
+    --baseBorderHover: #484f58;
+    --baseSolid: var(--bg-surface-muted);
+    --baseSolidHover: #30363d;
+    --baseText: var(--text);
+    --baseTextContrast: var(--text);
+
+    --accentBase: var(--bg-inset);
+    --accentBgSubtle: rgba(56, 139, 253, 0.15);
+    --accentBg: rgba(56, 139, 253, 0.15);
+    --accentBgHover: rgba(56, 139, 253, 0.25);
+    --accentBgActive: rgba(56, 139, 253, 0.3);
+    --accentLine: var(--border);
+    --accentBorder: var(--accent);
+    --accentBorderHover: var(--accent-hover);
+    --accentSolid: var(--accent);
+    --accentSolidHover: var(--accent-hover);
+    --accentText: var(--accent);
+    --accentTextContrast: #ffffff;
+
+    --error-color: var(--danger);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface);
+    color: var(--text);
+}
+
+.mdxEditorHost [class*="_toolbarRoot_"] {
+    border-bottom: 1px solid var(--border);
+    background-color: var(--bg-surface-muted);
+}
+
+.mdxEditorHost .mdxContent,
+.mdxEditorHost [class*="_contentEditable_"] {
+    padding: var(--gap-lg);
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.mdxEditorHost .mdxContent:focus,
+.mdxEditorHost [class*="_contentEditable_"]:focus {
+    outline: none;
+}
+
+.homeSetRow {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: var(--gap-sm);
+    padding: var(--gap-sm) var(--gap);
+    border: 1px solid var(--border-muted);
+    border-radius: var(--radius);
+    color: var(--text);
+    text-decoration: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.homeSetRow:last-child {
+    margin-bottom: 0;
+}
+
+.homeSetRow:hover {
+    border-color: rgba(226, 176, 83, 0.5);
+    background-color: rgba(226, 176, 83, 0.08);
+    text-decoration: none;
+}
+
+.homeSetTitle {
+    color: var(--text);
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.homeSetPreview {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

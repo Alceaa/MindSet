@@ -1,0 +1,241 @@
+.graphPanel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+}
+
+.graphToolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-sm);
+}
+
+.graphActions {
+    display: flex;
+    gap: var(--gap-sm);
+    margin-left: auto;
+}
+
+.graphCanvas {
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-inset);
+    cursor: grab;
+    touch-action: none;
+}
+
+.graphBackground {
+    fill: transparent;
+}
+
+.graphEdge {
+    stroke: var(--border);
+    stroke-width: 1.6;
+}
+
+.graphEdgeSolid {
+    stroke: #59616e;
+}
+
+.graphEdgeOneSided {
+    stroke: rgba(200, 206, 216, 0.55);
+    stroke-dasharray: 6 5;
+}
+
+.graphArrowHead {
+    fill: rgba(200, 206, 216, 0.75);
+    stroke: none;
+}
+
+.graphEdgeActive {
+    stroke: var(--accent);
+    stroke-width: 2.4;
+}
+
+.graphNode {
+    cursor: pointer;
+}
+
+.graphNodeSet circle {
+    fill: rgba(226, 176, 83, 0.2);
+    stroke: var(--accent);
+    stroke-width: 2;
+    transition: fill 0.15s ease;
+}
+
+.graphNodeExternal circle {
+    fill: rgba(226, 176, 83, 0.14);
+    stroke: var(--accent);
+    stroke-dasharray: 5 4;
+    stroke-width: 2;
+}
+
+.graphNodeFrozen circle {
+    fill: rgba(95, 179, 161, 0.18);
+    stroke: #5fb3a1;
+    stroke-width: 2;
+}
+
+.graphNodeDeleted circle {
+    fill: rgba(139, 147, 161, 0.1);
+    stroke: #8b93a1;
+    stroke-dasharray: 3 4;
+    stroke-width: 2;
+}
+
+.graphNodeExternal text {
+    fill: var(--text-faint);
+}
+
+.graphNodeFrozen text,
+.graphNodeDeleted text {
+    fill: var(--text-muted);
+}
+
+.graphNode text {
+    fill: var(--text-muted);
+    font-size: 12px;
+    pointer-events: none;
+    user-select: none;
+}
+
+.graphNodeActive circle {
+    fill: var(--accent);
+}
+
+.graphNodeNeighbor circle {
+    stroke: #f0cd82;
+}
+
+.graphNodeDim {
+    opacity: 0.3;
+}
+
+.graphHint {
+    color: var(--text-faint);
+    font-size: 12px;
+}
+
+.oneSidedMark {
+    margin-right: 4px;
+    color: var(--accent);
+}
+
+.linkRow {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.wikilinkPicker {
+    position: absolute;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    width: 320px;
+    padding: var(--gap-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+    box-shadow: var(--shadow);
+}
+
+.wikilinkHeader {
+    display: flex;
+    gap: var(--gap-sm);
+}
+
+.wikilinkQuery {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wikilinkCursor {
+    display: inline-block;
+    width: 1px;
+    height: 14px;
+    margin-left: 1px;
+    vertical-align: text-bottom;
+    background-color: var(--accent);
+}
+
+.wikilinkAlert {
+    margin-bottom: 0;
+}
+
+.wikilinkEmpty {
+    padding: var(--gap-xs) var(--gap-sm);
+    font-size: 13px;
+}
+
+.wikilinkList {
+    display: flex;
+    flex-direction: column;
+    max-height: 240px;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.wikilinkOption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+    width: 100%;
+    padding: 6px 8px;
+    border: none;
+    border-radius: var(--radius);
+    background: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.wikilinkOptionActive {
+    background-color: var(--bg-surface-muted);
+}
+
+.wikilinkOptionCreate {
+    color: var(--accent);
+}
+
+.wikilinkOptionTitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wikilinkOptionBadge {
+    flex-shrink: 0;
+    color: var(--text-faint);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.wikilinkHint {
+    color: var(--text-faint);
+    font-size: 11px;
+}
+
+.linkRow .link {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

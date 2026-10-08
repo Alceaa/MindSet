@@ -1,0 +1,368 @@
+.profilePage {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-lg);
+    padding-top: var(--gap);
+}
+
+.profileHeader {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-lg);
+    padding: var(--gap-lg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.profileIdentity {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    flex: 1;
+    min-width: 240px;
+}
+
+.profileLogin {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.profileBio {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.profileMetaList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.profileMetaItem {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 96px;
+}
+
+.profileMetaLabel {
+    color: var(--text-faint);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.profileMetaValue {
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.profileMetaHint {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.profileActions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--gap-sm);
+    margin-left: auto;
+}
+
+.profileTabs {
+    display: flex;
+    gap: var(--gap-xs);
+    border-bottom: 1px solid var(--border);
+}
+
+.profileTab {
+    padding: 8px 14px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.profileTab:hover {
+    color: var(--text);
+}
+
+.profileTabActive {
+    border-bottom-color: var(--accent);
+    color: var(--text);
+}
+
+.profileEmpty {
+    padding: var(--gap-xl) var(--gap);
+    border: 1px dashed var(--border-muted);
+    border-radius: var(--radius-lg);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.profileSettings {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-lg);
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.profileAvatarRow {
+    display: flex;
+    align-items: center;
+    gap: var(--gap);
+    flex-wrap: wrap;
+}
+
+.profileAvatarActions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+}
+
+.profileField {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xs);
+}
+
+.profileFieldLabel {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.profileTextarea {
+    min-height: 120px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+.profileTextarea:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+.profileCounter {
+    align-self: flex-end;
+    color: var(--text-faint);
+    font-size: 12px;
+}
+
+.profileLayout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: var(--gap-lg);
+    align-items: start;
+}
+
+.profileSide {
+    position: sticky;
+    top: calc(var(--header-height) + var(--gap-lg));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--gap);
+    padding: var(--gap-lg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+    text-align: center;
+}
+
+.profileSide .profileLogin {
+    font-size: 22px;
+    word-break: break-word;
+}
+
+.profileSide .profileMetaList {
+    justify-content: center;
+}
+
+.profileSide .profileActions {
+    margin-left: 0;
+    align-items: center;
+}
+
+.profileMain {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-lg);
+    min-width: 0;
+}
+
+.profileBioCard {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    padding: var(--gap-lg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.profileSectionLabel {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.profileBioMarkdown,
+.profileBioPreview {
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+.profileBioMarkdown p,
+.profileBioPreview p {
+    margin: 0 0 var(--gap-sm);
+}
+
+.profileBioMarkdown p:last-child,
+.profileBioPreview p:last-child {
+    margin-bottom: 0;
+}
+
+.profileBioMarkdown a,
+.profileBioPreview a {
+    color: var(--accent);
+}
+
+.profileBioPreview {
+    padding: var(--gap-sm) var(--gap);
+    border: 1px solid var(--border-muted);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+}
+
+.profileBioMarkdown .article {
+    max-width: none;
+    margin: 0;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.profileBioMarkdown .article a {
+    color: var(--accent);
+}
+
+.profileBioMarkdown .article .articleLinkMissing {
+    color: var(--text-faint);
+    border-bottom: 1px dashed var(--border);
+}
+
+.profileSetsSection {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+}
+
+@media (max-width: 900px) {
+    .profileLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .profileSide {
+        position: static;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-start;
+        gap: var(--gap);
+        text-align: left;
+    }
+
+    .profileSide .profileMetaList {
+        justify-content: flex-start;
+    }
+}
+
+.bioEditorWrap {
+    position: relative;
+}
+
+.bioEditorWrap .mdxEditorHost [class*="_contentEditable_"] {
+    min-height: 128px;
+}
+
+.bioFieldHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+}
+
+.bioLinkPicker {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    width: 100%;
+    max-width: 420px;
+    margin-bottom: var(--gap-sm);
+    padding: var(--gap-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+    box-shadow: var(--shadow);
+}
+
+.bioLinkSearch {
+    width: 100%;
+}
+
+.bioLinkList {
+    display: flex;
+    flex-direction: column;
+    max-height: 240px;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.bioLinkOption {
+    width: 100%;
+    padding: 6px 8px;
+    border: none;
+    border-radius: var(--radius);
+    background: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.bioLinkOption:hover {
+    background-color: var(--bg-surface-muted);
+    color: var(--accent);
+}

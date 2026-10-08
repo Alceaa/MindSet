@@ -52,6 +52,10 @@ export const prepareMarkdown = (markdown) => {
             .replace(/`[^`\n]*`/g, stash)
     );
 
+    // Превью на сервере режется по длине, поэтому в конце может оказаться
+    // половина сущности («&#x2») — такой хвост не текст, его убираем.
+    text = text.replace(/\s*&#x?[0-9a-f]{0,6}$/i, "");
+
     const stashLinks = [];
     const convert = (match, raw) => {
         const pipe = raw.indexOf("|");

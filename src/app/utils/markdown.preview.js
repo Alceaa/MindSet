@@ -7,6 +7,11 @@ export function stripMarkdown(markdown) {
 
     return stripEscapes(String(markdown))
         .replace(/```[\s\S]*?```/g, " ")
+        .replace(/<[^>\n]*>/g, " ")
+        // Превью обрезается (сервер режет по 280 символов, карточка — по 400),
+        // поэтому сущность может прийти обрезанной: «&#x20;» без хвоста.
+        .replace(/&#x[0-9a-f]{0,6};?|&#\d{0,7};?/gi, " ")
+        .replace(/&(nbsp|amp|lt|gt|quot|apos);/gi, " ")
         .replace(/`([^`]+)`/g, "$1")
         .replace(/!\[[^\]]*]\([^)]*\)/g, " ")
         .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2")

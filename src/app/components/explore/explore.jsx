@@ -5,6 +5,7 @@ import socialService from "../../api/social.service";
 import parseApiError from "../../utils/api.error";
 import { useAuth } from "../../context/auth.context";
 import SetCard from "../common/set.card.jsx";
+import MarkdownContent from "../common/markdown.content.jsx";
 import "../../css/dashboard/dashboard.scss";
 import "../../css/dashboard/feed.scss";
 
@@ -112,7 +113,7 @@ const Explore = () => {
                             {feed.announcements.map((item) => (
                                 <article className="announcement" key={item.id}>
                                     <h3 className="announcementTitle">{item.title}</h3>
-                                    <p className="announcementBody">{item.body}</p>
+                                    <MarkdownContent className="announcementBody" content={item.body} />
                                     <span className="announcementDate">{item.date_posted}</span>
                                 </article>
                             ))}

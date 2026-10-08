@@ -1,8 +1,41 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+    BlockTypeSelect,
+    BoldItalicUnderlineToggles,
+    CreateLink,
+    InsertImage,
+    InsertThematicBreak,
+    ListsToggle,
+    MDXEditor,
+    Separator,
+    UndoRedo,
+    headingsPlugin,
+    imagePlugin,
+    linkDialogPlugin,
+    linkPlugin,
+    listsPlugin,
+    markdownShortcutPlugin,
+    quotePlugin,
+    thematicBreakPlugin,
+    toolbarPlugin,
+} from "@mdxeditor/editor";
+import "@mdxeditor/editor/style.css";
 import adminService from "../../api/admin.service";
 import parseApiError from "../../utils/api.error";
+import { uploadImage } from "../../utils/image.upload";
+import "../../css/dashboard/dashboard.scss";
 
 const EMPTY = { title: "", body: "", is_published: true, is_pinned: false };
+const BODY_MAX = 20000;
+
+const imageUploadHandler = async (file) => {
+    try {
+        return await uploadImage(file);
+    } catch (err) {
+        window.alert(err?.message || "Не удалось загрузить изображение");
+        throw err;
+    }
+};
 
 const AdminNewsPanel = () => {
     const [items, setItems] = useState([]);
@@ -10,6 +43,36 @@ const AdminNewsPanel = () => {
     const [editingId, setEditingId] = useState(0);
     const [notice, setNotice] = useState(null);
     const [pending, setPending] = useState(false);
+
+    // Тот же набор инструментов, что и в настройках профиля, плюс вставка картинок.
+    const newsPlugins = useMemo(
+        () => [
+            headingsPlugin(),
+            listsPlugin(),
+            quotePlugin(),
+            thematicBreakPlugin(),
+            markdownShortcutPlugin(),
+            linkPlugin(),
+            linkDialogPlugin(),
+            imagePlugin({ imageUploadHandler }),
+            toolbarPlugin({
+                toolbarContents: () => (
+                    <>
+                        <UndoRedo />
+                        <Separator />
+                        <BlockTypeSelect />
+                        <BoldItalicUnderlineToggles />
+                        <ListsToggle />
+                        <CreateLink />
+                        <InsertImage />
+                        <InsertThematicBreak />
+                    </>
+                ),
+            }),
+        ],
+        []
+    );
+
 
     const load = useCallback(async () => {
         try {
@@ -26,6 +89,15 @@ const AdminNewsPanel = () => {
 
     const submit = async (event) => {
         event.preventDefault();
+
+        if (form.body.length > BODY_MAX) {
+            setNotice({
+                kind: "error",
+                text: `Текст новости слишком длинный: ${form.body.length} из ${BODY_MAX} символов`,
+            });
+            return;
+        }
+
         setPending(true);
         setNotice(null);
 
@@ -113,14 +185,17 @@ const AdminNewsPanel = () => {
                     maxLength={200}
                     required
                 />
-                <textarea
-                    className="input textarea"
-                    rows={8}
-                    value={form.body}
-                    onChange={(event) => setForm({ ...form, body: event.target.value })}
-                    placeholder="Текст новости (поддерживается markdown)"
-                    maxLength={20000}
-                />
+                <div className="mdxEditorHost">
+                    <MDXEditor
+                        key={editingId || "new"}
+                        className="mdxEditorTheme"
+                        markdown={form.body}
+                        onChange={(value) => setForm((current) => ({ ...current, body: value }))}
+                        plugins={newsPlugins}
+                        contentEditableClassName="mdxContent"
+                        placeholder="Текст новости: заголовки, списки, ссылки, картинки"
+                    />
+                </div>
                 <label className="mutedText">
                     <input
                         type="checkbox"

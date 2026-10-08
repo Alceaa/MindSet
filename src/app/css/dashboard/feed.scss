@@ -133,6 +133,93 @@
     color: var(--text-muted);
     font-size: 14px;
     line-height: 1.6;
+
+    p {
+        margin: 0 0 8px;
+    }
+
+    p:last-child {
+        margin-bottom: 0;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        margin: 12px 0 6px;
+        font-family: var(--font-display);
+        font-size: 15px;
+        color: var(--text);
+    }
+
+    ul,
+    ol {
+        margin: 0 0 8px;
+        padding-left: 20px;
+    }
+
+    li {
+        margin-bottom: 4px;
+    }
+
+    a,
+    .markdownLink {
+        color: var(--accent);
+    }
+
+    img {
+        max-width: 100%;
+        height: auto;
+        border-radius: var(--radius-lg);
+    }
+
+    blockquote {
+        margin: 0 0 8px;
+        padding-left: 12px;
+        border-left: 3px solid var(--border);
+        color: var(--text-faint);
+    }
+
+    code {
+        padding: 1px 5px;
+        border-radius: 6px;
+        background-color: var(--bg-elevated);
+        font-size: 13px;
+    }
+
+    pre {
+        margin: 0 0 8px;
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background-color: var(--bg-elevated);
+        overflow-x: auto;
+    }
+
+    pre code {
+        padding: 0;
+        background: none;
+    }
+
+    hr {
+        margin: 12px 0;
+        border: none;
+        border-top: 1px solid var(--border);
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th,
+    td {
+        padding: 4px 8px;
+        border: 1px solid var(--border);
+        text-align: left;
+    }
 }
 
 .announcementDate {

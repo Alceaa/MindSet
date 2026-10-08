@@ -42,9 +42,14 @@ const cases = [
         want: "[[Незакрытая и [[]] и [ [обычные скобки] ]",
     },
     {
-        name: "битая сущность не ломает разбор",
-        input: "[[&#x110000; битый кодпоинт]] и [[План]]",
-        want: "[&#x110000; битый кодпоинт](wikilink:%26%23x110000%3B%20%D0%B1%D0%B8%D1%82%D1%8B%D0%B9%20%D0%BA%D0%BE%D0%B4%D0%BF%D0%BE%D0%B8%D0%BD%D1%82) и [План](wikilink:%D0%BF%D0%BB%D0%B0%D0%BD)",
+        name: "HTML-картинка уходит в рендерер без изменений (её рисует rehype-raw)",
+        input: '&#x20;<img height="285" width="279" src="https://s3.twcstorage.ru/bucket/a.jpg" />',
+        want: ' <img height="285" width="279" src="https://s3.twcstorage.ru/bucket/a.jpg" />',
+    },
+    {
+        name: "обрезанную сущность в конце превью убираем",
+        input: '&#x20;<img src="a.png" /> и хвост &#x2',
+        want: ' <img src="a.png" /> и хвост',
     },
 ];
 

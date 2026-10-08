@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { normalizeTitle, prepareMarkdown, stripEscapes } from "../../../markdown/wikilink";
+import { rehypePlugins } from "../../../markdown/render";
 import "../../../css/dashboard/article.scss";
 
 const WIKILINK_PREFIX = "wikilink:";
@@ -118,6 +119,7 @@ const SetArticle = ({ content, links, emptyText }) => {
         <article className="article">
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
+                rehypePlugins={rehypePlugins}
                 components={components}
                 transformLinkUri={(uri) => uri}
             >

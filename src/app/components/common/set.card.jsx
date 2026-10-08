@@ -46,10 +46,17 @@ const SetCard = ({
     const [busy, setBusy] = useState(false);
 
     const target = to || `/s/${set.slug}`;
-    const previewMd = useMemo(
-        () => prepareMarkdown(set.preview ? set.preview.slice(0, PREVIEW_LIMIT) : ""),
-        [set.preview]
-    );
+    const previewMd = useMemo(() => {
+        if (!set.preview) {
+            return "";
+        }
+
+        // Превью — текстовое: HTML редактора (картинки) не рисуем, только убираем.
+        return prepareMarkdown(set.preview)
+            .replace(/<[^>]*>/g, " ")
+            .trim()
+            .slice(0, PREVIEW_LIMIT);
+    }, [set.preview]);
 
     const handleLike = async (event) => {
         event.preventDefault();
@@ -75,7 +82,7 @@ const SetCard = ({
         <div className={`setCard${own ? " setCardOwn" : ""}`}>
             <Link className="setCardMain" to={target}>
                 <h3 className="setTitle">{set.title}</h3>
-                {set.preview ? (
+                {previewMd ? (
                     <div className="setPreviewRich">
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm]}

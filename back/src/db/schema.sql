@@ -293,10 +293,15 @@ CREATE TABLE IF NOT EXISTS bug_reports (
 
 CREATE INDEX IF NOT EXISTS bug_reports_created_idx ON bug_reports (created_at DESC);
 
-INSERT INTO news (title, body, is_published, published_at)
-SELECT a.title, a.body, true, a.date_posted
-FROM announcements a
-WHERE NOT EXISTS (SELECT 1 FROM news);
+DO $$
+BEGIN
+    IF to_regclass('public.announcements') IS NOT NULL THEN
+        INSERT INTO news (title, body, is_published, published_at)
+        SELECT a.title, a.body, true, a.date_posted
+        FROM announcements a
+        WHERE NOT EXISTS (SELECT 1 FROM news);
+    END IF;
+END $$;
 
 DO $$
 BEGIN
@@ -346,10 +351,3 @@ CREATE TABLE IF NOT EXISTS set_comments (
 );
 
 CREATE INDEX IF NOT EXISTS set_comments_set_idx ON set_comments (set_id, id);
-
-CREATE TABLE IF NOT EXISTS announcements (
-    id          serial PRIMARY KEY,
-    title       varchar NOT NULL,
-    body        text NOT NULL,
-    date_posted date NOT NULL DEFAULT CURRENT_DATE
-);

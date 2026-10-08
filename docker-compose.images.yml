@@ -1,0 +1,5 @@
+services:
+  backend:
+    image: ghcr.io/alceaa/mindset-backend:1.0.0
+  frontend:
+    image: ghcr.io/alceaa/mindset-frontend:1.0.0

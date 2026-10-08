@@ -1,0 +1,38 @@
+name: Release images
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Сборка и публикация в GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./back
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/alceaa/mindset-backend:${{ github.ref_name }}
+      - name: frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./front
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            PUBLIC_URL=/mindset
+            REACT_APP_BASE_API_URL=/mindset/api
+          tags: ghcr.io/alceaa/mindset-frontend:${{ github.ref_name }}

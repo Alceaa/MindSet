@@ -14,6 +14,9 @@ ARG PUBLIC_URL=""
 ENV PUBLIC_URL=$PUBLIC_URL
 
 ENV CI=true
+ENV GENERATE_SOURCEMAP=false
+ENV NODE_OPTIONS=--max-old-space-size=1024
+
 RUN npm run build
 
 # ---- runtime stage ----

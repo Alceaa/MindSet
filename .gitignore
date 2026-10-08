@@ -1,0 +1,35 @@
+# Секреты — создаётся из .env.production.example, не коммитить!
+.env
+.env.*
+!.env.production.example
+
+# Данные и резервные копии (тома docker compose / скрипт бэкапа)
+backups/
+uploads/
+
+# Editor/IDE
+.idea/
+.vscode/
+*.swp
+
+# Зависимости (на случай `git add .` из корня: node_modules фронтенда ~1.3 ГБ)
+node_modules/
+jspm_packages/
+
+# Сборки
+build/
+dist/
+out/
+
+# Бинарники, логи, артефакты тестов
+*.exe
+*.test
+*.log
+*.out
+coverage/
+
+# ОС
+.DS_Store
+Thumbs.db
+desktop.ini
+

@@ -1,0 +1,23 @@
+{$DOMAIN} {
+	encode gzip zstd
+
+	handle /mindset {
+		redir /mindset/ 308
+	}
+
+	handle_path /mindset/api/* {
+		reverse_proxy backend:8080
+	}
+
+	handle_path /mindset/media/* {
+		reverse_proxy backend:8080
+	}
+
+	handle_path /mindset/* {
+		reverse_proxy frontend:80
+	}
+
+	handle /media/* {
+		reverse_proxy backend:8080
+	}
+}

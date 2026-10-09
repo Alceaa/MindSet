@@ -325,3 +325,13 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+.markdownTools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+}
+
+.markdownFileInput {
+    display: none;
+}

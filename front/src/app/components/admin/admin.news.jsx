@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     BlockTypeSelect,
     BoldItalicUnderlineToggles,
     CreateLink,
     InsertImage,
+    InsertTable,
     InsertThematicBreak,
     ListsToggle,
     MDXEditor,
@@ -16,6 +17,7 @@ import {
     listsPlugin,
     markdownShortcutPlugin,
     quotePlugin,
+    tablePlugin,
     thematicBreakPlugin,
     toolbarPlugin,
 } from "@mdxeditor/editor";
@@ -23,6 +25,8 @@ import "@mdxeditor/editor/style.css";
 import adminService from "../../api/admin.service";
 import parseApiError from "../../utils/api.error";
 import { uploadImage } from "../../utils/image.upload";
+import MarkdownTools from "../common/markdown.tools.jsx";
+import { applyMarkdownPaste } from "../../markdown/paste";
 import "../../css/dashboard/dashboard.scss";
 
 const EMPTY = { title: "", body: "", is_published: true, is_pinned: false };
@@ -43,6 +47,8 @@ const AdminNewsPanel = () => {
     const [editingId, setEditingId] = useState(0);
     const [notice, setNotice] = useState(null);
     const [pending, setPending] = useState(false);
+    const hostRef = useRef(null);
+    const editorRef = useRef(null);
 
     // Тот же набор инструментов, что и в настройках профиля, плюс вставка картинок.
     const newsPlugins = useMemo(
@@ -50,6 +56,7 @@ const AdminNewsPanel = () => {
             headingsPlugin(),
             listsPlugin(),
             quotePlugin(),
+            tablePlugin(),
             thematicBreakPlugin(),
             markdownShortcutPlugin(),
             linkPlugin(),
@@ -65,6 +72,7 @@ const AdminNewsPanel = () => {
                         <ListsToggle />
                         <CreateLink />
                         <InsertImage />
+                        <InsertTable />
                         <InsertThematicBreak />
                     </>
                 ),
@@ -185,8 +193,21 @@ const AdminNewsPanel = () => {
                     maxLength={200}
                     required
                 />
-                <div className="mdxEditorHost">
+                <div className="markdownTools">
+                    <MarkdownTools
+                        editorRef={editorRef}
+                        content={form.body}
+                        title={form.title}
+                        onImport={(text) => setForm((current) => ({ ...current, body: text }))}
+                    />
+                </div>
+                <div
+                    className="mdxEditorHost"
+                    ref={hostRef}
+                    onPasteCapture={(event) => applyMarkdownPaste(event, editorRef.current)}
+                >
                     <MDXEditor
+                        ref={editorRef}
                         key={editingId || "new"}
                         className="mdxEditorTheme"
                         markdown={form.body}

@@ -87,6 +87,10 @@ docker compose up -d --build
 
 Утилиты в `back/src/cmd`: `migrate` (схема БД), `admin` (роли, блокировки), `mailcheck` (проверка SMTP).
 
+Образы для прода собираются в GitHub Actions: по тегу `v*` они публикуются в GHCR
+(`ghcr.io/alceaa/mindset-backend:<тег>`, `ghcr.io/alceaa/mindset-frontend:<тег>`). Чтобы обновляться
+готовыми образами, укажите `MINDSET_TAG` в `.env` и запускайте compose с `docker-compose.images.yml`.
+
 ## Версии
 
 Номер версии задаётся константой `utils.Version` в бэкенде, виден в `GET /health` и в логе при старте.

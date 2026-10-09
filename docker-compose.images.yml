@@ -1,5 +1,5 @@
 services:
   backend:
-    image: ghcr.io/alceaa/mindset-backend:1.0.0
+    image: ghcr.io/alceaa/mindset-backend:${MINDSET_TAG:-v1.1.0}
   frontend:
-    image: ghcr.io/alceaa/mindset-frontend:1.0.0
+    image: ghcr.io/alceaa/mindset-frontend:${MINDSET_TAG:-v1.1.0}

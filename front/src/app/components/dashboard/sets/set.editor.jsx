@@ -37,6 +37,8 @@ import setService from "../../../api/set.service";
 import parseApiError from "../../../utils/api.error";
 import { uploadImage } from "../../../utils/image.upload";
 import LoadingScreen from "../../common/loading.screen.jsx";
+import MarkdownTools from "../../common/markdown.tools.jsx";
+import { applyMarkdownPaste } from "../../../markdown/paste";
 import SetArticle from "./set.article.jsx";
 import SetSidebar from "./set.sidebar.jsx";
 import { buildPickerOptions } from "./picker.options";
@@ -166,6 +168,7 @@ const SetEditorInner = () => {
     const realm = useRemoteMDXEditorRealm(EDITOR_ID);
 
     const hostRef = useRef(null);
+    const editorRef = useRef(null);
     const suppressTrigger = useRef(0);
     const realmRef = useRef(null);
 
@@ -763,6 +766,7 @@ const SetEditorInner = () => {
                             >
                                 Редактировать
                             </button>
+                            <MarkdownTools editorRef={editorRef} content={content} title={title} />
                             <button
                                 className="btn btnDanger"
                                 onClick={handleDelete}
@@ -783,6 +787,12 @@ const SetEditorInner = () => {
                             <button className="btn btnGhost" onClick={handleLeave} title="Ctrl+E">
                                 К статье
                             </button>
+                            <MarkdownTools
+                                editorRef={editorRef}
+                                content={content}
+                                title={title}
+                                onImport={(text) => setContent(text)}
+                            />
                             <button
                                 className="btn btnDanger"
                                 onClick={handleDelete}
@@ -914,8 +924,13 @@ const SetEditorInner = () => {
                             «[[ ]] ссылка»). Enter — вставить, Shift+Enter — с подписью, ↑↓ —
                             выбрать.
                         </div>
-                        <div className="mdxEditorHost" ref={hostRef}>
+                        <div
+                            className="mdxEditorHost"
+                            ref={hostRef}
+                            onPasteCapture={(event) => applyMarkdownPaste(event, editorRef.current)}
+                        >
                             <MDXEditor
+                                ref={editorRef}
                                 key={set.id}
                                 className="mdxEditorTheme"
                                 contentEditableClassName="mdxContent"

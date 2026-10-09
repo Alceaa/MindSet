@@ -7,6 +7,15 @@ export function stripMarkdown(markdown) {
 
     return stripEscapes(String(markdown))
         .replace(/```[\s\S]*?```/g, " ")
+        .replace(/^[ \t]*\|(.+)\|[ \t]*$/gm, (row, inner) =>
+            /^[\s:|-]+$/.test(inner)
+                ? ""
+                : `${inner
+                      .split("|")
+                      .map((cell) => cell.trim())
+                      .filter(Boolean)
+                      .join(", ")}; `
+        )
         .replace(/<[^>\n]*>/g, " ")
         // Превью обрезается (сервер режет по 280 символов, карточка — по 400),
         // поэтому сущность может прийти обрезанной: «&#x20;» без хвоста.
@@ -25,6 +34,7 @@ export function stripMarkdown(markdown) {
         .replace(/---+/g, " ")
         .replace(/\n{2,}/g, "\n")
         .replace(/\s+/g, " ")
+        .replace(/[;\s]+$/g, "")
         .trim();
 }
 

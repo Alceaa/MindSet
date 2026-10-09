@@ -1,8 +1,8 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { prepareMarkdown } from "../../markdown/wikilink";
-import { rehypePlugins } from "../../markdown/render";
+import { rehypePlugins, remarkPlugins } from "../../markdown/render";
+import { useAnchorLinks } from "../../markdown/heading.id.js";
 
 const WIKILINK_PREFIX = "wikilink:";
 
@@ -31,15 +31,18 @@ export const markdownComponents = {
 
 const MarkdownContent = ({ content, className, components, emptyText }) => {
     const markdown = useMemo(() => prepareMarkdown(content ?? ""), [content]);
+    const contentRef = useRef(null);
+
+    useAnchorLinks(contentRef, markdown);
 
     if (!markdown.trim()) {
         return emptyText ? <p className={className}>{emptyText}</p> : null;
     }
 
     return (
-        <div className={className}>
+        <div className={className} ref={contentRef}>
             <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
+                remarkPlugins={remarkPlugins}
                 rehypePlugins={rehypePlugins}
                 components={components ?? markdownComponents}
                 transformLinkUri={(uri) => uri}

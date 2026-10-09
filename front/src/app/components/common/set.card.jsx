@@ -2,10 +2,10 @@ import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Avatar from "@mui/material/Avatar";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import socialService from "../../api/social.service";
 import { useAuth } from "../../context/auth.context";
 import { prepareMarkdown } from "../../markdown/wikilink";
+import { remarkPlugins } from "../../markdown/render";
 
 const initialOf = (login) => (login ? login.trim().charAt(0).toUpperCase() : "?");
 
@@ -85,7 +85,7 @@ const SetCard = ({
                 {previewMd ? (
                     <div className="setPreviewRich">
                         <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
+                            remarkPlugins={remarkPlugins}
                             components={previewComponents}
                             transformLinkUri={(uri) => uri}
                         >

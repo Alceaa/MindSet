@@ -32,6 +32,7 @@ export function stripMarkdown(markdown) {
         .replace(/^\s*\d+\.\s+/gm, "")
         .replace(/[*_~]{1,3}/g, "")
         .replace(/---+/g, " ")
+        .replace(/--+/g, "—")
         .replace(/\n{2,}/g, "\n")
         .replace(/\s+/g, " ")
         .replace(/[;\s]+$/g, "")

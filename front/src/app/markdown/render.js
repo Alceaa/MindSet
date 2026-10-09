@@ -1,6 +1,8 @@
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { rehypeHeadingIds } from "./heading.id.js";
+import remarkGfm from "remark-gfm";
+import { remarkDashes } from "./typography.js";
 
 export const WIKILINK_PROTOCOL = "wikilink";
 
@@ -29,6 +31,8 @@ export const sanitizeSchema = {
 
 // Якоря заголовков добавляем после санитайза: иначе он приписал бы к id префикс
 // user-content- и ссылки вида [текст](#якорь) не находили бы цель.
+export const remarkPlugins = [remarkGfm, remarkDashes];
+
 export const rehypePlugins = [rehypeRaw, [rehypeSanitize, sanitizeSchema], rehypeHeadingIds];
 
 export default rehypePlugins;

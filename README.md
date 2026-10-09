@@ -111,3 +111,7 @@ docker compose up -d --build
 Номер версии задаётся константой `utils.Version` в бэкенде, виден в `GET /health` и в логе при старте.
 История изменений — [CHANGELOG.md](CHANGELOG.md). Теги `vX.Y.Z` отмечают релизы: из тега на GitHub
 можно оформить Release, вставив текст соответствующего раздела из CHANGELOG.
+
+## Лицензия
+
+[MIT](LICENSE) © 2026 Alcea

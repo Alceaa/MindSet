@@ -101,3 +101,21 @@ func TestAddressOnlyAndSubjects(t *testing.T) {
 		t.Errorf("в письме нет заголовка Subject:\n%s", msg)
 	}
 }
+
+func TestSendFailsFastWhenServerUnreachable(t *testing.T) {
+	Setup(Config{
+		Host: "127.0.0.1",
+		Port: 1,
+		From: "MindSet <no-reply@mindset.ru>",
+		TLS:  "starttls",
+	})
+
+	start := time.Now()
+	err := Send("user@example.com", "Тема", "текст письма")
+	if err == nil {
+		t.Fatal("ожидалась ошибка подключения к недоступному SMTP")
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("ошибка должна приходить быстро, получено %s", elapsed)
+	}
+}

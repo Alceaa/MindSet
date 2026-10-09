@@ -26,6 +26,7 @@ out/
 *.test
 *.log
 *.out
+*.err
 coverage/
 
 # ОС

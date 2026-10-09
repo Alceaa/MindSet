@@ -25,6 +25,11 @@ type Config struct {
 	TLS      string
 }
 
+const (
+	dialTimeout    = 10 * time.Second
+	sessionTimeout = 30 * time.Second
+)
+
 var current Config
 
 func Setup(cfg Config) {
@@ -120,23 +125,35 @@ func SendLoginCode(to, login, code string, ttl time.Duration) error {
 func sendSMTP(to, subject, body string) error {
 	addr := net.JoinHostPort(current.Host, strconv.Itoa(current.Port))
 	implicit := strings.EqualFold(current.TLS, "implicit")
+	dialer := &net.Dialer{Timeout: dialTimeout}
+
+	raw, dialErr := dialer.Dial("tcp", addr)
+	if dialErr != nil {
+		return fmt.Errorf("mailer: подключение к %s: %w", addr, dialErr)
+	}
+	if deadlineErr := raw.SetDeadline(time.Now().Add(sessionTimeout)); deadlineErr != nil {
+		raw.Close()
+		return fmt.Errorf("mailer: таймаут соединения с %s: %w", addr, deadlineErr)
+	}
 
 	var client *smtp.Client
 	var err error
 	if implicit {
-		conn, dialErr := tls.Dial("tcp", addr, &tls.Config{
+		tlsConn := tls.Client(raw, &tls.Config{
 			ServerName: current.Host,
 			MinVersion: tls.VersionTLS12,
 		})
-		if dialErr != nil {
-			return fmt.Errorf("mailer: tls dial %s: %w", addr, dialErr)
+		if handshakeErr := tlsConn.Handshake(); handshakeErr != nil {
+			raw.Close()
+			return fmt.Errorf("mailer: tls рукопожатие с %s: %w", addr, handshakeErr)
 		}
-		client, err = smtp.NewClient(conn, current.Host)
+		client, err = smtp.NewClient(tlsConn, current.Host)
 	} else {
-		client, err = smtp.Dial(addr)
+		client, err = smtp.NewClient(raw, current.Host)
 	}
 	if err != nil {
-		return fmt.Errorf("mailer: подключение к %s: %w", addr, err)
+		raw.Close()
+		return fmt.Errorf("mailer: приветствие %s: %w", addr, err)
 	}
 	defer client.Close()
 

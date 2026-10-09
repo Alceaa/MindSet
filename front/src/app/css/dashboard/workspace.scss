@@ -225,3 +225,21 @@
         justify-content: flex-start;
     }
 }
+
+@media (max-width: 640px) {
+    .articleTitle {
+        font-size: 1.35rem;
+    }
+
+    .articleDescription {
+        font-size: 14px;
+    }
+
+    .setToolbar .btn {
+        flex: 1 1 auto;
+    }
+
+    .setSidebarList {
+        max-height: 40vh;
+    }
+}

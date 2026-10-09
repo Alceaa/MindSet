@@ -239,3 +239,13 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+@media (max-width: 640px) {
+    .graphCanvas {
+        height: 65vh;
+    }
+
+    .graphActions {
+        margin-left: 0;
+    }
+}

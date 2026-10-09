@@ -35,6 +35,15 @@
     font-family: var(--reader-font);
     font-size: var(--reader-size);
     line-height: var(--reader-leading);
+    overflow-wrap: break-word;
+}
+
+.article img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto var(--gap);
+    border-radius: var(--radius);
 }
 
 .articleEmpty {
@@ -152,4 +161,16 @@
 .article th {
     background-color: var(--reader-code-bg);
     font-weight: 600;
+}
+
+@media (max-width: 640px) {
+    .articleCard {
+        padding: var(--gap);
+    }
+
+    .article table {
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+    }
 }

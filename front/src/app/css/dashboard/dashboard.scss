@@ -260,6 +260,34 @@
     outline: none;
 }
 
+.mdxEditorHost .mdxContent img,
+.mdxEditorHost [class*="_contentEditable_"] img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto var(--gap);
+    border-radius: var(--radius);
+}
+
+@media (max-width: 640px) {
+    .mdxEditorHost {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    .mdxEditorHost [class*="_toolbarRoot_"] {
+        flex-wrap: wrap;
+        row-gap: 4px;
+        overflow-x: auto;
+    }
+
+    .mdxEditorHost .mdxContent,
+    .mdxEditorHost [class*="_contentEditable_"] {
+        padding: var(--gap);
+        font-size: 14px;
+    }
+}
+
 .homeSetRow {
     display: flex;
     flex-direction: column;

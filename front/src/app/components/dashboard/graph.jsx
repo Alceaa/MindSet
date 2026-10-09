@@ -233,6 +233,8 @@ const Graph = () => {
     const restRef = useRef({});
     const displayRef = useRef({});
     const frameRef = useRef(0);
+    const pointers = useRef(new Map());
+    const pinch = useRef(null);
 
     const [graph, setGraph] = useState({ nodes: [], edges: [] });
     const [positions, setPositions] = useState({});
@@ -413,9 +415,74 @@ const Graph = () => {
         return () => element.removeEventListener("wheel", handleWheel);
     }, []);
 
-    const nodeMouseDown = (event, key) => {
+    const zoomBy = (factor) => {
+        setView((current) => {
+            const nextScale = clamp(current.scale * factor, MIN_SCALE, MAX_SCALE);
+            const ratio = nextScale / current.scale;
+            const px = WIDTH / 2;
+            const py = HEIGHT / 2;
+            return {
+                scale: nextScale,
+                x: px - (px - current.x) * ratio,
+                y: py - (py - current.y) * ratio,
+            };
+        });
+    };
+
+    const capturePointer = (element, pointerId) => {
+        if (!element || typeof element.setPointerCapture !== "function") {
+            return;
+        }
+        try {
+            element.setPointerCapture(pointerId);
+        } catch (error) {
+            return;
+        }
+    };
+
+    const beginPinch = () => {
+        if (pointers.current.size !== 2) {
+            return;
+        }
+
+        const [first, second] = [...pointers.current.values()];
+        draggingRef.current = false;
+        setDragging(null);
+        panning.current = null;
+        pinch.current = {
+            distance: Math.hypot(second.px - first.px, second.py - first.py) || 1,
+            middlePx: (first.px + second.px) / 2,
+            middlePy: (first.py + second.py) / 2,
+            scale: view.scale,
+            x: view.x,
+            y: view.y,
+        };
+    };
+
+    const applyPinch = () => {
+        const start = pinch.current;
+        const points = [...pointers.current.values()];
+        if (!start || points.length < 2) {
+            return false;
+        }
+
+        const [first, second] = points;
+        const distance = Math.hypot(second.px - first.px, second.py - first.py) || 1;
+        const middlePx = (first.px + second.px) / 2;
+        const middlePy = (first.py + second.py) / 2;
+        const nextScale = clamp(start.scale * (distance / start.distance), MIN_SCALE, MAX_SCALE);
+        const ratio = nextScale / start.scale;
+
+        setView({
+            scale: nextScale,
+            x: middlePx - (start.middlePx - start.x) * ratio,
+            y: middlePy - (start.middlePy - start.y) * ratio,
+        });
+        return true;
+    };
+
+    const nodePointerDown = (event, key) => {
         event.preventDefault();
-        event.stopPropagation();
 
         const point = toGraphPoint(event);
         dragged.current = false;
@@ -427,7 +494,24 @@ const Graph = () => {
         });
     };
 
-    const canvasMouseMove = (event) => {
+    const canvasPointerDown = (event) => {
+        pointers.current.set(event.pointerId, toCanvasPoint(event));
+        capturePointer(event.currentTarget, event.pointerId);
+
+        if (pointers.current.size === 2) {
+            beginPinch();
+        }
+    };
+
+    const canvasPointerMove = (event) => {
+        if (pointers.current.has(event.pointerId)) {
+            pointers.current.set(event.pointerId, toCanvasPoint(event));
+        }
+
+        if (applyPinch()) {
+            return;
+        }
+
         if (dragging) {
             const point = toGraphPoint(event);
             const nextPoint = {
@@ -463,7 +547,17 @@ const Graph = () => {
         }
     };
 
-    const canvasMouseUp = () => {
+    const canvasPointerUp = (event) => {
+        if (event && typeof event.pointerId === "number") {
+            pointers.current.delete(event.pointerId);
+        }
+        if (pointers.current.size < 2) {
+            pinch.current = null;
+        }
+        if (pointers.current.size > 0) {
+            return;
+        }
+
         if (dragging) {
             draggingRef.current = false;
             setDragging(null);
@@ -478,7 +572,7 @@ const Graph = () => {
         panning.current = null;
     };
 
-    const backgroundMouseDown = (event) => {
+    const backgroundPointerDown = (event) => {
         const point = toCanvasPoint(event);
         panning.current = { px: point.px, py: point.py, viewX: view.x, viewY: view.y };
     };
@@ -591,6 +685,20 @@ const Graph = () => {
                 <div className="graphActions">
                     <button
                         className="btn btnGhost btnSmall"
+                        onClick={() => zoomBy(1.25)}
+                        aria-label="Увеличить"
+                    >
+                        +
+                    </button>
+                    <button
+                        className="btn btnGhost btnSmall"
+                        onClick={() => zoomBy(0.8)}
+                        aria-label="Уменьшить"
+                    >
+                        −
+                    </button>
+                    <button
+                        className="btn btnGhost btnSmall"
                         onClick={resetView}
                     >
                         Сбросить вид
@@ -608,9 +716,10 @@ const Graph = () => {
                 ref={svgRef}
                 className="graphCanvas"
                 viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-                onMouseMove={canvasMouseMove}
-                onMouseUp={canvasMouseUp}
-                onMouseLeave={canvasMouseUp}
+                onPointerDown={canvasPointerDown}
+                onPointerMove={canvasPointerMove}
+                onPointerUp={canvasPointerUp}
+                onPointerCancel={canvasPointerUp}
             >
                 <defs>
                     <marker
@@ -632,7 +741,7 @@ const Graph = () => {
                     y="0"
                     width={WIDTH}
                     height={HEIGHT}
-                    onMouseDown={backgroundMouseDown}
+                    onPointerDown={backgroundPointerDown}
                 />
 
                 <g transform={`translate(${view.x}, ${view.y}) scale(${view.scale})`}>
@@ -679,7 +788,7 @@ const Graph = () => {
                                 key={node.key}
                                 className={nodeClassName(node)}
                                 transform={`translate(${position.x}, ${position.y})`}
-                                onMouseDown={(event) => nodeMouseDown(event, node.key)}
+                                onPointerDown={(event) => nodePointerDown(event, node.key)}
                                 onClick={() => nodeClick(node)}
                                 onMouseEnter={() => setActiveKey(node.key)}
                                 onMouseLeave={() => setActiveKey(null)}
@@ -697,6 +806,7 @@ const Graph = () => {
 
             <p className="graphHint">
                 Клик по кругу — открыть сет, перетаскивание — подвинуть (узлы расступаются),
+                на телефоне: один палец — сдвиг графа, два пальца — зум,
                 колесо — зум, фон — сдвинуть граф. Сплошная линия — взаимные ссылки, стрелка —
                 односторонняя: сет ссылается на соседа, но на него не ссылаются. Золотой пунктирный
                 круг — чужой публичный сет; бирюзовый — замороженный снимок; серый пунктир — сет

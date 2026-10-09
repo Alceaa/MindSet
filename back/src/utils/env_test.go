@@ -29,7 +29,16 @@ func useTestConfig(t *testing.T) Env {
 }
 
 func TestLoadEnvFromFile(t *testing.T) {
-	cfg, err := LoadEnv("..")
+	dir := writeEnv(t, []string{
+		"ENV=development",
+		"DATABASE_URL=postgres://test:test@127.0.0.1:5432/test",
+		"JWT_ACCESS_SECRET=test-access-secret",
+		"JWT_REFRESH_SECRET=test-refresh-secret",
+		"JWT_ACCESS_EXPIRES_IN=15m",
+		"JWT_REFRESH_EXPIRES_IN=168h",
+	})
+
+	cfg, err := LoadEnv(dir)
 	if err != nil {
 		t.Fatalf("LoadEnv вернул ошибку: %v", err)
 	}
@@ -46,7 +55,16 @@ func TestLoadEnvFromFile(t *testing.T) {
 }
 
 func TestTokenLifetimeIsNotZero(t *testing.T) {
-	cfg, err := LoadEnv("..")
+	dir := writeEnv(t, []string{
+		"ENV=development",
+		"DATABASE_URL=postgres://test:test@127.0.0.1:5432/test",
+		"JWT_ACCESS_SECRET=test-access-secret",
+		"JWT_REFRESH_SECRET=test-refresh-secret",
+		"JWT_ACCESS_EXPIRES_IN=15m",
+		"JWT_REFRESH_EXPIRES_IN=168h",
+	})
+
+	cfg, err := LoadEnv(dir)
 	if err != nil {
 		t.Fatalf("LoadEnv вернул ошибку: %v", err)
 	}
@@ -63,6 +81,8 @@ func TestTokenLifetimeIsNotZero(t *testing.T) {
 }
 
 func TestLoadEnvWithoutFileReturnsError(t *testing.T) {
+	isolateConfigEnv(t)
+
 	t.Setenv("ENV_FILE", t.TempDir()+"/missing.env")
 	t.Setenv("JWT_ACCESS_SECRET", "")
 	t.Setenv("JWT_REFRESH_SECRET", "")
@@ -119,6 +139,8 @@ func TestBcryptCostIsClampedToSafeRange(t *testing.T) {
 }
 
 func TestS3EnvBindingAndLegacyR2Alias(t *testing.T) {
+	isolateConfigEnv(t)
+
 	for _, kv := range []struct{ k, v string }{
 		{"ENV_FILE", t.TempDir() + "/missing.env"},
 		{"JWT_ACCESS_SECRET", "access"},

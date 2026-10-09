@@ -7,8 +7,62 @@ import (
 	"testing"
 )
 
+var configEnvKeys = []string{
+	"ENV_FILE",
+	"ENV",
+	"DATABASE_URL",
+	"DATABASE_USERNAME",
+	"DATABASE_PASSWORD",
+	"DATABASE_NAME",
+	"JWT_ACCESS_SECRET",
+	"JWT_REFRESH_SECRET",
+	"JWT_ACCESS_EXPIRES_IN",
+	"JWT_REFRESH_EXPIRES_IN",
+	"ADMIN_TOKEN",
+	"ALLOWED_ORIGINS",
+	"COOKIE_SECURE",
+	"COOKIE_SAME_SITE",
+	"BCRYPT_COST",
+	"REGISTRATION_INVITE_ONLY",
+	"INVITE_TTL_DAYS",
+	"S3_ENDPOINT",
+	"S3_REGION",
+	"S3_BUCKET",
+	"S3_PUBLIC_BASE_URL",
+	"S3_ACCESS_KEY_ID",
+	"S3_SECRET_ACCESS_KEY",
+	"R2_ENDPOINT",
+	"R2_BUCKET",
+	"R2_PUBLIC_BASE_URL",
+	"SMTP_HOST",
+	"SMTP_PORT",
+	"SMTP_USER",
+	"SMTP_PASSWORD",
+	"SMTP_FROM",
+	"SMTP_TLS",
+	"TELEGRAM_BOT_TOKEN",
+	"TELEGRAM_CHAT_ID",
+}
+
+func isolateConfigEnv(t *testing.T) {
+	t.Helper()
+
+	for _, key := range configEnvKeys {
+		value, ok := os.LookupEnv(key)
+		if !ok {
+			continue
+		}
+		if err := os.Unsetenv(key); err != nil {
+			t.Fatalf("unset %s: %v", key, err)
+		}
+		t.Cleanup(func() { os.Setenv(key, value) })
+	}
+}
+
 func writeEnv(t *testing.T, lines []string) string {
 	t.Helper()
+
+	isolateConfigEnv(t)
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, ".env")

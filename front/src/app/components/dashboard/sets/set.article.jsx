@@ -1,15 +1,18 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { normalizeTitle, prepareMarkdown, stripEscapes } from "../../../markdown/wikilink";
-import { rehypePlugins } from "../../../markdown/render";
+import { rehypePlugins, remarkPlugins } from "../../../markdown/render";
+import { useAnchorLinks } from "../../../markdown/heading.id.js";
 import "../../../css/dashboard/article.scss";
 
 const WIKILINK_PREFIX = "wikilink:";
 
 const SetArticle = ({ content, links, emptyText }) => {
     const markdown = useMemo(() => prepareMarkdown(content), [content]);
+    const articleRef = useRef(null);
+
+    useAnchorLinks(articleRef, markdown);
     const targets = useMemo(
         () => new Map(links.map((link) => [normalizeTitle(stripEscapes(link.label)), link])),
         [links]
@@ -116,9 +119,9 @@ const SetArticle = ({ content, links, emptyText }) => {
     }
 
     return (
-        <article className="article">
+        <article className="article" ref={articleRef}>
             <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
+                remarkPlugins={remarkPlugins}
                 rehypePlugins={rehypePlugins}
                 components={components}
                 transformLinkUri={(uri) => uri}

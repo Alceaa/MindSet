@@ -1,12 +1,17 @@
+import { useEffect } from "react";
+
 const HEADINGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
 const PUNCTUATION = /[^\p{L}\p{N}\s_-]/gu;
+const TYPOGRAPHIC_DASHES = /[\u2010-\u2015\u2212]/g;
 
 export const headingSlug = (text) =>
     String(text ?? "")
         .trim()
         .toLowerCase()
+        .replace(TYPOGRAPHIC_DASHES, "-")
         .replace(PUNCTUATION, "")
-        .replace(/\s+/g, "-");
+        .replace(/[\s-]+/g, "-")
+        .replace(/^-+|-+$/g, "");
 
 const collectText = (node) => {
     if (!node || typeof node !== "object") {
@@ -46,6 +51,38 @@ export const rehypeHeadingIds = () => (tree) => {
     };
 
     walk(tree);
+};
+
+export const fixAnchorLinks = (root) => {
+    if (!root || typeof root.querySelectorAll !== "function" || typeof document === "undefined") {
+        return;
+    }
+
+    root.querySelectorAll("a[href^='#']").forEach((link) => {
+        const href = link.getAttribute("href") || "";
+
+        let raw = href.slice(1);
+        try {
+            raw = decodeURIComponent(raw);
+        } catch (error) {
+            return;
+        }
+
+        if (!raw || document.getElementById(raw)) {
+            return;
+        }
+
+        const slug = headingSlug(raw);
+        if (slug && slug !== raw && document.getElementById(slug)) {
+            link.setAttribute("href", `#${slug}`);
+        }
+    });
+};
+
+export const useAnchorLinks = (ref, dependency) => {
+    useEffect(() => {
+        fixAnchorLinks(ref.current);
+    }, [ref, dependency]);
 };
 
 export default rehypeHeadingIds;

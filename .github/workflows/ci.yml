@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, next]
   pull_request:
 
 jobs:
@@ -79,7 +79,7 @@ jobs:
 
   images:
     name: Образы — сборка
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: [backend, schema, frontend]
     steps:

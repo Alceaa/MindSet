@@ -78,8 +78,20 @@ const SetCard = ({
         }
     };
 
+    const handleOpen = (event) => {
+        if (event.defaultPrevented) {
+            return;
+        }
+
+        if (event.target.closest("a, button, input, textarea, select")) {
+            return;
+        }
+
+        navigate(target);
+    };
+
     return (
-        <div className={`setCard${own ? " setCardOwn" : ""}`}>
+        <div className={`setCard${own ? " setCardOwn" : ""}`} onClick={handleOpen}>
             <Link className="setCardMain" to={target}>
                 <h3 className="setTitle">{set.title}</h3>
                 {previewMd ? (

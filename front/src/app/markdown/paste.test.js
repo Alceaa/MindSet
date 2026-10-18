@@ -73,4 +73,15 @@ describe("applyMarkdownPaste", () => {
 
         expect(applyMarkdownPaste(event, editor)).toBe(false);
     });
+
+    it("не падает, если редактор не смог разобрать вставку", () => {
+        const editor = {
+            insertMarkdown: () => {
+                throw new Error("Parsing of the following markdown structure failed");
+            },
+        };
+        const { event } = clipboardEvent({ text: "## Заголовок", html: "" });
+
+        expect(applyMarkdownPaste(event, editor)).toBe(true);
+    });
 });

@@ -1,4 +1,5 @@
 import React, { useRef } from "react";
+import { simplifyMarkdown } from "../../markdown/simplify";
 
 const safeFileName = (value) =>
     String(value ?? "")
@@ -18,8 +19,18 @@ const MarkdownTools = ({ editorRef, content, onImport, title }) => {
             return;
         }
 
-        const text = await file.text();
-        editorRef.current?.setMarkdown(text);
+        const text = simplifyMarkdown(await file.text());
+
+        try {
+            editorRef.current?.setMarkdown(text);
+        } catch (error) {
+            window.alert(
+                "Не удалось загрузить файл в редактор: в тексте есть конструкция, которую он не поддерживает. " +
+                    "Уберите блоки <details> или замените языки блоков кода."
+            );
+            return;
+        }
+
         onImport?.(text);
     };
 

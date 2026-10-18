@@ -10,6 +10,8 @@ import {
     MDXEditor,
     Separator,
     UndoRedo,
+    codeBlockPlugin,
+    codeMirrorPlugin,
     headingsPlugin,
     imagePlugin,
     linkDialogPlugin,
@@ -27,6 +29,7 @@ import parseApiError from "../../utils/api.error";
 import { uploadImage } from "../../utils/image.upload";
 import MarkdownTools from "../common/markdown.tools.jsx";
 import { applyMarkdownPaste } from "../../markdown/paste";
+import { CODE_LANGUAGES, codeBlockPluginOptions } from "../../markdown/code.languages.js";
 import "../../css/dashboard/dashboard.scss";
 
 const EMPTY = { title: "", body: "", is_published: true, is_pinned: false };
@@ -62,6 +65,8 @@ const AdminNewsPanel = () => {
             linkPlugin(),
             linkDialogPlugin(),
             imagePlugin({ imageUploadHandler }),
+            codeBlockPlugin(codeBlockPluginOptions),
+            codeMirrorPlugin({ codeBlockLanguages: CODE_LANGUAGES }),
             toolbarPlugin({
                 toolbarContents: () => (
                     <>

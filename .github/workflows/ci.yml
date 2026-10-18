@@ -19,6 +19,14 @@ jobs:
         with:
           go-version: '1.24'
           cache-dependency-path: back/src/go.sum
+      - name: Версия в README совпадает с кодом
+        working-directory: back/src
+        run: |
+          code_version="$(grep -oE 'Version = "[^"]+"' utils/version.go | cut -d'"' -f2)"
+          readme_version="$(grep -oE 'Текущая версия — [0-9]+\.[0-9]+\.[0-9]+' ../../README.md | head -n 1 | awk '{print $NF}')"
+          echo "код: $code_version, README: $readme_version"
+          test -n "$code_version" && test "$code_version" = "$readme_version"
+
       - name: go test
         working-directory: back/src
         run: go test ./...

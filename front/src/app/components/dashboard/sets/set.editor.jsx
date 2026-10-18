@@ -39,6 +39,7 @@ import { uploadImage } from "../../../utils/image.upload";
 import LoadingScreen from "../../common/loading.screen.jsx";
 import MarkdownTools from "../../common/markdown.tools.jsx";
 import { applyMarkdownPaste } from "../../../markdown/paste";
+import { CODE_LANGUAGES, codeBlockPluginOptions } from "../../../markdown/code.languages.js";
 import SetArticle from "./set.article.jsx";
 import SetSidebar from "./set.sidebar.jsx";
 import { buildPickerOptions } from "./picker.options";
@@ -74,19 +75,6 @@ export const copyShareLink = async (slug, current, setCopied) => {
     window.setTimeout(() => setCopied(false), 2000);
 };
 
-const CODE_LANGUAGES = {
-    "": "Текст",
-    bash: "Bash",
-    css: "CSS",
-    go: "Go",
-    html: "HTML",
-    js: "JavaScript",
-    json: "JSON",
-    jsx: "JSX",
-    md: "Markdown",
-    sql: "SQL",
-    ts: "TypeScript",
-};
 
 const WIKILINK_TAIL = /^([^[\]\n]*)(\]\])?/;
 
@@ -130,7 +118,7 @@ const useEditorPlugins = (onOpenPicker) =>
             linkDialogPlugin(),
             imagePlugin({ imageUploadHandler }),
             tablePlugin(),
-            codeBlockPlugin({ defaultCodeBlockLanguage: "go" }),
+            codeBlockPlugin(codeBlockPluginOptions),
             codeMirrorPlugin({ codeBlockLanguages: CODE_LANGUAGES }),
             diffSourcePlugin({ viewMode: "rich-text" }),
             toolbarPlugin({

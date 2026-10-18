@@ -37,7 +37,16 @@ export const applyMarkdownPaste = (event, editor) => {
 
     event.preventDefault();
     event.stopPropagation();
-    editor.insertMarkdown(text);
+
+    try {
+        editor.insertMarkdown(text);
+    } catch (error) {
+        if (typeof window !== "undefined" && typeof window.alert === "function") {
+            window.alert(
+                "Не удалось вставить markdown: в тексте есть конструкция, которую редактор не поддерживает."
+            );
+        }
+    }
 
     return true;
 };

@@ -136,7 +136,11 @@ const SetCard = ({
                 <div className="setActions">
                     {likeable && (
                         <>
-                            {!own && (
+                            {own ? (
+                                <span className="statChip" title="Лайки на вашем сете">
+                                    <span aria-hidden="true">♡</span> {likes}
+                                </span>
+                            ) : (
                                 <button
                                     type="button"
                                     className={`likeBtn${liked ? " likeBtnActive" : ""}`}

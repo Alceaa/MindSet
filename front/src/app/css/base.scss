@@ -675,3 +675,10 @@ a:hover {
     display: flex;
     justify-content: center;
 }
+
+/* Last-resort guard against horizontal scrolling on mobile. */
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}

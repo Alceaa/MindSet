@@ -91,7 +91,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--gap-sm);
-    width: 264px;
+    width: min(264px, calc(100vw - 24px));
     padding: var(--gap-sm);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);

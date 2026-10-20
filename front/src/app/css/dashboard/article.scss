@@ -29,13 +29,13 @@
 }
 
 .article {
-    max-width: var(--reader-width);
+    max-width: min(var(--reader-width), 100%);
     margin: 0 auto;
     color: var(--reader-text);
     font-family: var(--reader-font);
     font-size: var(--reader-size);
     line-height: var(--reader-leading);
-    overflow-wrap: break-word;
+    overflow-wrap: anywhere;
 }
 
 .article img {
@@ -168,7 +168,7 @@
     font-weight: 600;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 900px) {
     .articleCard {
         padding: var(--gap);
     }

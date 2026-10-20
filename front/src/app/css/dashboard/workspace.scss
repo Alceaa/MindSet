@@ -236,10 +236,24 @@
     }
 
     .setToolbar .btn {
-        flex: 1 1 auto;
+        flex: 0 1 auto;
+        min-width: 0;
+        max-width: 100%;
     }
 
     .setSidebarList {
         max-height: 40vh;
     }
+}
+
+/* Не даём широкому содержимому растягивать flex-контейнеры на мобильных. */
+.setWorkspace,
+.setMain,
+.mdxEditorHost {
+    max-width: 100%;
+    min-width: 0;
+}
+
+.mdxEditorHost {
+    overflow-wrap: anywhere;
 }

@@ -119,7 +119,11 @@ const PublicSet = () => {
                     <Link className="readerBack" to="/explore">
                         ← Обзор
                     </Link>
-                    {!isOwn && (
+                    {isOwn ? (
+                        <span className="statChip" title="Лайки на вашем сете">
+                            <span aria-hidden="true">♡</span> {likes}
+                        </span>
+                    ) : (
                         <button
                             type="button"
                             className={`likeBtn${liked ? " likeBtnActive" : ""}`}

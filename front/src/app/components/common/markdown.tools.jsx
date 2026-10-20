@@ -34,6 +34,21 @@ const MarkdownTools = ({ editorRef, content, onImport, title }) => {
         onImport?.(text);
     };
 
+    const handlePickFile = () => {
+        const current = editorRef.current?.getMarkdown() ?? content ?? "";
+
+        if (
+            current.trim() &&
+            !window.confirm(
+                "В редакторе уже есть текст. Импорт заменит его целиком — текущее содержимое будет потеряно. Продолжить?"
+            )
+        ) {
+            return;
+        }
+
+        inputRef.current?.click();
+    };
+
     const handleExport = () => {
         const markdown = editorRef.current?.getMarkdown() ?? content ?? "";
         const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
@@ -54,7 +69,7 @@ const MarkdownTools = ({ editorRef, content, onImport, title }) => {
                 <button
                     type="button"
                     className="btn btnGhost btnSmall"
-                    onClick={() => inputRef.current?.click()}
+                    onClick={handlePickFile}
                 >
                     Импорт .md
                 </button>

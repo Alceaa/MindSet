@@ -46,11 +46,14 @@ import { buildPickerOptions } from "./picker.options";
 import WikilinkPicker from "./wikilink.picker.jsx";
 import ReaderSettings from "./reader.settings.jsx";
 import useReaderSettings from "../../../hooks/use.reader.settings";
+import useReadingPosition, { readingPositionKey } from "../../../hooks/use.reading.position";
 import "../../../css/dashboard/dashboard.scss";
 import "../../../css/dashboard/workspace.scss";
 import "../../../css/dashboard/reader.scss";
 
 const EDITOR_ID = "mindset-set-editor";
+
+const READER_WIDTH_ORDER = ["narrow", "normal", "wide", "full"];
 
 export const VISIBILITY_OPTIONS = [
     { value: "private", label: "Личный", hint: "Виден только вам" },
@@ -207,6 +210,25 @@ const SetEditorInner = () => {
 
     const { settings: readerView, update: updateReaderView, reset: resetReaderView } =
         useReaderSettings();
+
+    const effectiveReaderWidth = useMemo(() => {
+        if (mode !== "read" || !sidebarCollapsed) {
+            return readerView.width;
+        }
+
+        const index = READER_WIDTH_ORDER.indexOf(readerView.width);
+        if (index === -1) {
+            return readerView.width;
+        }
+
+        return READER_WIDTH_ORDER[Math.min(index + 1, READER_WIDTH_ORDER.length - 1)];
+    }, [mode, sidebarCollapsed, readerView.width]);
+
+    useReadingPosition({
+        key: readingPositionKey("set", id),
+        ready: !loading && Boolean(set) && mode === "read",
+        enabled: mode === "read",
+    });
 
     useEffect(() => {
         if (searchParams.get("mode") === "edit") {
@@ -746,6 +768,11 @@ const SetEditorInner = () => {
                                 settings={readerView}
                                 onChange={updateReaderView}
                                 onReset={resetReaderView}
+                                note={
+                                    effectiveReaderWidth !== readerView.width
+                                        ? "Меню сетов свёрнуто — статья показывается на ступень шире."
+                                        : ""
+                                }
                             />
                             <button
                                 className="btn btnPrimary"
@@ -802,7 +829,7 @@ const SetEditorInner = () => {
                     <div
                         className="articleCard"
                         data-reader-theme={readerView.theme}
-                        data-reader-width={readerView.width}
+                        data-reader-width={effectiveReaderWidth}
                         data-reader-font={readerView.font}
                         data-reader-scale={readerView.scale}
                     >

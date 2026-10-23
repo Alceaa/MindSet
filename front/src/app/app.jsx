@@ -22,6 +22,7 @@ import LoadingScreen from "./components/common/loading.screen.jsx";
 import PublicSet from "./components/dashboard/sets/public.set.jsx";
 import SnapshotView from "./components/dashboard/sets/snapshot.view.jsx";
 import Explore from "./components/explore/explore.jsx";
+import NewsList from "./components/news/news.list.jsx";
 import UserProfile from "./components/profile/user.profile.jsx";
 import Settings from "./components/settings/settings.jsx";
 import Admin from "./components/admin/admin.jsx";
@@ -76,6 +77,10 @@ const routes = [
             {
                 path: "explore",
                 element: <Explore />,
+            },
+            {
+                path: "news",
+                element: <NewsList />,
             },
             {
                 path: "admin",

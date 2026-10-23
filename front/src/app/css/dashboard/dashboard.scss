@@ -244,8 +244,59 @@
 }
 
 .mdxEditorHost [class*="_toolbarRoot_"] {
+    position: sticky;
+    top: var(--header-height);
+    z-index: 5;
     border-bottom: 1px solid var(--border);
     background-color: var(--bg-surface-muted);
+}
+
+/* Код в редакторе должен выглядеть так же, как в готовой статье (article.scss). */
+.mdxEditorHost .mdxContent code,
+.mdxEditorHost [class*="_contentEditable_"] code {
+    padding: 2px 5px;
+    border-radius: 4px;
+    background-color: var(--bg-surface-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.88em;
+}
+
+.mdxEditorHost .mdxContent pre,
+.mdxEditorHost [class*="_contentEditable_"] pre {
+    margin: 0 0 var(--gap);
+    padding: var(--gap-sm) var(--gap);
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+}
+
+.mdxEditorHost .mdxContent pre code,
+.mdxEditorHost [class*="_contentEditable_"] pre code {
+    padding: 0;
+    background: none;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.mdxEditorHost .cm-editor {
+    margin: 0 0 var(--gap);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.mdxEditorHost .cm-scroller {
+    font-family: inherit;
+}
+
+.mdxEditorHost .cm-gutters {
+    border-right: 1px solid var(--border-muted);
+    background-color: transparent;
+    color: var(--text-faint);
 }
 
 .mdxEditorHost .mdxContent,
@@ -277,6 +328,7 @@
     }
 
     .mdxEditorHost [class*="_toolbarRoot_"] {
+        position: static;
         flex-wrap: wrap;
         row-gap: 4px;
         overflow-x: auto;

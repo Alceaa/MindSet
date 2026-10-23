@@ -62,6 +62,10 @@
     --reader-width: 96ch;
 }
 
+.articleCard[data-reader-width="full"] {
+    --reader-width: 100%;
+}
+
 .articleCard[data-reader-font="serif"] {
     --reader-font: Georgia, "Times New Roman", "Noto Serif", serif;
 }
@@ -110,6 +114,15 @@
     font-size: 11px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+}
+
+.readerNote {
+    margin: 0;
+    padding: var(--gap-xs) 0 0;
+    border-top: 1px solid var(--border-muted);
+    color: var(--text-faint);
+    font-size: 11px;
+    line-height: 1.4;
 }
 
 .readerChoices {

@@ -714,20 +714,20 @@
     text-decoration: underline;
 }
 
+/* Новости: в обзоре показываем закреплённые и одну последнюю. Высоту блока держим
+   примерно в три карточки, чтобы десять закреплённых не растянули ленту. */
 .newsScroller {
     display: flex;
     flex-direction: column;
     gap: var(--gap);
-    max-height: 340px;
+    max-height: min(540px, 62vh);
     padding-right: var(--gap-xs);
     overflow-y: auto;
-    box-shadow: inset 0 -20px 16px -16px rgba(4, 6, 10, 0.55);
 }
 
-.newsScrollerHint {
-    color: var(--text-faint);
-    font-size: 12px;
-    text-align: center;
+/* Затемнение снизу показываем только когда внутри действительно есть что прокручивать. */
+.newsScrollerScrollable {
+    box-shadow: inset 0 -20px 16px -16px rgba(4, 6, 10, 0.55);
 }
 
 .badgePinned {

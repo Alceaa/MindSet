@@ -12,6 +12,13 @@ const advance = (ms) =>
         jest.advanceTimersByTime(ms);
     });
 
+let view = null;
+
+const mount = (options) => {
+    view = renderHook(() => useReadingPosition(options));
+    return view;
+};
+
 beforeEach(() => {
     window.localStorage.clear();
     jest.useFakeTimers();
@@ -20,12 +27,14 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    view?.unmount();
+    view = null;
     jest.clearAllTimers();
     jest.useRealTimers();
 });
 
 test("сохраняет место чтения после прокрутки", () => {
-    renderHook(() => useReadingPosition({ key: KEY, ready: true }));
+    mount({ key: KEY, ready: true });
 
     setScrollY(640);
     act(() => {
@@ -39,21 +48,21 @@ test("сохраняет место чтения после прокрутки",
 test("восстанавливает место чтения при открытии сета", () => {
     window.localStorage.setItem(KEY, "900");
 
-    renderHook(() => useReadingPosition({ key: KEY, ready: true }));
+    mount({ key: KEY, ready: true });
     advance(800);
 
     expect(window.scrollTo).toHaveBeenCalledWith({ top: 900, behavior: "auto" });
 });
 
 test("не прокручивает страницу, если место не сохранялось", () => {
-    renderHook(() => useReadingPosition({ key: KEY, ready: true }));
+    mount({ key: KEY, ready: true });
     advance(800);
 
     expect(window.scrollTo).not.toHaveBeenCalled();
 });
 
 test("не сохраняет прокрутку почти в самом верху", () => {
-    renderHook(() => useReadingPosition({ key: KEY, ready: true }));
+    mount({ key: KEY, ready: true });
 
     setScrollY(40);
     act(() => {
@@ -67,17 +76,18 @@ test("не сохраняет прокрутку почти в самом вер
 test("ничего не делает, пока содержимое не готово", () => {
     window.localStorage.setItem(KEY, "900");
 
-    renderHook(() => useReadingPosition({ key: KEY, ready: false }));
+    mount({ key: KEY, ready: false });
     advance(800);
 
     expect(window.scrollTo).not.toHaveBeenCalled();
 });
 
 test("сохраняет место чтения при уходе со страницы", () => {
-    const { unmount } = renderHook(() => useReadingPosition({ key: KEY, ready: true }));
+    mount({ key: KEY, ready: true });
 
     setScrollY(1280);
-    unmount();
+    view.unmount();
+    view = null;
 
     expect(window.localStorage.getItem(KEY)).toBe("1280");
 });

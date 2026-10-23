@@ -15,6 +15,9 @@ import (
 
 const feedPageSize = 12
 
+// Сколько закреплённых новостей максимум отдаём в ленту обзора: остальные — на странице /news.
+const feedPinnedNewsLimit = 12
+
 func resolvePublicSet(c *fiber.Ctx) (*models.Set, bool) {
 	slug := strings.TrimSpace(c.Params("slug"))
 	if slug == "" || !links.IsValidSlug(slug) {
@@ -169,7 +172,7 @@ func GetFeed(c *fiber.Ctx) error {
 		viewerID = viewer.ID
 	}
 
-	announcements, err := db.ListAnnouncements(c.Context(), 5)
+	announcements, err := db.ListFeedAnnouncements(c.Context(), feedPinnedNewsLimit)
 	if err != nil {
 		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось загрузить новости проекта", err)
 	}

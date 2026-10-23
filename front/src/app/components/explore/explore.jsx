@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import setService from "../../api/set.service";
 import socialService from "../../api/social.service";
@@ -6,6 +6,7 @@ import parseApiError from "../../utils/api.error";
 import { useAuth } from "../../context/auth.context";
 import SetCard from "../common/set.card.jsx";
 import MarkdownContent from "../common/markdown.content.jsx";
+import { formatNewsDate } from "../../utils/news.date";
 import "../../css/dashboard/dashboard.scss";
 import "../../css/dashboard/feed.scss";
 
@@ -14,7 +15,7 @@ const renderAnnouncement = (item) => (
         {item.is_pinned && <span className="badge badgePinned">закреплено</span>}
         <h3 className="announcementTitle">{item.title}</h3>
         <MarkdownContent className="announcementBody" content={item.body} />
-        <span className="announcementDate">{item.date_posted}</span>
+        <span className="announcementDate">{formatNewsDate(item.date_posted)}</span>
     </article>
 );
 
@@ -26,6 +27,8 @@ const Explore = () => {
     const [error, setError] = useState("");
     const [notice, setNotice] = useState(null);
     const [savingId, setSavingId] = useState(null);
+    const [newsScrollable, setNewsScrollable] = useState(false);
+    const newsListRef = useRef(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -57,6 +60,19 @@ const Explore = () => {
         };
     }, []);
 
+    useEffect(() => {
+        const node = newsListRef.current;
+        if (!node) {
+            return undefined;
+        }
+
+        const measure = () => setNewsScrollable(node.scrollHeight > node.clientHeight + 2);
+        measure();
+        window.addEventListener("resize", measure);
+
+        return () => window.removeEventListener("resize", measure);
+    }, [feed.announcements]);
+
     const handleSave = useCallback(
         async (set) => {
             if (!isAuthenticated) {
@@ -79,18 +95,6 @@ const Explore = () => {
 
     const isOwn = (set) =>
         Boolean(set.author) && Boolean(user) && set.author.login === user.login;
-
-    const { featuredNews, restNews } = useMemo(() => {
-        const pinned = feed.announcements.filter((item) => item.is_pinned);
-        const regular = feed.announcements.filter((item) => !item.is_pinned);
-        const featured =
-            pinned.length > 0 ? [pinned[0], regular[0]].filter(Boolean) : regular.slice(0, 2);
-
-        return {
-            featuredNews: featured,
-            restNews: feed.announcements.filter((item) => !featured.includes(item)),
-        };
-    }, [feed.announcements]);
 
     const renderCard = (set) => (
         <SetCard
@@ -136,17 +140,14 @@ const Explore = () => {
                                     Все новости →
                                 </Link>
                             </div>
-                            {featuredNews.map(renderAnnouncement)}
-                            {restNews.length > 0 && (
-                                <>
-                                    <div className="newsScroller">
-                                        {restNews.map(renderAnnouncement)}
-                                    </div>
-                                    <span className="newsScrollerHint">
-                                        В блоке ещё {restNews.length} — прокрутите список
-                                    </span>
-                                </>
-                            )}
+                            <div
+                                className={`newsScroller${
+                                    newsScrollable ? " newsScrollerScrollable" : ""
+                                }`}
+                                ref={newsListRef}
+                            >
+                                {feed.announcements.map(renderAnnouncement)}
+                            </div>
                         </section>
                     )}
 

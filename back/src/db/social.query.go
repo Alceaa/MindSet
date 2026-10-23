@@ -141,7 +141,9 @@ func DeleteComment(ctx context.Context, commentID, userID int) error {
 	return nil
 }
 
-func ListAnnouncements(ctx context.Context, limit int) ([]*models.Announcement, error) {
+// ListFeedAnnouncements отдаёт новости для блока в обзоре: все закреплённые (не больше
+// pinnedLimit) и одну последнюю незакреплённую. Остальные новости смотрят на странице /news.
+func ListFeedAnnouncements(ctx context.Context, pinnedLimit int) ([]*models.Announcement, error) {
 	conn, err := pool()
 	if err != nil {
 		return nil, err
@@ -149,14 +151,24 @@ func ListAnnouncements(ctx context.Context, limit int) ([]*models.Announcement, 
 
 	rows, err := conn.Query(ctx,
 		`SELECT id, title, body, is_pinned, to_char(published_at, 'YYYY-MM-DD') AS date_posted
-		 FROM news
-		 WHERE is_published
-		 ORDER BY is_pinned DESC, published_at DESC
-		 LIMIT @limit`,
-		pgx.NamedArgs{"limit": limit},
+		 FROM (
+		     (SELECT id, title, body, is_pinned, published_at
+		      FROM news
+		      WHERE is_published AND is_pinned
+		      ORDER BY published_at DESC
+		      LIMIT @pinned_limit)
+		     UNION ALL
+		     (SELECT id, title, body, is_pinned, published_at
+		      FROM news
+		      WHERE is_published AND NOT is_pinned
+		      ORDER BY published_at DESC
+		      LIMIT 1)
+		 ) AS feed_news
+		 ORDER BY is_pinned DESC, published_at DESC`,
+		pgx.NamedArgs{"pinned_limit": pinnedLimit},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("list announcements: %w", err)
+		return nil, fmt.Errorf("list feed announcements: %w", err)
 	}
 	defer rows.Close()
 
@@ -170,12 +182,12 @@ func ListAnnouncements(ctx context.Context, limit int) ([]*models.Announcement, 
 			&announcement.IsPinned,
 			&announcement.DatePosted,
 		); err != nil {
-			return nil, fmt.Errorf("scan announcement: %w", err)
+			return nil, fmt.Errorf("scan feed announcement: %w", err)
 		}
 		announcements = append(announcements, &announcement)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("list announcements: %w", err)
+		return nil, fmt.Errorf("list feed announcements: %w", err)
 	}
 	return announcements, nil
 }

@@ -279,24 +279,62 @@
     line-height: 1.6;
 }
 
-.mdxEditorHost .cm-editor {
+/* MDXEditor подключает светлую тему CodeMirror (cm6-theme-basic-light), поэтому
+   цвета кода переопределяем под тёмное оформление — как в готовой статье.
+   Селекторы идут через .mdxEditorTheme: CodeMirror вставляет свои стили в head
+   в рантайме, и без запаса по специфичности его правила побеждают. */
+.mdxEditorHost .mdxEditorTheme .cm-editor {
     margin: 0 0 var(--gap);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background-color: var(--bg-inset);
+    color: var(--text);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 13px;
     line-height: 1.6;
 }
 
-.mdxEditorHost .cm-scroller {
+.mdxEditorHost .mdxEditorTheme .cm-editor .cm-content {
+    color: var(--text);
+    caret-color: var(--text);
     font-family: inherit;
 }
 
-.mdxEditorHost .cm-gutters {
+.mdxEditorHost .mdxEditorTheme .cm-editor .cm-line {
+    color: var(--text);
+}
+
+/* Токены подсветки тоже наследуют цвет текста: подсветка синтаксиса появится
+   вместе с тёмной темой для статьи (2.0.0, этап 2). */
+.mdxEditorHost .mdxEditorTheme .cm-editor .cm-content .cm-line span {
+    color: inherit;
+}
+
+.mdxEditorHost .mdxEditorTheme .cm-editor .cm-activeLine {
+    background-color: var(--bg-surface-muted);
+}
+
+.mdxEditorHost .mdxEditorTheme .cm-editor .cm-activeLineGutter {
+    background-color: transparent;
+    color: var(--text-muted);
+}
+
+.mdxEditorHost .mdxEditorTheme .cm-editor .cm-gutters {
     border-right: 1px solid var(--border-muted);
     background-color: transparent;
     color: var(--text-faint);
+}
+
+.mdxEditorHost .mdxEditorTheme .cm-editor .cm-cursor {
+    border-left-color: var(--text);
+}
+
+.mdxEditorHost .mdxEditorTheme .cm-editor .cm-selectionBackground {
+    background-color: var(--accent-soft);
+}
+
+.mdxEditorHost .mdxEditorTheme .cm-editor .cm-scroller {
+    font-family: inherit;
 }
 
 .mdxEditorHost .mdxContent,

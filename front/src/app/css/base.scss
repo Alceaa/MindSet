@@ -676,9 +676,10 @@ a:hover {
     justify-content: center;
 }
 
-/* Last-resort guard against horizontal scrolling on mobile. */
+/* Страховка от горизонтального скролла. Важно: именно clip, а не hidden —
+   hidden создаёт scroll-контейнер на body и ломает position: sticky у потомков. */
 html,
 body {
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
 }

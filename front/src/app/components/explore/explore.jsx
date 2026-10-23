@@ -6,6 +6,7 @@ import parseApiError from "../../utils/api.error";
 import { useAuth } from "../../context/auth.context";
 import SetCard from "../common/set.card.jsx";
 import MarkdownContent from "../common/markdown.content.jsx";
+import { formatNewsDate } from "../../utils/news.date";
 import "../../css/dashboard/dashboard.scss";
 import "../../css/dashboard/feed.scss";
 
@@ -14,7 +15,7 @@ const renderAnnouncement = (item) => (
         {item.is_pinned && <span className="badge badgePinned">закреплено</span>}
         <h3 className="announcementTitle">{item.title}</h3>
         <MarkdownContent className="announcementBody" content={item.body} />
-        <span className="announcementDate">{item.date_posted}</span>
+        <span className="announcementDate">{formatNewsDate(item.date_posted)}</span>
     </article>
 );
 

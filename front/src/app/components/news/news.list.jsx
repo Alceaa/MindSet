@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import newsService from "../../api/news.service";
 import parseApiError from "../../utils/api.error";
 import MarkdownContent from "../common/markdown.content.jsx";
+import { formatNewsDate } from "../../utils/news.date";
 import "../../css/dashboard/dashboard.scss";
 import "../../css/dashboard/feed.scss";
 
@@ -93,7 +94,7 @@ const NewsList = () => {
                         {item.is_pinned && <span className="badge badgePinned">закреплено</span>}
                         <h2 className="announcementTitle">{item.title}</h2>
                         <MarkdownContent className="announcementBody" content={item.body} />
-                        <span className="announcementDate">{item.published_at}</span>
+                        <span className="announcementDate">{formatNewsDate(item.published_at)}</span>
                     </article>
                 ))}
             </div>

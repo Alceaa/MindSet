@@ -10,6 +10,7 @@ import SetComments from "../../common/set.comments.jsx";
 import useReaderSettings, {
     READER_DEFAULTS,
 } from "../../../hooks/use.reader.settings";
+import useReadingPosition, { readingPositionKey } from "../../../hooks/use.reading.position";
 import "../../../css/dashboard/reader.scss";
 import "../../../css/dashboard/article.scss";
 import "../../../css/dashboard/feed.scss";
@@ -28,6 +29,11 @@ const PublicSet = () => {
 
     const { settings } = useReaderSettings();
     const readerView = useMemo(() => ({ ...READER_DEFAULTS, ...settings }), [settings]);
+
+    useReadingPosition({
+        key: readingPositionKey("public", slug),
+        ready: !loading && Boolean(set),
+    });
 
     useEffect(() => {
         let cancelled = false;

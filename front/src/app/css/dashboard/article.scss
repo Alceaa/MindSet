@@ -51,6 +51,16 @@
     border-radius: var(--radius);
 }
 
+/* Заголовки-якоря не должны уезжать под липкую шапку. */
+.article h1,
+.article h2,
+.article h3,
+.article h4,
+.article h5,
+.article h6 {
+    scroll-margin-top: calc(var(--header-height) + 8px);
+}
+
 .articleEmpty {
     padding: var(--gap-lg) 0;
     color: var(--reader-muted);

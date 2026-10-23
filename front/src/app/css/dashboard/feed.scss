@@ -694,3 +694,62 @@
     font-size: 12px;
     white-space: nowrap;
 }
+
+/* Новости: заголовок блока со ссылкой, прокручиваемый список и страница «Все новости» */
+
+.feedSectionHead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--gap);
+}
+
+.feedMore {
+    color: var(--accent);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.feedMore:hover {
+    text-decoration: underline;
+}
+
+.newsScroller {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    max-height: 340px;
+    padding-right: var(--gap-xs);
+    overflow-y: auto;
+    box-shadow: inset 0 -20px 16px -16px rgba(4, 6, 10, 0.55);
+}
+
+.newsScrollerHint {
+    color: var(--text-faint);
+    font-size: 12px;
+    text-align: center;
+}
+
+.badgePinned {
+    align-self: flex-start;
+    border-color: var(--accent);
+    background-color: var(--accent-soft);
+    color: var(--accent);
+}
+
+.newsPage {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-lg);
+}
+
+.newsList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+}
+
+.newsMore {
+    align-self: center;
+}
+

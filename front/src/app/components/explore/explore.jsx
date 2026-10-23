@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import setService from "../../api/set.service";
 import socialService from "../../api/social.service";
 import parseApiError from "../../utils/api.error";
@@ -8,6 +8,15 @@ import SetCard from "../common/set.card.jsx";
 import MarkdownContent from "../common/markdown.content.jsx";
 import "../../css/dashboard/dashboard.scss";
 import "../../css/dashboard/feed.scss";
+
+const renderAnnouncement = (item) => (
+    <article className="announcement" key={item.id}>
+        {item.is_pinned && <span className="badge badgePinned">закреплено</span>}
+        <h3 className="announcementTitle">{item.title}</h3>
+        <MarkdownContent className="announcementBody" content={item.body} />
+        <span className="announcementDate">{item.date_posted}</span>
+    </article>
+);
 
 const Explore = () => {
     const navigate = useNavigate();
@@ -71,6 +80,18 @@ const Explore = () => {
     const isOwn = (set) =>
         Boolean(set.author) && Boolean(user) && set.author.login === user.login;
 
+    const { featuredNews, restNews } = useMemo(() => {
+        const pinned = feed.announcements.filter((item) => item.is_pinned);
+        const regular = feed.announcements.filter((item) => !item.is_pinned);
+        const featured =
+            pinned.length > 0 ? [pinned[0], regular[0]].filter(Boolean) : regular.slice(0, 2);
+
+        return {
+            featuredNews: featured,
+            restNews: feed.announcements.filter((item) => !featured.includes(item)),
+        };
+    }, [feed.announcements]);
+
     const renderCard = (set) => (
         <SetCard
             key={set.id}
@@ -109,14 +130,23 @@ const Explore = () => {
                 <>
                     {feed.announcements.length > 0 && (
                         <section className="feedSection">
-                            <h2 className="feedSectionTitle">Новости проекта</h2>
-                            {feed.announcements.map((item) => (
-                                <article className="announcement" key={item.id}>
-                                    <h3 className="announcementTitle">{item.title}</h3>
-                                    <MarkdownContent className="announcementBody" content={item.body} />
-                                    <span className="announcementDate">{item.date_posted}</span>
-                                </article>
-                            ))}
+                            <div className="feedSectionHead">
+                                <h2 className="feedSectionTitle">Новости проекта</h2>
+                                <Link className="feedMore" to="/news">
+                                    Все новости →
+                                </Link>
+                            </div>
+                            {featuredNews.map(renderAnnouncement)}
+                            {restNews.length > 0 && (
+                                <>
+                                    <div className="newsScroller">
+                                        {restNews.map(renderAnnouncement)}
+                                    </div>
+                                    <span className="newsScrollerHint">
+                                        В блоке ещё {restNews.length} — прокрутите список
+                                    </span>
+                                </>
+                            )}
                         </section>
                     )}
 

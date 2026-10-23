@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { READER_GROUPS } from "../../../hooks/use.reader.settings";
 
-const ReaderSettings = ({ settings, onChange, onReset }) => {
+const ReaderSettings = ({ settings, onChange, onReset, note }) => {
     const [open, setOpen] = useState(false);
     const rootRef = useRef(null);
 
@@ -54,6 +54,8 @@ const ReaderSettings = ({ settings, onChange, onReset }) => {
                             </div>
                         </div>
                     ))}
+
+                    {note && <p className="readerNote">{note}</p>}
 
                     <button type="button" className="readerReset" onClick={onReset}>
                         Сбросить вид

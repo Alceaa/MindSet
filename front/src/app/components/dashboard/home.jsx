@@ -84,6 +84,9 @@ const Home = () => {
                         <Link className="btn btnGhost btnBlock" to="/explore">
                             Обзор сообщества
                         </Link>
+                        <Link className="btn btnGhost btnBlock" to="/news">
+                            Новости проекта
+                        </Link>
                     </div>
                 </section>
             </div>

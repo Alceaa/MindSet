@@ -27,6 +27,7 @@ export const READER_GROUPS = [
             { value: "narrow", label: "Узкая" },
             { value: "normal", label: "Обычная" },
             { value: "wide", label: "Широкая" },
+            { value: "full", label: "Во всю ширину" },
         ],
     },
     {

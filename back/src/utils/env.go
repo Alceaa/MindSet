@@ -63,6 +63,8 @@ type Env struct {
 	RateLimitAuthPer15Min    int  `mapstructure:"RATE_LIMIT_AUTH_PER_15MIN"`
 	RateLimitEmailPerHour    int  `mapstructure:"RATE_LIMIT_EMAIL_PER_HOUR"`
 	RateLimitReportPerHour   int  `mapstructure:"RATE_LIMIT_REPORT_PER_HOUR"`
+	RateLimitLikePerHour     int  `mapstructure:"RATE_LIMIT_LIKE_PER_HOUR"`
+	RateLimitCommentPerHour  int  `mapstructure:"RATE_LIMIT_COMMENT_PER_HOUR"`
 
 	TrustProxyHeader string `mapstructure:"TRUST_PROXY_HEADER"`
 
@@ -314,6 +316,8 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("COOKIE_SECURE", false)
 	v.SetDefault("COOKIE_SAME_SITE", "")
 	v.SetDefault("BCRYPT_COST", 12)
+	v.SetDefault("RATE_LIMIT_LIKE_PER_HOUR", 120)
+	v.SetDefault("RATE_LIMIT_COMMENT_PER_HOUR", 20)
 	v.SetDefault("S3_REGION", "ru-1")
 	v.SetDefault("SMTP_PORT", 587)
 	v.SetDefault("SMTP_TLS", "starttls")

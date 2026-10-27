@@ -27,22 +27,18 @@ func IsFollowing(ctx context.Context, followerID, followedID int) (bool, error) 
 	return following, nil
 }
 
-func FollowUser(ctx context.Context, followerID, followedID int) error {
-	conn, err := pool()
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.Exec(ctx,
+// FollowUser подписывает и сообщает, была ли подписка новой.
+func FollowUser(ctx context.Context, tx pgx.Tx, followerID, followedID int) (bool, error) {
+	tag, err := tx.Exec(ctx,
 		`INSERT INTO follows (follower_id, followed_id)
 		 VALUES (@follower_id, @followed_id)
 		 ON CONFLICT DO NOTHING`,
 		pgx.NamedArgs{"follower_id": followerID, "followed_id": followedID},
 	)
 	if err != nil {
-		return fmt.Errorf("follow user: %w", err)
+		return false, fmt.Errorf("follow user: %w", err)
 	}
-	return nil
+	return tag.RowsAffected() == 1, nil
 }
 
 func UnfollowUser(ctx context.Context, followerID, followedID int) error {

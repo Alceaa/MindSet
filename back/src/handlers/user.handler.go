@@ -15,6 +15,7 @@ import (
 	"mindset/utils"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5"
 )
 
 const (
@@ -243,7 +244,23 @@ func Follow(c *fiber.Ctx) error {
 		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось проверить пользователя", err)
 	}
 
-	if err := db.FollowUser(c.Context(), viewer.ID, targetID); err != nil {
+	err = db.WithTx(c.Context(), func(tx pgx.Tx) error {
+		created, txErr := db.FollowUser(c.Context(), tx, viewer.ID, targetID)
+		if txErr != nil {
+			return txErr
+		}
+		if !created {
+			return nil
+		}
+
+		return notifyRecipient(c.Context(), tx, &models.Notification{
+			UserID:     targetID,
+			Kind:       models.NotificationNewFollower,
+			ActorID:    viewer.ID,
+			ActorLogin: viewer.Login,
+		})
+	})
+	if err != nil {
 		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось подписаться", err)
 	}
 

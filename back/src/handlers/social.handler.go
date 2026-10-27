@@ -11,6 +11,7 @@ import (
 	"mindset/utils"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/jackc/pgx/v5"
 )
 
 const feedPageSize = 12
@@ -48,7 +49,26 @@ func LikeSet(c *fiber.Ctx) error {
 		return nil
 	}
 
-	if err := db.SetLike(c.Context(), set.ID, user.ID); err != nil {
+	err := db.WithTx(c.Context(), func(tx pgx.Tx) error {
+		created, txErr := db.SetLike(c.Context(), tx, set.ID, user.ID)
+		if txErr != nil {
+			return txErr
+		}
+		if !created {
+			return nil
+		}
+
+		return notifyRecipient(c.Context(), tx, &models.Notification{
+			UserID:     set.UserID,
+			Kind:       models.NotificationSetLike,
+			ActorID:    user.ID,
+			ActorLogin: user.Login,
+			SetID:      set.ID,
+			SetSlug:    set.Slug,
+			SetTitle:   set.Title,
+		})
+	})
+	if err != nil {
 		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось поставить лайк", err)
 	}
 
@@ -135,7 +155,25 @@ func CreateComment(c *fiber.Ctx) error {
 		return utils.FailValidation(c, validationErrors)
 	}
 
-	comment, err := db.CreateComment(c.Context(), set.ID, user.ID, strings.TrimSpace(req.Body))
+	var comment *models.Comment
+	err := db.WithTx(c.Context(), func(tx pgx.Tx) error {
+		created, txErr := db.CreateComment(c.Context(), tx, set.ID, user.ID, strings.TrimSpace(req.Body))
+		if txErr != nil {
+			return txErr
+		}
+		comment = created
+
+		return notifyRecipient(c.Context(), tx, &models.Notification{
+			UserID:     set.UserID,
+			Kind:       models.NotificationSetComment,
+			ActorID:    user.ID,
+			ActorLogin: user.Login,
+			SetID:      set.ID,
+			SetSlug:    set.Slug,
+			SetTitle:   set.Title,
+			Excerpt:    strings.TrimSpace(req.Body),
+		})
+	})
 	if err != nil {
 		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось добавить комментарий", err)
 	}

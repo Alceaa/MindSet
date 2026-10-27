@@ -3,11 +3,13 @@ import { Link, useSearchParams } from "react-router-dom";
 import ProfileSettingsPanel from "./settings.profile.jsx";
 import SecuritySettingsPanel from "./settings.security.jsx";
 import BugReportPanel from "./settings.bug.jsx";
+import NotificationsSettingsPanel from "./settings.notifications.jsx";
 import "../../css/settings/settings.scss";
 
 const NAV = [
     { key: "profile", label: "Настройки профиля" },
     { key: "security", label: "Безопасность" },
+    { key: "notifications", label: "Уведомления" },
     { key: "bug", label: "Сообщить о проблеме" },
 ];
 
@@ -18,6 +20,9 @@ const Settings = () => {
     const renderPanel = () => {
         if (tab === "security") {
             return <SecuritySettingsPanel />;
+        }
+        if (tab === "notifications") {
+            return <NotificationsSettingsPanel />;
         }
         if (tab === "bug") {
             return <BugReportPanel />;

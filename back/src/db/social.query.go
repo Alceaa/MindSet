@@ -9,21 +9,18 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func SetLike(ctx context.Context, setID, userID int) error {
-	conn, err := pool()
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.Exec(ctx,
+// SetLike ставит лайк и сообщает, был ли он новым: повторный лайк не должен
+// порождать второе уведомление автору.
+func SetLike(ctx context.Context, tx pgx.Tx, setID, userID int) (bool, error) {
+	tag, err := tx.Exec(ctx,
 		`INSERT INTO set_likes (set_id, user_id) VALUES (@set_id, @user_id)
 		 ON CONFLICT DO NOTHING`,
 		pgx.NamedArgs{"set_id": setID, "user_id": userID},
 	)
 	if err != nil {
-		return fmt.Errorf("like set: %w", err)
+		return false, fmt.Errorf("like set: %w", err)
 	}
-	return nil
+	return tag.RowsAffected() == 1, nil
 }
 
 func SetUnlike(ctx context.Context, setID, userID int) error {
@@ -104,14 +101,9 @@ func ListComments(ctx context.Context, setID int) ([]*models.Comment, error) {
 	return comments, nil
 }
 
-func CreateComment(ctx context.Context, setID, userID int, body string) (*models.Comment, error) {
-	conn, err := pool()
-	if err != nil {
-		return nil, err
-	}
-
+func CreateComment(ctx context.Context, tx pgx.Tx, setID, userID int, body string) (*models.Comment, error) {
 	comment := &models.Comment{SetID: setID, UserID: userID, Body: body}
-	err = conn.QueryRow(ctx,
+	err := tx.QueryRow(ctx,
 		`INSERT INTO set_comments (set_id, user_id, body) VALUES (@set_id, @user_id, @body)
 		 RETURNING id, to_char(date_created, 'YYYY-MM-DD HH24:MI') AS date_created`,
 		pgx.NamedArgs{"set_id": setID, "user_id": userID, "body": body},

@@ -351,3 +351,31 @@ CREATE TABLE IF NOT EXISTS set_comments (
 );
 
 CREATE INDEX IF NOT EXISTS set_comments_set_idx ON set_comments (set_id, id);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id         serial PRIMARY KEY,
+    user_id    integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    kind       varchar NOT NULL,
+    actor_id   integer NOT NULL DEFAULT 0,
+    target_id  integer NOT NULL DEFAULT 0,
+    count      integer NOT NULL DEFAULT 1,
+    payload    jsonb NOT NULL DEFAULT '{}'::jsonb,
+    read_at    timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS actor_id integer NOT NULL DEFAULT 0;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS target_id integer NOT NULL DEFAULT 0;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS count integer NOT NULL DEFAULT 1;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS payload jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications (user_id, created_at DESC);
+
+-- Одно непрочитанное уведомление на пару «кто + что»: повторные лайки
+-- увеличивают счётчик (count), а не плодят строки.
+CREATE UNIQUE INDEX IF NOT EXISTS notifications_unread_unique
+    ON notifications (user_id, kind, actor_id, target_id)
+    WHERE read_at IS NULL;
+
+-- Настройки уведомлений: храним только выключенные категории, пустой объект = включено всё.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_prefs jsonb NOT NULL DEFAULT '{}'::jsonb;

@@ -18,6 +18,7 @@ type RateLimitRule struct {
 	Expiration  time.Duration
 	SkipSuccess bool
 	KeyByLogin  bool
+	KeyByUser   bool
 }
 
 type rateBucket struct {
@@ -57,6 +58,14 @@ func RateLimiter(rule RateLimitRule) fiber.Handler {
 
 func rateKey(c *fiber.Ctx, rule RateLimitRule) string {
 	ip := c.IP()
+
+	if rule.KeyByUser {
+		if user, ok := CurrentUser(c); ok {
+			return "user:" + strconv.Itoa(user.ID)
+		}
+		return ip
+	}
+
 	if !rule.KeyByLogin {
 		return ip
 	}

@@ -215,11 +215,23 @@ func CompletePendingRegistration(ctx context.Context, id int) (*models.User, err
 		); err != nil {
 			return nil, fmt.Errorf("mark invite used by: %w", err)
 		}
-		if _, err := tx.Exec(ctx,
-			`UPDATE users SET invited_by = (SELECT created_by FROM invites WHERE id = @invite_id) WHERE id = @user_id`,
+		var inviterID int
+		if err := tx.QueryRow(ctx,
+			`UPDATE users SET invited_by = (SELECT created_by FROM invites WHERE id = @invite_id)
+			 WHERE id = @user_id
+			 RETURNING coalesce(invited_by, 0)`,
 			pgx.NamedArgs{"user_id": created.ID, "invite_id": *inviteID},
-		); err != nil {
+		).Scan(&inviterID); err != nil {
 			return nil, fmt.Errorf("set invited by: %w", err)
+		}
+
+		if err := NotifyRecipient(ctx, tx, &models.Notification{
+			UserID:     inviterID,
+			Kind:       models.NotificationInviteUsed,
+			ActorID:    created.ID,
+			ActorLogin: created.Login,
+		}); err != nil {
+			return nil, err
 		}
 	}
 

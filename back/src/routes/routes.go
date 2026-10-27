@@ -30,6 +30,18 @@ func SetupRoutes(app fiber.Router) {
 		Max:        cfg.RateLimitReportPerHour,
 		Expiration: time.Hour,
 	})
+	likeLimiter := middlewares.RateLimiter(middlewares.RateLimitRule{
+		Name:       "like",
+		Max:        cfg.RateLimitLikePerHour,
+		Expiration: time.Hour,
+		KeyByUser:  true,
+	})
+	commentLimiter := middlewares.RateLimiter(middlewares.RateLimitRule{
+		Name:       "comment",
+		Max:        cfg.RateLimitCommentPerHour,
+		Expiration: time.Hour,
+		KeyByUser:  true,
+	})
 
 	if cfg.AdminToken != "" {
 		admin := app.Group("/admin", middlewares.OptionalAuth, handlers.RequireAdminToken)
@@ -82,9 +94,9 @@ func SetupRoutes(app fiber.Router) {
 	public.Get("/sets/:slug", handlers.GetPublicSet)
 	public.Get("/sets/:slug/likes", middlewares.OptionalAuth, handlers.GetSetLikes)
 	public.Get("/sets/:slug/comments", handlers.ListSetComments)
-	public.Post("/sets/:slug/like", middlewares.ValidateAccessToken, handlers.LikeSet)
+	public.Post("/sets/:slug/like", middlewares.ValidateAccessToken, likeLimiter, handlers.LikeSet)
 	public.Delete("/sets/:slug/like", middlewares.ValidateAccessToken, handlers.UnlikeSet)
-	public.Post("/sets/:slug/comments", middlewares.ValidateAccessToken, middlewares.RequireJSONBody, handlers.CreateComment)
+	public.Post("/sets/:slug/comments", middlewares.ValidateAccessToken, commentLimiter, middlewares.RequireJSONBody, handlers.CreateComment)
 	public.Get("/snapshots/:id", handlers.GetPublicSnapshot)
 	public.Get("/users/:login", middlewares.OptionalAuth, handlers.GetPublicProfile)
 	public.Get("/users/:login/sets", middlewares.OptionalAuth, handlers.GetPublicUserSets)
@@ -96,10 +108,18 @@ func SetupRoutes(app fiber.Router) {
 	users.Put("/me", handlers.UpdateMe)
 	users.Put("/me/password", handlers.ChangePassword)
 	users.Put("/me/2fa", middlewares.RequireJSONBody, handlers.UpdateTwoFactor)
+	users.Get("/me/notification-prefs", handlers.GetNotificationPrefs)
+	users.Put("/me/notification-prefs", middlewares.RequireJSONBody, handlers.UpdateNotificationPrefs)
 	users.Post("/me/logout-all", handlers.LogoutAll)
 	users.Post("/me/avatar", handlers.UploadAvatar)
 	users.Post("/:id/follow", handlers.Follow)
 	users.Delete("/:id/follow", handlers.Unfollow)
+
+	notifications := app.Group("/notifications", middlewares.ValidateAccessToken)
+	notifications.Get("", handlers.ListNotifications)
+	notifications.Get("/unread", handlers.UnreadNotifications)
+	notifications.Post("/read-all", handlers.MarkAllNotificationsRead)
+	notifications.Post("/:id/read", handlers.MarkNotificationRead)
 
 	uploads := app.Group("/uploads", middlewares.ValidateAccessToken)
 	uploads.Post("/presign", handlers.PresignUpload)

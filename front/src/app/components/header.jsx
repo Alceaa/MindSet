@@ -7,6 +7,8 @@ import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import { useAuth } from "../context/auth.context";
 import SearchModal from "./common/search.modal.jsx";
+import NotificationsBell from "./common/notifications.bell.jsx";
+import useNotifications from "../hooks/use.notifications";
 
 const initialOf = (login) => (login ? login.trim().charAt(0).toUpperCase() : "?");
 
@@ -17,6 +19,8 @@ const Header = () => {
     const [searchParams] = useSearchParams();
     const [anchorEl, setAnchorEl] = useState(null);
     const [searchOpen, setSearchOpen] = useState(false);
+
+    const { unread, setUnread } = useNotifications(isAuthenticated);
 
     const isSetsTab = searchParams.get("tab") === "sets";
     const isGraphTab = searchParams.get("tab") === "graph";
@@ -81,6 +85,10 @@ const Header = () => {
                         <span aria-hidden="true">🔍</span>
                         <span className="searchTriggerLabel">Поиск</span>
                     </button>
+
+                    {isAuthenticated && (
+                        <NotificationsBell unread={unread} onUnread={setUnread} />
+                    )}
 
                     {isAuthenticated ? (
                         <>

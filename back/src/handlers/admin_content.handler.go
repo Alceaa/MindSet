@@ -28,7 +28,8 @@ func ListAdminSets(c *fiber.Ctx) error {
 }
 
 func DeleteAdminSet(c *fiber.Ctx) error {
-	if _, ok := middlewares.CurrentUser(c); !ok {
+	admin, ok := middlewares.CurrentUser(c)
+	if !ok {
 		return utils.Fail(c, fiber.StatusUnauthorized, "Требуется авторизация", nil)
 	}
 
@@ -63,6 +64,17 @@ func DeleteAdminSet(c *fiber.Ctx) error {
 			if err := db.LinkSavedSetsToTombstone(c.Context(), tx, existing.ID, tombstoneID); err != nil {
 				return err
 			}
+		}
+
+		if err := notifyRecipient(c.Context(), tx, &models.Notification{
+			UserID:     existing.UserID,
+			Kind:       models.NotificationSetRemoved,
+			ActorID:    admin.ID,
+			ActorLogin: admin.Login,
+			SetID:      existing.ID,
+			SetTitle:   existing.Title,
+		}); err != nil {
+			return err
 		}
 
 		return db.DeleteSetAsAdmin(c.Context(), tx, id)

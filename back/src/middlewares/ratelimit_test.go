@@ -5,9 +5,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"mindset/models"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -140,3 +143,59 @@ func TestRateLimiterWindowResets(t *testing.T) {
 		t.Fatalf("после истечения окна = %d, ожидалось 200", resp.StatusCode)
 	}
 }
+
+func TestRateLimiterKeysByUser(t *testing.T) {
+	resetRateBuckets()
+
+	app := fiber.New()
+	app.Use(func(c *fiber.Ctx) error {
+		if raw := c.Get("X-Test-User"); raw != "" {
+			id, err := strconv.Atoi(raw)
+			if err == nil {
+				c.Locals(UserLocalKey, &models.User{ID: id})
+			}
+		}
+		return c.Next()
+	})
+	app.Post(
+		"/x",
+		RateLimiter(RateLimitRule{
+			Name:       "user-limit",
+			Max:        1,
+			Expiration: time.Minute,
+			KeyByUser:  true,
+		}),
+		func(c *fiber.Ctx) error {
+			return c.SendStatus(fiber.StatusOK)
+		},
+	)
+
+	send := func(user string) int {
+		req := httptest.NewRequest(fiber.MethodPost, "/x", nil)
+		if user != "" {
+			req.Header.Set("X-Test-User", user)
+		}
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatalf("запрос: %v", err)
+		}
+		return resp.StatusCode
+	}
+
+	if status := send("1"); status != fiber.StatusOK {
+		t.Fatalf("первый запрос пользователя 1 = %d, ожидалось 200", status)
+	}
+	if status := send("1"); status != fiber.StatusTooManyRequests {
+		t.Fatalf("второй запрос пользователя 1 = %d, ожидалось 429", status)
+	}
+	if status := send("2"); status != fiber.StatusOK {
+		t.Fatalf("запрос другого пользователя = %d, ожидалось 200: лимит должен считаться по пользователю", status)
+	}
+	if status := send(""); status != fiber.StatusOK {
+		t.Fatalf("запрос без пользователя = %d, ожидалось 200: откат на лимит по IP", status)
+	}
+	if status := send(""); status != fiber.StatusTooManyRequests {
+		t.Fatalf("второй запрос без пользователя = %d, ожидалось 429", status)
+	}
+}
+

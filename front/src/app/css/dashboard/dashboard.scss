@@ -325,6 +325,23 @@
     color: var(--text-faint);
 }
 
+/* Выпадающие списки MDXEditor (язык блока кода, тип блока) рендерятся в портал у body.
+   Без ограничения высоты список языков растягивается на весь экран и не прокручивается. */
+.mdxeditor-popup-container [class*="_selectContainer_"] {
+    max-height: min(320px, 50vh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* При открытии выпадающего списка MDXEditor (Radix) вешает на body блокировку прокрутки:
+   overflow: hidden !important. Это ломает position: sticky у тулбара — он «улетает» вверх
+   вместе со страницей, а сам список оказывается за экраном. Блокировка нужна модальным окнам,
+   но не выпадающим спискам редактора. Специфичность повышена через html, потому что правило
+   Radix тоже с !important и подключается позже нашего. */
+html body[data-scroll-locked] {
+    overflow: visible !important;
+}
+
 .mdxEditorHost .mdxEditorTheme .cm-editor .cm-cursor {
     border-left-color: var(--text);
 }

@@ -39,6 +39,7 @@ import { uploadImage } from "../../../utils/image.upload";
 import LoadingScreen from "../../common/loading.screen.jsx";
 import MarkdownTools from "../../common/markdown.tools.jsx";
 import { applyMarkdownPaste } from "../../../markdown/paste";
+import { registerListSplit } from "../../../markdown/list.split";
 import { CODE_LANGUAGES, codeBlockPluginOptions } from "../../../markdown/code.languages.js";
 import SetArticle from "./set.article.jsx";
 import SetSidebar from "./set.sidebar.jsx";
@@ -526,6 +527,38 @@ const SetEditorInner = () => {
     useEffect(() => {
         realmRef.current = realm;
     }, [realm]);
+
+    // Снятие списка: Lexical по умолчанию убирает весь список, нам нужен только текущий пункт.
+    useEffect(() => {
+        if (mode !== "edit") {
+            return undefined;
+        }
+
+        let unregister = null;
+        let attempts = 0;
+        let timer = null;
+
+        const attach = () => {
+            const editor = realmRef.current?.getValue(rootEditor$);
+
+            if (editor) {
+                unregister = registerListSplit(editor);
+                return;
+            }
+
+            attempts += 1;
+            if (attempts < 20) {
+                timer = window.setTimeout(attach, 150);
+            }
+        };
+
+        attach();
+
+        return () => {
+            window.clearTimeout(timer);
+            unregister?.();
+        };
+    }, [mode, loading]);
 
     const openPicker = useCallback(() => {
         const editor = realmRef.current?.getValue(rootEditor$);

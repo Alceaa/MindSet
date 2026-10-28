@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MARKDOWN_EXPORT_OPTIONS } from "../../markdown/export.options";
 import {
     BlockTypeSelect,
     BoldItalicUnderlineToggles,
@@ -220,6 +221,7 @@ const AdminNewsPanel = () => {
                         plugins={newsPlugins}
                         contentEditableClassName="mdxContent"
                         placeholder="Текст новости: заголовки, списки, ссылки, картинки"
+                        toMarkdownOptions={MARKDOWN_EXPORT_OPTIONS}
                     />
                 </div>
                 <label className="mutedText">

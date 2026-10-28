@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import Avatar from "@mui/material/Avatar";
+import { MARKDOWN_EXPORT_OPTIONS } from "../../markdown/export.options";
 import {
     BlockTypeSelect,
     BoldItalicUnderlineToggles,
@@ -263,6 +264,7 @@ const ProfileSettingsPanel = () => {
                                 plugins={bioPlugins}
                                 contentEditableClassName="mdxContent"
                                 placeholder="Расскажите о себе и своих сетах"
+                                toMarkdownOptions={MARKDOWN_EXPORT_OPTIONS}
                             />
                         </div>
                     </div>

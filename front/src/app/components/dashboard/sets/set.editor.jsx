@@ -40,6 +40,7 @@ import LoadingScreen from "../../common/loading.screen.jsx";
 import MarkdownTools from "../../common/markdown.tools.jsx";
 import { applyMarkdownPaste } from "../../../markdown/paste";
 import { registerListSplit } from "../../../markdown/list.split";
+import { MARKDOWN_EXPORT_OPTIONS } from "../../../markdown/export.options";
 import { CODE_LANGUAGES, codeBlockPluginOptions } from "../../../markdown/code.languages.js";
 import SetArticle from "./set.article.jsx";
 import SetSidebar from "./set.sidebar.jsx";
@@ -986,6 +987,7 @@ const SetEditorInner = () => {
                                 onChange={setContent}
                                 placeholder=""
                                 plugins={plugins}
+                                toMarkdownOptions={MARKDOWN_EXPORT_OPTIONS}
                             />
                             {picker && (
                                 <WikilinkPicker

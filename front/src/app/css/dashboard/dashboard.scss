@@ -333,6 +333,15 @@
     overscroll-behavior: contain;
 }
 
+/* При открытии выпадающего списка MDXEditor (Radix) вешает на body блокировку прокрутки:
+   overflow: hidden !important. Это ломает position: sticky у тулбара — он «улетает» вверх
+   вместе со страницей, а сам список оказывается за экраном. Блокировка нужна модальным окнам,
+   но не выпадающим спискам редактора. Специфичность повышена через html, потому что правило
+   Radix тоже с !important и подключается позже нашего. */
+html body[data-scroll-locked] {
+    overflow: visible !important;
+}
+
 .mdxEditorHost .mdxEditorTheme .cm-editor .cm-cursor {
     border-left-color: var(--text);
 }

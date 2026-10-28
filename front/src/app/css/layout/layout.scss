@@ -277,18 +277,11 @@
 .notificationsActor,
 .notificationsSet {
     color: var(--accent);
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
     overflow-wrap: anywhere;
 }
 
 .notificationsActor {
     font-weight: 600;
-}
-
-.notificationsActor:hover,
-.notificationsSet:hover {
-    border-bottom-color: var(--accent);
 }
 
 .notificationsItemHint {

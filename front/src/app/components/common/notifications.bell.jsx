@@ -1,66 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import notificationsService from "../../api/notifications.service";
 import parseApiError from "../../utils/api.error";
 import { formatRelativeTime } from "../../utils/relative.time";
-
-// Формулировки без рода: логин не говорит, кто за ним, поэтому согласуем с «сетом»
-// или «пользователем», а ник выделяем цветом.
-const Actor = ({ login }) => <span className="notificationsActor">{login}</span>;
-
-const describe = (item) => {
-    switch (item.kind) {
-        case "new_follower":
-            return {
-                title: (
-                    <>
-                        У вас новый подписчик — <Actor login={item.actor_login} />
-                    </>
-                ),
-                hint: "",
-            };
-        case "set_like":
-            return {
-                title: (
-                    <>
-                        Ваш сет «{item.set_title}» понравился пользователю{" "}
-                        <Actor login={item.actor_login} />
-                    </>
-                ),
-                hint: item.count > 1 ? `всего лайков: ${item.count}` : "",
-            };
-        case "set_comment":
-            return {
-                title: (
-                    <>
-                        Новый комментарий к сету «{item.set_title}» от{" "}
-                        <Actor login={item.actor_login} />
-                    </>
-                ),
-                hint:
-                    item.count > 1
-                        ? `всего ${item.count}, последний: ${item.excerpt}`
-                        : item.excerpt,
-            };
-        case "invite_used":
-            return {
-                title: (
-                    <>
-                        По вашей ссылке зарегистрировался новый пользователь —{" "}
-                        <Actor login={item.actor_login} />
-                    </>
-                ),
-                hint: "",
-            };
-        case "set_removed":
-            return {
-                title: <>Ваш сет «{item.set_title}» удалён администратором</>,
-                hint: "",
-            };
-        default:
-            return { title: <>Уведомление</>, hint: "" };
-    }
-};
 
 const linkFor = (item) => {
     switch (item.kind) {
@@ -77,6 +19,9 @@ const linkFor = (item) => {
             return "";
     }
 };
+
+// Ссылка на сам сет: у публичных и «по ссылке» есть адрес, у остальных — внутренняя страница.
+const setLinkFor = (item) => (item.set_slug ? `/s/${item.set_slug}` : "");
 
 const NotificationsBell = ({ unread, onUnread }) => {
     const navigate = useNavigate();
@@ -145,25 +90,118 @@ const NotificationsBell = ({ unread, onUnread }) => {
         };
     }, [open]);
 
+    const markRead = useCallback(
+        async (item) => {
+            if (item.read_at) {
+                return;
+            }
+
+            try {
+                const data = await notificationsService.markRead(item.id);
+                onUnread(data.unread ?? 0);
+            } catch {
+                // Прочитано в другой вкладке — переходу это не мешает.
+            }
+        },
+        [onUnread]
+    );
+
+    const linkClick = (item) => (event) => {
+        event.stopPropagation();
+        markRead(item);
+    };
+
+    // Ники и названия сетов кликабельны: ник ведёт в профиль, название — в сам сет.
+    const actorNode = (item) =>
+        item.actor_login ? (
+            <Link
+                className="notificationsActor"
+                to={`/u/${item.actor_login}`}
+                onClick={linkClick(item)}
+            >
+                {item.actor_login}
+            </Link>
+        ) : null;
+
+    const setNode = (item) => {
+        const to = setLinkFor(item);
+
+        if (!to) {
+            return <span className="notificationsSet">«{item.set_title}»</span>;
+        }
+
+        return (
+            <Link className="notificationsSet" to={to} onClick={linkClick(item)}>
+                «{item.set_title}»
+            </Link>
+        );
+    };
+
+    // Формулировки без рода: логин не говорит, кто за ним, поэтому согласуем с «сетом»
+    // или «пользователем».
+    const describe = (item) => {
+        switch (item.kind) {
+            case "new_follower":
+                return {
+                    title: (
+                        <>
+                            У вас новый подписчик — {actorNode(item)}
+                        </>
+                    ),
+                    hint: "",
+                };
+            case "set_like":
+                return {
+                    title: (
+                        <>
+                            Ваш сет {setNode(item)} понравился пользователю {actorNode(item)}
+                        </>
+                    ),
+                    hint: item.count > 1 ? `всего лайков: ${item.count}` : "",
+                };
+            case "set_comment":
+                return {
+                    title: (
+                        <>
+                            Новый комментарий к сету {setNode(item)} от {actorNode(item)}
+                        </>
+                    ),
+                    hint:
+                        item.count > 1
+                            ? `всего ${item.count}, последний: ${item.excerpt}`
+                            : item.excerpt,
+                };
+            case "invite_used":
+                return {
+                    title: (
+                        <>
+                            По вашей ссылке зарегистрировался новый пользователь —{" "}
+                            {actorNode(item)}
+                        </>
+                    ),
+                    hint: "",
+                };
+            case "set_removed":
+                return {
+                    title: <>Ваш сет {setNode(item)} удалён администратором</>,
+                    hint: "",
+                };
+            default:
+                return { title: <>Уведомление</>, hint: "" };
+        }
+    };
+
     const handleSelect = useCallback(
         async (item) => {
             setOpen(false);
-
-            if (!item.read_at) {
-                try {
-                    const data = await notificationsService.markRead(item.id);
-                    onUnread(data.unread ?? 0);
-                } catch {
-                    // Уведомление могли уже прочитать в другой вкладке — не мешаем переходу.
-                }
-            }
+            await markRead(item);
 
             const link = linkFor(item);
             if (link) {
                 navigate(link);
             }
         },
-        [navigate, onUnread]
+        [markRead, navigate]
     );
 
     const handleReadAll = useCallback(async () => {
@@ -220,8 +258,7 @@ const NotificationsBell = ({ unread, onUnread }) => {
 
                             return (
                                 <li key={item.id}>
-                                    <button
-                                        type="button"
+                                    <div
                                         className={`notificationsItem${
                                             item.read_at ? "" : " notificationsItemUnread"
                                         }`}
@@ -241,7 +278,7 @@ const NotificationsBell = ({ unread, onUnread }) => {
                                         <span className="notificationsTime">
                                             {formatRelativeTime(item.created_at)}
                                         </span>
-                                    </button>
+                                    </div>
                                 </li>
                             );
                         })}

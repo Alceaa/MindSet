@@ -236,6 +236,7 @@
     flex-direction: column;
     gap: 2px;
     width: 100%;
+    min-width: 0;
     padding: var(--gap-sm);
     border: none;
     border-radius: var(--radius);
@@ -256,23 +257,38 @@
 }
 
 .notificationsItemTitle {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
     line-height: 1.4;
 }
 
 .notificationsCount {
+    display: inline-block;
+    margin-left: 6px;
     padding: 0 6px;
     border-radius: 999px;
     background-color: var(--bg-surface-muted);
     color: var(--text-muted);
     font-size: 11px;
+    vertical-align: baseline;
+}
+
+.notificationsActor,
+.notificationsSet {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    overflow-wrap: anywhere;
 }
 
 .notificationsActor {
-    color: var(--accent);
     font-weight: 600;
+}
+
+.notificationsActor:hover,
+.notificationsSet:hover {
+    border-bottom-color: var(--accent);
 }
 
 .notificationsItemHint {

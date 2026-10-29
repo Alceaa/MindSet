@@ -230,6 +230,18 @@
     box-shadow: var(--shadow);
 }
 
+/* На узких экранах попап шире, чем место слева от колокольчика, и уезжал за левый
+   край (на 75px при 320px). Прижимаем его к экрану, а не к кнопке. */
+@media (max-width: 640px) {
+    .notificationsPopover {
+        position: fixed;
+        top: calc(var(--header-height) + 8px);
+        right: var(--gap);
+        left: var(--gap);
+        width: auto;
+    }
+}
+
 .notificationsHead {
     display: flex;
     align-items: baseline;

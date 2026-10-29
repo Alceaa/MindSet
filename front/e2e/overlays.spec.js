@@ -21,13 +21,25 @@ for (const viewport of VIEWPORTS) {
             );
 
             const problems = [];
-            const check = async (name, open) => {
+            const check = async (name, open, panelSelector) => {
                 await open();
                 await page.waitForTimeout(700);
 
                 const overflowing = await overflowingElements(page);
                 if (overflowing.length > 0) {
                     problems.push(`${name}: ${overflowing.join(", ")}`);
+                }
+
+                // Отдельно проверяем саму панель: выровненная не в ту сторону, она может
+                // уехать за край экрана целиком (так было с настройками читалки).
+                if (panelSelector) {
+                    const box = await page.locator(panelSelector).first().boundingBox();
+                    if (box && (box.x < -1 || box.x + box.width > viewport.width + 1)) {
+                        problems.push(
+                            `${name}: панель не помещается на экране ` +
+                                `(x=${Math.round(box.x)}..${Math.round(box.x + box.width)} при ширине ${viewport.width})`
+                        );
+                    }
                 }
 
                 await page.keyboard.press("Escape");
@@ -44,8 +56,10 @@ for (const viewport of VIEWPORTS) {
             await check("поиск", () => page.locator(".searchTrigger").click());
 
             await openPage(page, `/sets/${id}`);
-            await check("настройки читалки", () =>
-                page.locator(".readerSettings button").first().click()
+            await check(
+                "настройки читалки",
+                () => page.locator(".readerSettings button").first().click(),
+                ".readerPopover"
             );
 
             expect(problems, `\n${problems.join("\n")}`).toEqual([]);

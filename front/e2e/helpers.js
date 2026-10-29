@@ -56,9 +56,10 @@ async function fetchSetContent(context, id) {
     return body?.set?.content ?? body?.content ?? "";
 }
 
-// Элементы, вылезающие за правый край окна. Потомков горизонтально прокручиваемых
-// контейнеров не считаем: такие блоки (таблицы, код) прокручиваются внутри себя
-// и не ломают страницу.
+// Элементы, вылезающие за края окна. Потомков горизонтально прокручиваемых контейнеров
+// не считаем: такие блоки (таблицы, код) прокручиваются внутри себя и не ломают страницу.
+// Проверяем оба края: панель, выровненная «не в ту сторону», уезжает именно влево —
+// так был пропущен баг с панелью настроек читалки (уходила за левый край на 210px).
 async function overflowingElements(page) {
     return page.evaluate(() => {
         const width = window.innerWidth;
@@ -73,7 +74,10 @@ async function overflowingElements(page) {
         return all
             .filter((el) => {
                 const rect = el.getBoundingClientRect();
-                if (rect.width === 0 || rect.right <= width + 1) {
+                if (rect.width === 0 || rect.height === 0) {
+                    return false;
+                }
+                if (rect.right <= width + 1 && rect.left >= -1) {
                     return false;
                 }
                 return !insideScroller(el);
@@ -81,7 +85,13 @@ async function overflowingElements(page) {
             .map((el) => {
                 const rect = el.getBoundingClientRect();
                 const cls = String(el.className).split(" ")[0];
-                return `${el.tagName.toLowerCase()}${cls ? "." + cls : ""} (правый край ${Math.round(rect.right)} при ширине ${width})`;
+                const name = `${el.tagName.toLowerCase()}${cls ? "." + cls : ""}`;
+
+                if (rect.left < -1) {
+                    return `${name} ушёл влево на ${Math.abs(Math.round(rect.left))}px (левый край ${Math.round(rect.left)} при ширине ${width})`;
+                }
+
+                return `${name} (правый край ${Math.round(rect.right)} при ширине ${width})`;
             });
     });
 }

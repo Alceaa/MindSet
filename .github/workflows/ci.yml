@@ -100,3 +100,110 @@ jobs:
           --build-arg PUBLIC_URL=/mindset
           --build-arg REACT_APP_BASE_API_URL=/mindset/api
           ./front
+
+  e2e:
+    name: E2E — браузерные проверки
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    # Проверки появились недавно: результат виден в отчёте, но остальные сборки не блокируем.
+    continue-on-error: true
+    env:
+      ENV: development
+      PORT: '8080'
+      DATABASE_URL: postgres://mindset:mindset@127.0.0.1:5432/mindset
+      JWT_ACCESS_SECRET: ci-access-secret-0123456789abcdef
+      JWT_REFRESH_SECRET: ci-refresh-secret-0123456789abcdef
+      ALLOWED_ORIGINS: http://localhost:3000
+      APP_BASE_URL: http://localhost:3000
+      REQUIRE_EMAIL_VERIFICATION: 'false'
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mindset
+          POSTGRES_PASSWORD: mindset
+          POSTGRES_DB: mindset
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mindset -d mindset"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: back/src/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+
+      - name: Схема БД и тестовый пользователь
+        env:
+          PGPASSWORD: mindset
+        run: |
+          psql -h 127.0.0.1 -U mindset -d mindset -v ON_ERROR_STOP=1 -f back/src/db/schema.sql
+          psql -h 127.0.0.1 -U mindset -d mindset -v ON_ERROR_STOP=1 -f front/e2e/seed.sql
+
+      - name: Бэкенд в фоне
+        working-directory: back/src
+        run: |
+          go build -o /tmp/mindset-backend .
+          nohup /tmp/mindset-backend > /tmp/backend.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8080/health > /dev/null; then
+              echo "бэкенд поднялся"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "бэкенд не поднялся"
+          cat /tmp/backend.log
+          exit 1
+
+      - name: npm ci
+        working-directory: front
+        run: npm ci
+
+      - name: Браузер для проверок
+        working-directory: front
+        run: npx playwright install --with-deps chromium
+
+      - name: Dev-сервер в фоне
+        working-directory: front
+        env:
+          BROWSER: none
+          CI: 'false'
+        run: |
+          nohup npm start > /tmp/frontend.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl -sf http://localhost:3000 > /dev/null; then
+              echo "фронтенд поднялся"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "фронтенд не поднялся"
+          tail -n 40 /tmp/frontend.log
+          exit 1
+
+      - name: Браузерные проверки
+        working-directory: front
+        env:
+          CI: 'true'
+          E2E_BASE_URL: http://localhost:3000
+        run: npm run test:e2e
+
+      - name: Отчёт и скриншоты при падении
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            front/playwright-report/
+            front/test-results/
+          retention-days: 7

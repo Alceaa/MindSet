@@ -11,6 +11,9 @@ export const WIKILINK_PROTOCOL = "wikilink";
 // скрипты и обработчики событий, оставляя картинки и ссылки.
 export const sanitizeSchema = {
     ...defaultSchema,
+    // Редактор хранит подчёркивание HTML-тегом <u>, а в схеме GitHub его нет — добавляем,
+    // иначе подчёркнутый текст терял оформление после сохранения.
+    tagNames: [...(defaultSchema.tagNames ?? []), "u"],
     protocols: {
         ...defaultSchema.protocols,
         href: [...(defaultSchema.protocols?.href ?? []), WIKILINK_PROTOCOL],

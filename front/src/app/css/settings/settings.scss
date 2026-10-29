@@ -120,6 +120,13 @@
 }
 
 .settingsRowTitle {
+    /* Бейдж стоит вплотную к тексту (без пробела), поэтому на узких экранах строка
+       не переносилась и вылезала за карточку. Переносимый флекс-контейнер это лечит. */
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    min-width: 0;
+    overflow-wrap: anywhere;
     color: var(--text);
     font-size: 14px;
     font-weight: 600;

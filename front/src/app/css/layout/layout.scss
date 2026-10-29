@@ -100,6 +100,11 @@
     white-space: nowrap;
 }
 
+/* Кнопка создания сета: на широких экранах подпись, на узких — только «+» */
+.createSetIcon {
+    display: none;
+}
+
 .verifyBanner {
     border-bottom: 1px solid rgba(226, 176, 83, 0.35);
     background-color: rgba(226, 176, 83, 0.12);
@@ -152,6 +157,34 @@
 
     .verifyBannerInner {
         padding: var(--gap-sm) var(--gap);
+    }
+}
+
+/* На узких телефонах правая часть шапки не влезала и обрезалась: убираем подпись
+   логотипа (остаётся знак «MS»), а кнопку создания сета сжимаем до «+».
+   Правило только для шапки приложения — на страницах входа подпись нужна. */
+@media (max-width: 420px) {
+    .appHeader .brandName {
+        display: none;
+    }
+}
+
+@media (max-width: 400px) {
+    .headerActions {
+        gap: var(--gap-xs);
+    }
+
+    .createSet {
+        padding-right: 8px;
+        padding-left: 8px;
+    }
+
+    .createSetLabel {
+        display: none;
+    }
+
+    .createSetIcon {
+        display: inline;
     }
 }
 

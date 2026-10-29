@@ -37,3 +37,7 @@ typings/
 
 # Yarn Integrity file
 .yarn-integrity
+
+# Отчёты браузерных проверок (npm run test:e2e)
+playwright-report/
+test-results/

@@ -96,11 +96,23 @@
     flex-direction: column;
     gap: var(--gap-sm);
     width: min(264px, calc(100vw - 24px));
+    max-height: min(70vh, 420px);
+    overflow-y: auto;
     padding: var(--gap-sm);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     background-color: var(--bg-surface);
     box-shadow: var(--shadow);
+}
+
+/* На узких экранах тулбар прижат влево (justify-content: flex-start), а панель
+   выравнивалась по правому краю кнопки «Аа» — она уезжала за левый край экрана
+   на 210px. Выравниваем по левому краю кнопки, чтобы панель оставалась на экране. */
+@media (max-width: 900px) {
+    .readerPopover {
+        right: auto;
+        left: 0;
+    }
 }
 
 .readerRow {

@@ -100,6 +100,11 @@
     white-space: nowrap;
 }
 
+/* Кнопка создания сета: на широких экранах подпись, на узких — только «+» */
+.createSetIcon {
+    display: none;
+}
+
 .verifyBanner {
     border-bottom: 1px solid rgba(226, 176, 83, 0.35);
     background-color: rgba(226, 176, 83, 0.12);
@@ -155,6 +160,34 @@
     }
 }
 
+/* На узких телефонах правая часть шапки не влезала и обрезалась: убираем подпись
+   логотипа (остаётся знак «MS»), а кнопку создания сета сжимаем до «+».
+   Правило только для шапки приложения — на страницах входа подпись нужна. */
+@media (max-width: 420px) {
+    .appHeader .brandName {
+        display: none;
+    }
+}
+
+@media (max-width: 400px) {
+    .headerActions {
+        gap: var(--gap-xs);
+    }
+
+    .createSet {
+        padding-right: 8px;
+        padding-left: 8px;
+    }
+
+    .createSetLabel {
+        display: none;
+    }
+
+    .createSetIcon {
+        display: inline;
+    }
+}
+
 /* Колокольчик уведомлений в шапке */
 
 .notifications {
@@ -195,6 +228,18 @@
     border-radius: var(--radius-lg);
     background-color: var(--bg-surface);
     box-shadow: var(--shadow);
+}
+
+/* На узких экранах попап шире, чем место слева от колокольчика, и уезжал за левый
+   край (на 75px при 320px). Прижимаем его к экрану, а не к кнопке. */
+@media (max-width: 640px) {
+    .notificationsPopover {
+        position: fixed;
+        top: calc(var(--header-height) + 8px);
+        right: var(--gap);
+        left: var(--gap);
+        width: auto;
+    }
 }
 
 .notificationsHead {

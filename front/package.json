@@ -1,6 +1,6 @@
 {
   "name": "mindset",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "private": true,
   "license": "MIT",
   "proxy": "http://127.0.0.1:8080",
@@ -30,7 +30,12 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
     "eject": "react-scripts eject"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
   },
   "eslintConfig": {
     "extends": [

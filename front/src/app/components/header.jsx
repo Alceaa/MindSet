@@ -92,8 +92,15 @@ const Header = () => {
 
                     {isAuthenticated ? (
                         <>
-                            <Link className="btn btnPrimary btnSmall" to="/sets/new">
-                                Новый сет
+                            <Link
+                                className="btn btnPrimary btnSmall createSet"
+                                to="/sets/new"
+                                aria-label="Новый сет"
+                            >
+                                <span className="createSetLabel">Новый сет</span>
+                                <span className="createSetIcon" aria-hidden="true">
+                                    +
+                                </span>
                             </Link>
                             <IconButton
                                 onClick={(event) => setAnchorEl(event.currentTarget)}

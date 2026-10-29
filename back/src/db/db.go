@@ -16,6 +16,11 @@ var (
 	ErrNotInitialized = errors.New("database is not initialized")
 )
 
+// Все моменты времени отдаём в UTC по ISO («2026-10-29T16:43:00Z»), а показывает их фронт
+// в часовом поясе пользователя. Иначе время зависело бы от часового пояса сервера:
+// он стоит в другой стране, и приглашения с репортами показывали чужие часы.
+const isoUTCTimeFormat = `'YYYY-MM-DD"T"HH24:MI:SS"Z"'`
+
 type Postgres struct {
 	db *pgxpool.Pool
 }

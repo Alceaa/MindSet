@@ -17,7 +17,7 @@ type Invite struct {
 	CreatedAt string `json:"created_at"`
 }
 
-const inviteColumns = `id, note, used_at IS NOT NULL AS used, coalesce(to_char(used_at, 'YYYY-MM-DD HH24:MI'), '') AS used_at, to_char(expires_at, 'YYYY-MM-DD HH24:MI') AS expires_at, to_char(created_at, 'YYYY-MM-DD HH24:MI') AS created_at`
+const inviteColumns = `id, note, used_at IS NOT NULL AS used, coalesce(to_char(used_at AT TIME ZONE 'UTC', ` + isoUTCTimeFormat + `), '') AS used_at, to_char(expires_at AT TIME ZONE 'UTC', ` + isoUTCTimeFormat + `) AS expires_at, to_char(created_at AT TIME ZONE 'UTC', ` + isoUTCTimeFormat + `) AS created_at`
 
 func scanInvite(row pgx.Row) (*Invite, error) {
 	var invite Invite

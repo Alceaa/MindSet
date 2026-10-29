@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import adminService from "../../api/admin.service";
 import parseApiError from "../../utils/api.error";
+import { formatDateTime } from "../../utils/date.time";
 
 const ACTION_LABELS = {
     block_user: "блокировка",
@@ -56,7 +57,7 @@ const AdminJournalPanel = () => {
                     <tbody>
                         {actions.map((item) => (
                             <tr key={item.id}>
-                                <td className="adminTableCellMuted">{item.created_at}</td>
+                                <td className="adminTableCellMuted">{formatDateTime(item.created_at)}</td>
                                 <td className="adminTableCellMuted">{item.admin_login || "—"}</td>
                                 <td>{ACTION_LABELS[item.action] || item.action}</td>
                                 <td className="adminTableCellMuted">

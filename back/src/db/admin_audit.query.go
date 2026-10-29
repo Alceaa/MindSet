@@ -50,7 +50,7 @@ func ListAdminActions(ctx context.Context, limit int) ([]*models.AdminAction, er
 
 	rows, err := conn.Query(ctx, `
 		SELECT id, coalesce(admin_login, ''), action, target_type, coalesce(target_id, 0),
-		       coalesce(details, ''), to_char(created_at, 'YYYY-MM-DD HH24:MI')
+		       coalesce(details, ''), to_char(created_at AT TIME ZONE 'UTC', `+isoUTCTimeFormat+`)
 		FROM admin_actions ORDER BY created_at DESC LIMIT @limit`,
 		pgx.NamedArgs{"limit": limit})
 	if err != nil {
@@ -120,7 +120,7 @@ func ListBugReports(ctx context.Context, status string, limit int) ([]*models.Bu
 
 	rows, err := conn.Query(ctx, `
 		SELECT id, coalesce(login, ''), coalesce(page, ''), topic, message, status,
-		       to_char(created_at, 'YYYY-MM-DD HH24:MI')
+		       to_char(created_at AT TIME ZONE 'UTC', `+isoUTCTimeFormat+`)
 		FROM bug_reports
 		WHERE (@status = '' OR status = @status)
 		ORDER BY created_at DESC LIMIT @limit`,

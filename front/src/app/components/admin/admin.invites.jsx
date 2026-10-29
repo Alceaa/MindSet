@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import adminService from "../../api/admin.service";
 import parseApiError from "../../utils/api.error";
+import { formatDateTime } from "../../utils/date.time";
 
 const AdminInvitesPanel = () => {
     const [items, setItems] = useState([]);
@@ -133,11 +134,13 @@ const AdminInvitesPanel = () => {
                             <tr key={item.id}>
                                 <td className="adminTableCellMuted">{item.id}</td>
                                 <td>{item.note || "—"}</td>
-                                <td className="adminTableCellMuted">{item.created_at}</td>
-                                <td className="adminTableCellMuted">{item.expires_at}</td>
+                                <td className="adminTableCellMuted">{formatDateTime(item.created_at)}</td>
+                                <td className="adminTableCellMuted">{formatDateTime(item.expires_at)}</td>
                                 <td>
                                     {item.used ? (
-                                        <span className="adminBadge">использовано {item.used_at}</span>
+                                        <span className="adminBadge">
+                                            использовано {formatDateTime(item.used_at)}
+                                        </span>
                                     ) : (
                                         <span className="adminBadge adminBadgeSuccess">активно</span>
                                     )}

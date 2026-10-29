@@ -13,9 +13,6 @@ import (
 
 const notificationExcerptLimit = 120
 
-// Время отдаём в UTC по ISO, чтобы фронт мог считать «5 минут назад» в любом часовом поясе.
-const notificationTimeFormat = `'YYYY-MM-DD"T"HH24:MI:SS"Z"'`
-
 type notificationPayload struct {
 	ActorLogin string `json:"actor_login,omitempty"`
 	SetID      int    `json:"set_id,omitempty"`
@@ -160,8 +157,8 @@ func ListNotifications(ctx context.Context, userID, limit, offset int) ([]*model
 		        coalesce(payload ->> 'set_slug', '') AS set_slug,
 		        coalesce(payload ->> 'set_title', '') AS set_title,
 		        coalesce(payload ->> 'excerpt', '') AS excerpt,
-		        coalesce(to_char(read_at AT TIME ZONE 'UTC', `+notificationTimeFormat+`), '') AS read_at,
-		        to_char(created_at AT TIME ZONE 'UTC', `+notificationTimeFormat+`) AS created_at
+		        coalesce(to_char(read_at AT TIME ZONE 'UTC', `+isoUTCTimeFormat+`), '') AS read_at,
+		        to_char(created_at AT TIME ZONE 'UTC', `+isoUTCTimeFormat+`) AS created_at
 		 FROM notifications
 		 WHERE user_id = @user_id
 		 ORDER BY created_at DESC, id DESC

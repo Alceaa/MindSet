@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import adminService from "../../api/admin.service";
 import parseApiError from "../../utils/api.error";
+import { formatDateTime } from "../../utils/date.time";
 
 const FILTERS = [
     { value: "", label: "Все" },
@@ -86,7 +87,7 @@ const AdminReportsPanel = () => {
                     <tbody>
                         {reports.map((item) => (
                             <tr key={item.id}>
-                                <td className="adminTableCellMuted">{item.created_at}</td>
+                                <td className="adminTableCellMuted">{formatDateTime(item.created_at)}</td>
                                 <td className="adminTableCellMuted">{item.login || "аноним"}</td>
                                 <td className="adminTableCellMuted">{item.page || "—"}</td>
                                 <td>

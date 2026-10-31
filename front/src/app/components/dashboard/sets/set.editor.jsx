@@ -817,6 +817,14 @@ const SetEditorInner = () => {
                             </button>
                             <MarkdownTools editorRef={editorRef} content={content} title={title} />
                             <button
+                                className="btn btnGhost btnSmall"
+                                type="button"
+                                onClick={() => window.print()}
+                                title="Версия для печати: из неё сохраняется PDF"
+                            >
+                                Печать
+                            </button>
+                            <button
                                 className="btn btnDanger"
                                 onClick={handleDelete}
                                 disabled={removing}

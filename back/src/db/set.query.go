@@ -288,20 +288,56 @@ func TombstoneSet(ctx context.Context, tx pgx.Tx, set *models.Set, authorLogin s
 	return nil
 }
 
+// GetSetsByUser — полный список своих сетов (сайдбар редактора, главная, профиль).
 func GetSetsByUser(ctx context.Context, userID int) ([]*models.Set, error) {
+	sets, _, err := SearchUserSets(ctx, userID, "", "", 0, 0)
+	return sets, err
+}
+
+// SearchUserSets — свои сеты с поиском по названию, описанию и тексту заметки.
+// Пустые search и visibility означают «без фильтра», limit <= 0 — «отдать всё».
+// Возвращает срез сетов и общее число найденных (для постраничного вывода).
+func SearchUserSets(ctx context.Context, userID int, search, visibility string, limit, offset int) ([]*models.Set, int, error) {
 	conn, err := pool()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	query := `SELECT ` + setSummaryColumns + `
-	FROM sets
-	WHERE user_id = @user_id
-	ORDER BY last_activity DESC, id DESC`
+	filter := `user_id = @user_id
+	  AND (@visibility = '' OR visibility = @visibility)
+	  AND (@search = '' OR title ILIKE '%' || @search || '%'
+	       OR coalesce(description, '') ILIKE '%' || @search || '%'
+	       OR coalesce(content, '') ILIKE '%' || @search || '%')`
 
-	rows, err := conn.Query(ctx, query, pgx.NamedArgs{"user_id": userID})
+	filterArgs := pgx.NamedArgs{
+		"user_id":    userID,
+		"search":     search,
+		"visibility": visibility,
+	}
+
+	var total int
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM sets WHERE `+filter, filterArgs).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count sets: %w", err)
+	}
+
+	query := `SELECT ` + setSummaryColumns + ` FROM sets WHERE ` + filter +
+		` ORDER BY last_activity DESC, id DESC`
+	args := filterArgs
+
+	if limit > 0 {
+		query += ` LIMIT @limit OFFSET @offset`
+		args = pgx.NamedArgs{
+			"user_id":    userID,
+			"search":     search,
+			"visibility": visibility,
+			"limit":      limit,
+			"offset":     offset,
+		}
+	}
+
+	rows, err := conn.Query(ctx, query, args)
 	if err != nil {
-		return nil, fmt.Errorf("list sets: %w", err)
+		return nil, 0, fmt.Errorf("list sets: %w", err)
 	}
 	defer rows.Close()
 
@@ -309,14 +345,14 @@ func GetSetsByUser(ctx context.Context, userID int) ([]*models.Set, error) {
 	for rows.Next() {
 		set, err := scanSetSummary(rows)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		sets = append(sets, set)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("list sets: %w", err)
+		return nil, 0, fmt.Errorf("list sets: %w", err)
 	}
-	return sets, nil
+	return sets, total, nil
 }
 
 func GetSetByID(ctx context.Context, id, userID int) (*models.Set, error) {

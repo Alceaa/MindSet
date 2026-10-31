@@ -379,3 +379,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS notifications_unread_unique
 
 -- Настройки уведомлений: храним только выключенные категории, пустой объект = включено всё.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_prefs jsonb NOT NULL DEFAULT '{}'::jsonb;
+
+-- Поиск по своим сетам: подстроку ищем в названии, описании и тексте заметки.
+-- Обычный btree под ILIKE '%...%' не подходит, а pg_trgm + GIN — подходит.
+-- pg_trgm помечен как доверенное расширение, поэтому владелец базы ставит его сам.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE INDEX IF NOT EXISTS sets_title_trgm_idx ON sets USING gin (title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS sets_description_trgm_idx ON sets USING gin (description gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS sets_content_trgm_idx ON sets USING gin (content gin_trgm_ops);

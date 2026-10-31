@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import setService from "../../api/set.service";
 import parseApiError from "../../utils/api.error";
@@ -9,6 +9,7 @@ import "../../css/dashboard/dashboard.scss";
 import "../../css/dashboard/feed.scss";
 
 const VIEW_KEY = "mindset:sets:view";
+const PAGE_SIZE = 24;
 
 const VISIBILITY_FILTERS = [
     { value: "all", label: "Все" },
@@ -19,11 +20,16 @@ const VISIBILITY_FILTERS = [
 
 const Sets = () => {
     const [sets, setSets] = useState([]);
+    const [total, setTotal] = useState(0);
+    const [hasMore, setHasMore] = useState(false);
     const [tombstones, setTombstones] = useState([]);
     const [busyId, setBusyId] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [loadedOnce, setLoadedOnce] = useState(false);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
+    const [debounced, setDebounced] = useState("");
     const [visibility, setVisibility] = useState("all");
     const [view, setView] = useState(() => {
         try {
@@ -40,25 +46,62 @@ const Sets = () => {
         }
     }, [view]);
 
-    const loadSets = useCallback(async () => {
-        setLoading(true);
-        setError("");
+    // Ввод в поиске ждём 300 мс: поиск серверный, лишние запросы ни к чему.
+    useEffect(() => {
+        const timer = window.setTimeout(() => setDebounced(search.trim()), 300);
+        return () => window.clearTimeout(timer);
+    }, [search]);
+
+    const loadTombstones = useCallback(async () => {
         try {
-            const [setsData, tombstoneData] = await Promise.all([
-                setService.getSets(),
-                setService.getSetTombstones().catch(() => []),
-            ]);
-            setSets(setsData);
-            setTombstones(tombstoneData);
-        } catch (err) {
-            setError(parseApiError(err).message);
-        } finally {
-            setLoading(false);
+            setTombstones(await setService.getSetTombstones());
+        } catch {
+            setTombstones([]);
         }
     }, []);
 
     useEffect(() => {
-        loadSets();
+        loadTombstones();
+    }, [loadTombstones]);
+
+    // Поиск и фильтр по доступу считает сервер: список приходит страницами,
+    // остаток добирается кнопкой «Показать ещё».
+    const loadSets = useCallback(
+        async (offset = 0) => {
+            const append = offset > 0;
+
+            if (append) {
+                setLoadingMore(true);
+            } else {
+                setLoading(true);
+            }
+            setError("");
+
+            try {
+                const data = await setService.searchSets({
+                    limit: PAGE_SIZE,
+                    offset,
+                    search: debounced || undefined,
+                    visibility: visibility === "all" ? undefined : visibility,
+                });
+                const list = data.sets ?? [];
+
+                setSets((current) => (append ? [...current, ...list] : list));
+                setTotal(data.total ?? list.length);
+                setHasMore(Boolean(data.has_more));
+            } catch (err) {
+                setError(parseApiError(err).message);
+            } finally {
+                setLoading(false);
+                setLoadingMore(false);
+                setLoadedOnce(true);
+            }
+        },
+        [debounced, visibility]
+    );
+
+    useEffect(() => {
+        loadSets(0);
     }, [loadSets]);
 
     const forbidCopies = async (tombstone) => {
@@ -74,21 +117,11 @@ const Sets = () => {
         }
     };
 
-    const filtered = useMemo(() => {
-        const needle = search.trim().toLowerCase();
-        return sets.filter((set) => {
-            if (visibility !== "all" && set.visibility !== visibility) {
-                return false;
-            }
-            if (!needle) {
-                return true;
-            }
-            const haystack = `${set.title} ${set.description} ${set.preview ?? ""}`.toLowerCase();
-            return haystack.includes(needle);
-        });
-    }, [sets, search, visibility]);
+    const noSetsAtAll = total === 0 && !debounced && visibility === "all";
 
-    if (loading) {
+    // Полностраничная заглушка только на первой загрузке: иначе при вводе в поиске
+    // список подменялся бы надписью и поле теряло фокус.
+    if (loading && !loadedOnce) {
         return <p className="mutedText">Загружаем сеты…</p>;
     }
 
@@ -183,7 +216,7 @@ const Sets = () => {
             <section className="stack">
                 <div className="setSectionHead">
                     <h2 className="feedSectionTitle">
-                        Авторские <span className="listMeta">{filtered.length}</span>
+                        Авторские <span className="listMeta">{total}</span>
                     </h2>
                     <div className="viewToggle" role="group" aria-label="Вид отображения">
                         <button
@@ -204,15 +237,15 @@ const Sets = () => {
                         </button>
                     </div>
                 </div>
-                {filtered.length === 0 ? (
+                {sets.length === 0 ? (
                     <div className="emptyState">
                         <h2>Сетов не найдено</h2>
                         <p className="mutedText">
-                            {sets.length === 0
+                            {noSetsAtAll
                                 ? "Создайте первый сет — это заметка, внутри которой можно связывать слова с другими сетами."
                                 : "Попробуйте изменить запрос или фильтр."}
                         </p>
-                        {sets.length === 0 && (
+                        {noSetsAtAll && (
                             <Link className="btn btnPrimary" to="/sets/new">
                                 Создать сет
                             </Link>
@@ -220,7 +253,7 @@ const Sets = () => {
                     </div>
                 ) : view === "list" ? (
                     <ul className="setList">
-                        {filtered.map((set) => (
+                        {sets.map((set) => (
                             <li key={set.id}>
                                 <Link className="setListRow" to={`/sets/${set.id}`}>
                                     <span className="setListMain">
@@ -238,7 +271,7 @@ const Sets = () => {
                     </ul>
                 ) : (
                     <div className="setGrid">
-                        {filtered.map((set) => (
+                        {sets.map((set) => (
                             <SetCard
                                 key={set.id}
                                 set={set}
@@ -247,6 +280,19 @@ const Sets = () => {
                                 showAuthor={false}
                             />
                         ))}
+                    </div>
+                )}
+
+                {hasMore && (
+                    <div className="loadMoreRow">
+                        <button
+                            className="btn btnGhost"
+                            type="button"
+                            disabled={loadingMore}
+                            onClick={() => loadSets(sets.length)}
+                        >
+                            {loadingMore ? "Загружаем…" : `Показать ещё (осталось ${total - sets.length})`}
+                        </button>
                     </div>
                 )}
             </section>

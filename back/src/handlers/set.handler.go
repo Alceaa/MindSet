@@ -22,6 +22,11 @@ const (
 	publicSetsPageSize    = 50
 	publicSetsMaxPageSize = 100
 	publicSearchMaxLength = 100
+
+	// Свои сеты: limit = 0 означает «отдать всё» — так список грузят сайдбар
+	// редактора, главная и профиль, которым нужен полный перечень.
+	ownSetsMaxPageSize = 100
+	ownSearchMaxLength = 100
 )
 
 func CreateSet(c *fiber.Ctx) error {
@@ -88,12 +93,38 @@ func GetSets(c *fiber.Ctx) error {
 		return utils.Fail(c, fiber.StatusUnauthorized, "Требуется авторизация", nil)
 	}
 
-	sets, err := db.GetSetsByUser(c.Context(), user.ID)
+	limit := c.QueryInt("limit", 0)
+	offset := c.QueryInt("offset", 0)
+	search := strings.TrimSpace(c.Query("search"))
+	visibility := strings.TrimSpace(c.Query("visibility"))
+
+	// limit = 0 — отдать всё (полный список нужен сайдбару редактора и главной).
+	if limit < 0 {
+		limit = 0
+	}
+	if limit > ownSetsMaxPageSize {
+		limit = ownSetsMaxPageSize
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	if runes := []rune(search); len(runes) > ownSearchMaxLength {
+		search = string(runes[:ownSearchMaxLength])
+	}
+
+	sets, total, err := db.SearchUserSets(c.Context(), user.ID, search, visibility, limit, offset)
 	if err != nil {
 		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось загрузить сеты", err)
 	}
 
-	return utils.Success(c, fiber.StatusOK, fiber.Map{"sets": sets})
+	return utils.Success(c, fiber.StatusOK, fiber.Map{
+		"sets":     sets,
+		"query":    search,
+		"limit":    limit,
+		"offset":   offset,
+		"total":    total,
+		"has_more": offset+len(sets) < total,
+	})
 }
 
 func GetSet(c *fiber.Ctx) error {

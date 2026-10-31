@@ -4,6 +4,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import theme from "./theme";
 import { AuthProvider } from "./context/auth.context";
+import "./css/print.scss";
 import RequireAuth from "./components/routing/require.auth.jsx";
 import RedirectIfAuthed from "./components/routing/redirect.if.authed.jsx";
 import RootRedirect from "./components/routing/root.redirect.jsx";

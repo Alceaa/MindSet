@@ -664,6 +664,13 @@
     border-top: 1px solid var(--border);
 }
 
+/* Кнопка «Показать ещё»: список своих сетов приходит страницами. */
+.loadMoreRow {
+    display: flex;
+    justify-content: center;
+    padding-top: var(--gap-sm);
+}
+
 .setListMain {
     display: flex;
     flex-direction: column;

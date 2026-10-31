@@ -5,6 +5,12 @@ class SetService {
         return api.get("/sets").then((response) => response.data.sets);
     }
 
+    // Свои сеты с поиском и постраничным выводом.
+    // limit = 0 (или отсутствует) — отдать всё, так грузят сайдбар редактора и главную.
+    searchSets(params = {}) {
+        return api.get("/sets", { params }).then((response) => response.data);
+    }
+
     getSet(id) {
         return api.get(`/sets/${id}`).then((response) => response.data);
     }

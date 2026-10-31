@@ -1,4 +1,5 @@
 import api from "./api";
+import clearOfflineData from "../utils/offline.cache";
 class AuthService {
     register(login, email, password, passwordConfirm, invite) {
         return api
@@ -35,7 +36,10 @@ class AuthService {
     logout() {
         return api
             .post("/auth/logout", null, { skipAuthRefresh: true })
-            .then((response) => response.data);
+            .then(async (response) => {
+                await clearOfflineData();
+                return response.data;
+            });
     }
 
     me() {

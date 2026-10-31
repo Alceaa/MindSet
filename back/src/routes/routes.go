@@ -112,6 +112,7 @@ func SetupRoutes(app fiber.Router) {
 	users.Put("/me/notification-prefs", middlewares.RequireJSONBody, handlers.UpdateNotificationPrefs)
 	users.Post("/me/logout-all", handlers.LogoutAll)
 	users.Post("/me/avatar", handlers.UploadAvatar)
+	users.Get("/me/export", handlers.ExportData)
 	users.Post("/:id/follow", handlers.Follow)
 	users.Delete("/:id/follow", handlers.Unfollow)
 

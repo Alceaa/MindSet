@@ -1,0 +1,87 @@
+/* Печать статьи. Тема приложения тёмная, а PDF должен быть светлым и без интерфейса:
+   правим переменные читалки и прячем всё, что к статье не относится.
+   Кнопка «Печать» в панели статьи открывает системный диалог, оттуда — «Сохранить как PDF». */
+@media print {
+    .appHeader,
+    .appFooter,
+    .setSidebar,
+    .setSidebarResizer,
+    .setToolbar,
+    .backlinksCard,
+    .readerSettings,
+    .verifyBanner,
+    .mainNav,
+    .searchOverlay {
+        display: none !important;
+    }
+
+    html,
+    body {
+        background: #fff !important;
+        color: #111 !important;
+    }
+
+    .appShell,
+    .appMain,
+    .appContainer,
+    .setWorkspace,
+    .setMain {
+        display: block !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+    }
+
+    /* Тему читалки задают селекторы вида .articleCard[data-reader-theme="dark"],
+       поэтому перебиваем их явно и с !important. */
+    html body .articleCard,
+    html body .articleCard[data-reader-theme] {
+        --reader-bg: #fff !important;
+        --reader-text: #111 !important;
+        --reader-muted: #333 !important;
+        --reader-faint: #555 !important;
+        --reader-border: #ccc !important;
+        --reader-strong: #999 !important;
+        --reader-code-bg: #f4f4f4 !important;
+        --reader-code-block-bg: #f4f4f4 !important;
+        --reader-accent: #111 !important;
+        --reader-width: 100% !important;
+
+        padding: 0 !important;
+        border: 0 !important;
+        background-color: #fff !important;
+        box-shadow: none !important;
+    }
+
+    .article a {
+        color: #111 !important;
+        text-decoration: underline;
+    }
+
+    /* Внешние ссылки печатаем с адресом: на бумаге кликнуть нельзя. */
+    .article a[href^="http"]::after {
+        content: " (" attr(href) ")";
+        color: #555;
+        font-size: 0.85em;
+    }
+
+    .article pre {
+        white-space: pre-wrap;
+        overflow: visible !important;
+    }
+
+    .article pre,
+    .article table,
+    .article blockquote,
+    .article img {
+        page-break-inside: avoid;
+    }
+
+    .article h1,
+    .article h2,
+    .article h3,
+    .article h4 {
+        page-break-after: avoid;
+    }
+}

@@ -25,6 +25,13 @@ class UserService {
         return api.put("/users/me", payload).then((response) => response.data);
     }
 
+    // Выгрузка своих данных: архив с заметками и метаданными.
+    exportData() {
+        return api
+            .get("/users/me/export", { responseType: "blob" })
+            .then((response) => response.data);
+    }
+
     changePassword(payload) {
         return api.put("/users/me/password", payload).then((response) => response.data);
     }

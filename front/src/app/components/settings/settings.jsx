@@ -4,12 +4,14 @@ import ProfileSettingsPanel from "./settings.profile.jsx";
 import SecuritySettingsPanel from "./settings.security.jsx";
 import BugReportPanel from "./settings.bug.jsx";
 import NotificationsSettingsPanel from "./settings.notifications.jsx";
+import DataSettingsPanel from "./settings.data.jsx";
 import "../../css/settings/settings.scss";
 
 const NAV = [
     { key: "profile", label: "Настройки профиля" },
     { key: "security", label: "Безопасность" },
     { key: "notifications", label: "Уведомления" },
+    { key: "data", label: "Данные" },
     { key: "bug", label: "Сообщить о проблеме" },
 ];
 
@@ -26,6 +28,9 @@ const Settings = () => {
         }
         if (tab === "bug") {
             return <BugReportPanel />;
+        }
+        if (tab === "data") {
+            return <DataSettingsPanel />;
         }
         return <ProfileSettingsPanel />;
     };

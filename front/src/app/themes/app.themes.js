@@ -50,7 +50,7 @@ export const APP_THEMES = [
             "--header-bg": "rgba(13, 17, 23, 0.85)",
             "--canvas-image":
                 "radial-gradient(1100px 520px at 12% -10%, rgba(226, 176, 83, 0.07), transparent 60%), radial-gradient(900px 480px at 100% 0%, rgba(226, 176, 83, 0.045), transparent 55%)",
-            "--code-bg": "#151821",
+            "--code-bg": "#090b10",
             "--code-text": "#ece7dc",
             "--code-comment": "#6f6a60",
             "--code-keyword": "#e2b053",
@@ -98,7 +98,7 @@ export const APP_THEMES = [
             "--header-bg": "rgba(247, 245, 240, 0.88)",
             "--canvas-image":
                 "radial-gradient(1100px 520px at 12% -10%, rgba(192, 143, 42, 0.08), transparent 60%), radial-gradient(900px 480px at 100% 0%, rgba(192, 143, 42, 0.05), transparent 55%)",
-            "--code-bg": "#f2efe8",
+            "--code-bg": "#eae6dd",
             "--code-text": "#22201c",
             "--code-comment": "#8a8478",
             "--code-keyword": "#a87a1f",
@@ -147,7 +147,7 @@ export const APP_THEMES = [
             "--header-bg": "rgba(246, 239, 225, 0.9)",
             "--canvas-image":
                 "radial-gradient(1100px 520px at 12% -10%, rgba(138, 90, 18, 0.08), transparent 60%), radial-gradient(900px 480px at 100% 0%, rgba(138, 90, 18, 0.05), transparent 55%)",
-            "--code-bg": "#ece1cb",
+            "--code-bg": "#e8dcc6",
             "--code-text": "#3a352c",
             "--code-comment": "#948b78",
             "--code-keyword": "#8a5a12",
@@ -196,7 +196,7 @@ export const APP_THEMES = [
             "--header-bg": "rgba(46, 52, 64, 0.85)",
             "--canvas-image":
                 "radial-gradient(1100px 520px at 12% -10%, rgba(136, 192, 208, 0.07), transparent 60%), radial-gradient(900px 480px at 100% 0%, rgba(136, 192, 208, 0.04), transparent 55%)",
-            "--code-bg": "#3b4252",
+            "--code-bg": "#22262e",
             "--code-text": "#d8dee9",
             "--code-comment": "#7c8699",
             "--code-keyword": "#88c0d0",

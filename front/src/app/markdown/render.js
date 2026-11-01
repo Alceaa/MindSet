@@ -20,6 +20,9 @@ export const sanitizeSchema = {
     },
     attributes: {
         ...defaultSchema.attributes,
+        // Без этого санитайз вырезает класс language-* у блока кода, и подсветка
+        // не знает язык. Разрешаем только такие классы — произвольные по-прежнему нет.
+        code: [["className", /^language-./]],
         img: [
             ...(defaultSchema.attributes?.img ?? []),
             "src",

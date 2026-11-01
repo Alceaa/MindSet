@@ -138,7 +138,8 @@
     overflow-x: auto;
     border: 1px solid var(--reader-strong);
     border-radius: var(--radius);
-    background-color: var(--reader-code-block-bg);
+    background-color: var(--code-bg);
+    color: var(--code-text);
 }
 
 .article pre code {

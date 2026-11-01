@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { normalizeTitle, prepareMarkdown, stripEscapes } from "../../../markdown/wikilink";
 import { rehypePlugins, remarkPlugins } from "../../../markdown/render";
+import { codeComponents } from "../../../markdown/code.block.jsx";
 import { useAnchorLinks } from "../../../markdown/heading.id.js";
 import "../../../css/dashboard/article.scss";
 
@@ -20,6 +21,7 @@ const SetArticle = ({ content, links, emptyText }) => {
 
     const components = useMemo(
         () => ({
+            ...codeComponents,
             a({ node, href, children, ...rest }) {
                 if (typeof href === "string" && href.startsWith(WIKILINK_PREFIX)) {
                     const key = decodeURIComponent(href.slice(WIKILINK_PREFIX.length));

@@ -60,14 +60,14 @@
 }
 
 .graphNodeSet circle {
-    fill: rgba(226, 176, 83, 0.2);
+    fill: var(--accent-tint-strong);
     stroke: var(--accent);
     stroke-width: 2;
     transition: fill 0.15s ease;
 }
 
 .graphNodeExternal circle {
-    fill: rgba(226, 176, 83, 0.14);
+    fill: var(--accent-soft);
     stroke: var(--accent);
     stroke-dasharray: 5 4;
     stroke-width: 2;

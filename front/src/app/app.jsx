@@ -1,8 +1,9 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useMemo } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import theme from "./theme";
+import { createAppTheme } from "./theme";
+import useAppTheme from "./hooks/use.app.theme";
 import { AuthProvider } from "./context/auth.context";
 import "./css/print.scss";
 import RequireAuth from "./components/routing/require.auth.jsx";
@@ -151,13 +152,20 @@ const routes = [
 
 const router = createBrowserRouter(routes, { basename: process.env.PUBLIC_URL || "/" });
 
-const App = () => (
-    <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <AuthProvider>
-            <RouterProvider router={router} />
-        </AuthProvider>
-    </ThemeProvider>
-);
+const App = () => {
+    // Тема применяется ко всему приложению: набор переменных на <html>,
+    // а MUI-тема собирается из тех же данных, чтобы её компоненты совпадали.
+    const { theme } = useAppTheme();
+    const muiTheme = useMemo(() => createAppTheme(theme), [theme]);
+
+    return (
+        <ThemeProvider theme={muiTheme}>
+            <CssBaseline />
+            <AuthProvider>
+                <RouterProvider router={router} />
+            </AuthProvider>
+        </ThemeProvider>
+    );
+};
 
 export default App;

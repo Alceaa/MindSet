@@ -930,7 +930,6 @@ const SetEditorInner = () => {
                 {mode === "read" ? (
                     <div
                         className="articleCard"
-                        data-reader-theme={readerView.theme}
                         data-reader-width={effectiveReaderWidth}
                         data-reader-font={readerView.font}
                         data-reader-scale={readerView.scale}

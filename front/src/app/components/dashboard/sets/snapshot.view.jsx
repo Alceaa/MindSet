@@ -127,7 +127,6 @@ const SnapshotView = () => {
         <div className="publicPage">
             <article
                 className="articleCard"
-                data-reader-theme={readerView.theme}
                 data-reader-width={readerView.width}
                 data-reader-font={readerView.font}
                 data-reader-scale={readerView.scale}

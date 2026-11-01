@@ -123,14 +123,14 @@
 }
 
 .adminBadgeDanger {
-    border-color: rgba(240, 101, 95, 0.4);
-    background-color: rgba(240, 101, 95, 0.12);
+    border-color: var(--danger-line);
+    background-color: var(--danger-soft);
     color: var(--danger);
 }
 
 .adminBadgeSuccess {
-    border-color: rgba(87, 196, 105, 0.4);
-    background-color: rgba(87, 196, 105, 0.12);
+    border-color: var(--success-line);
+    background-color: var(--success-soft);
     color: var(--success);
 }
 

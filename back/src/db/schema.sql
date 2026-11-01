@@ -388,3 +388,60 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS sets_title_trgm_idx ON sets USING gin (title gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS sets_description_trgm_idx ON sets USING gin (description gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS sets_content_trgm_idx ON sets USING gin (content gin_trgm_ops);
+
+-- Коллекции: личные полки для сетов, один уровень без вложенности.
+-- Смысл ближе к группе по теме, чем к тегу: сетов много и они путаются.
+CREATE TABLE IF NOT EXISTS collections (
+    id         serial PRIMARY KEY,
+    user_id    integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    title      varchar NOT NULL,
+    title_key  varchar NOT NULL,
+    color      varchar NOT NULL DEFAULT '',
+    position   integer NOT NULL DEFAULT 0,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Названия коллекций у одного пользователя уникальны (как у сетов).
+CREATE UNIQUE INDEX IF NOT EXISTS collections_user_title_key_idx
+    ON collections (user_id, title_key);
+
+CREATE INDEX IF NOT EXISTS collections_user_position_idx
+    ON collections (user_id, position, id);
+
+-- Сет лежит в нескольких коллекциях: связь «многие ко многим», один сет может быть
+-- в разных полках (например, «Работа» и «Идеи»). Удаление коллекции сеты не удаляет.
+CREATE TABLE IF NOT EXISTS set_collections (
+    set_id        integer NOT NULL REFERENCES sets (id) ON DELETE CASCADE,
+    collection_id integer NOT NULL REFERENCES collections (id) ON DELETE CASCADE,
+    position      integer NOT NULL DEFAULT 0,
+    PRIMARY KEY (set_id, collection_id)
+);
+
+-- Для баз, где таблица уже была с ключом только по set_id: снимаем его и запрещаем
+-- только повтор одной и той же пары.
+ALTER TABLE set_collections DROP CONSTRAINT IF EXISTS set_collections_pkey;
+CREATE UNIQUE INDEX IF NOT EXISTS set_collections_set_collection_uq
+    ON set_collections (set_id, collection_id);
+
+CREATE INDEX IF NOT EXISTS set_collections_set_idx ON set_collections (set_id);
+
+CREATE INDEX IF NOT EXISTS set_collections_collection_idx
+    ON set_collections (collection_id, position, set_id);
+
+-- Сохранённые сеты раскладываются по коллекциям так же, как авторские.
+CREATE TABLE IF NOT EXISTS saved_set_collections (
+    saved_set_id  integer NOT NULL REFERENCES saved_sets (id) ON DELETE CASCADE,
+    collection_id integer NOT NULL REFERENCES collections (id) ON DELETE CASCADE,
+    position      integer NOT NULL DEFAULT 0,
+    PRIMARY KEY (saved_set_id, collection_id)
+);
+
+ALTER TABLE saved_set_collections DROP CONSTRAINT IF EXISTS saved_set_collections_pkey;
+CREATE UNIQUE INDEX IF NOT EXISTS saved_set_collections_set_collection_uq
+    ON saved_set_collections (saved_set_id, collection_id);
+
+CREATE INDEX IF NOT EXISTS saved_set_collections_set_idx
+    ON saved_set_collections (saved_set_id);
+
+CREATE INDEX IF NOT EXISTS saved_set_collections_collection_idx
+    ON saved_set_collections (collection_id, position, saved_set_id);

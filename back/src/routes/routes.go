@@ -132,9 +132,20 @@ func SetupRoutes(app fiber.Router) {
 	saved.Post("/:id/refresh", handlers.RefreshSavedSet)
 	saved.Post("/:id/freeze", middlewares.RequireJSONBody, handlers.FreezeSavedSet)
 	saved.Delete("/:id", handlers.DeleteSavedSet)
+	saved.Put("/:id/collections", middlewares.RequireJSONBody, handlers.AddSavedSetCollection)
+	saved.Delete("/:id/collections/:collectionId", handlers.RemoveSavedSetCollection)
 
 	app.Get("/graph", middlewares.ValidateAccessToken, handlers.GetGraph)
 	sets.Get("/:id/copy-stats", handlers.GetSetCopyStats)
+	sets.Put("/:id/collections", middlewares.RequireJSONBody, handlers.AddSetCollection)
+	sets.Delete("/:id/collections/:collectionId", handlers.RemoveSetCollection)
+
+	// Коллекции: личные полки для сетов и сохранённых снимков.
+	collections := app.Group("/collections", middlewares.ValidateAccessToken)
+	collections.Get("", handlers.ListCollections)
+	collections.Post("", middlewares.RequireJSONBody, handlers.CreateCollection)
+	collections.Put("/:id", middlewares.RequireJSONBody, handlers.UpdateCollection)
+	collections.Delete("/:id", handlers.DeleteCollection)
 
 	app.Get("/set-tombstones", middlewares.ValidateAccessToken, handlers.GetSetTombstones)
 	app.Post("/set-tombstones/:id/forbid-copies", middlewares.ValidateAccessToken, handlers.ForbidSetTombstone)

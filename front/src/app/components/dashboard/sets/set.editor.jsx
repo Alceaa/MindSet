@@ -49,6 +49,10 @@ import WikilinkPicker from "./wikilink.picker.jsx";
 import ReaderSettings from "./reader.settings.jsx";
 import useReaderSettings from "../../../hooks/use.reader.settings";
 import useReadingPosition, { readingPositionKey } from "../../../hooks/use.reading.position";
+import collectionService from "../../../api/collection.service";
+import useCollections from "../../../hooks/use.collections";
+import CollectionPicker from "../../collections/collection.picker.jsx";
+import "../../../css/collections/collections.scss";
 import "../../../css/dashboard/dashboard.scss";
 import "../../../css/dashboard/workspace.scss";
 import "../../../css/dashboard/reader.scss";
@@ -181,6 +185,7 @@ const SetEditorInner = () => {
     const [backlinks, setBacklinks] = useState([]);
     const [allSets, setAllSets] = useState([]);
     const [savedSets, setSavedSets] = useState([]);
+    const { collections, reload: reloadCollections } = useCollections();
 
     const [saving, setSaving] = useState(false);
     const [removing, setRemoving] = useState(false);
@@ -302,7 +307,14 @@ const SetEditorInner = () => {
             .getSets()
             .then((items) => {
                 if (active) {
-                    setAllSets(items.map((item) => ({ id: item.id, title: item.title })));
+                    // В сайдбаре нужны и коллекции: по ним сеты раскладываются по группам.
+                    setAllSets(
+                        items.map((item) => ({
+                            id: item.id,
+                            title: item.title,
+                            collections: item.collections ?? [],
+                        }))
+                    );
                 }
             })
             .catch(() => {
@@ -785,10 +797,58 @@ const SetEditorInner = () => {
         );
     }
 
+    // Метка коллекций в статье: отмечаем и снимаем полки без перезагрузки страницы.
+    const handleToggleCollection = async (collectionId, inCollection) => {
+        try {
+            if (inCollection) {
+                await collectionService.addSet(id, collectionId);
+            } else {
+                await collectionService.removeSet(id, collectionId);
+            }
+
+            const collection = collections.find((item) => item.id === collectionId);
+            const applyCollections = (list) => {
+                if (!collection) {
+                    return list;
+                }
+
+                const exists = list.some((item) => item.id === collectionId);
+                if (inCollection && !exists) {
+                    return [
+                        ...list,
+                        { id: collection.id, title: collection.title, color: collection.color },
+                    ];
+                }
+                if (!inCollection && exists) {
+                    return list.filter((item) => item.id !== collectionId);
+                }
+                return list;
+            };
+
+            setSet((current) =>
+                current
+                    ? { ...current, collections: applyCollections(current.collections ?? []) }
+                    : current
+            );
+            setAllSets((current) =>
+                current.map((item) =>
+                    String(item.id) === String(id)
+                        ? { ...item, collections: applyCollections(item.collections ?? []) }
+                        : item
+                )
+            );
+
+            await reloadCollections();
+        } catch (err) {
+            window.alert(parseApiError(err).message);
+        }
+    };
+
     return (
         <div className="setWorkspace">
             <SetSidebar
                 sets={allSets}
+                collections={collections}
                 currentId={id}
                 collapsed={sidebarCollapsed}
                 onToggle={toggleSidebar}
@@ -886,6 +946,26 @@ const SetEditorInner = () => {
                                 {links.length > 0 && (
                                     <span className="badge">Связей: {links.length}</span>
                                 )}
+                                <CollectionPicker
+                                    collections={collections}
+                                    selected={(set.collections ?? []).map((item) => item.id)}
+                                    onToggle={handleToggleCollection}
+                                    onCreate={async (collectionTitle) => {
+                                        try {
+                                            const data = await collectionService.create({
+                                                title: collectionTitle,
+                                                color: "",
+                                            });
+                                            await reloadCollections();
+                                            await handleToggleCollection(
+                                                data.collection?.id ?? 0,
+                                                true
+                                            );
+                                        } catch (err) {
+                                            window.alert(parseApiError(err).message);
+                                        }
+                                    }}
+                                />
                                 {dirty && <span className="badge badgeWarning">не сохранено</span>}
                                 {!dirty && savedAt && (
                                     <span className="badge badgeSuccess">сохранено в {savedAt}</span>

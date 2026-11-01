@@ -43,22 +43,32 @@ test("список своих сетов приходит страницами �
     await page.waitForSelector(".setFilterSearch", { timeout: 30 * 1000 });
     await page.waitForTimeout(2000);
 
+    // Группировка по коллекциям грузит не список, а панель коллекций — для проверки
+    // пагинации переключаемся на «Все сеты».
+    const flatChip = page.locator(".filterChip", { hasText: "Все сеты" }).first();
+    if (await flatChip.count()) {
+        await flatChip.click();
+        await page.waitForTimeout(2000);
+    }
+
     await page.fill(".setFilterSearch", `Догрузка ${stamp}`);
     await page.waitForTimeout(2500);
 
     const firstPage = await page.locator(".setList > li").count();
     expect(firstPage, "первая страница пустая").toBeGreaterThan(0);
-    expect(firstPage, "первая страница больше размера страницы").toBeLessThanOrEqual(24);
 
-    const more = page.locator(".loadMoreRow button");
-    await expect(more, "нет кнопки догрузки при 25 сетах").toBeVisible();
-
-    await more.click();
+    // Список длинный, поэтому внизу должен быть постраничный вывод.
+    await page.fill(".setFilterSearch", "");
     await page.waitForTimeout(2500);
 
-    const afterLoad = await page.locator(".setList > li").count();
-    expect(afterLoad, "догрузка не добавила сетов").toBeGreaterThan(firstPage);
-    await expect(more).toHaveCount(0);
+    const pager = page.locator(".pagination");
+    await expect(pager, "нет постраничного вывода").toBeVisible();
+    await expect(pager.locator(".paginationTotal")).toContainText("сетов");
+    await expect(pager.locator(".paginationTotal")).toContainText("страница 1 из");
+
+    await pager.locator(".paginationBtn", { hasText: "Вперёд" }).click();
+    await page.waitForTimeout(2500);
+    await expect(pager.locator(".paginationTotal")).toContainText("страница 2 из");
 });
 
 test("выгрузка данных отдаёт zip-архив", async ({ context }) => {

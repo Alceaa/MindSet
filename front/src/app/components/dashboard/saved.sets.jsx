@@ -1,8 +1,14 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import setService from "../../api/set.service";
+import collectionService from "../../api/collection.service";
 import parseApiError from "../../utils/api.error";
+import CollectionPicker from "../collections/collection.picker.jsx";
+import Pagination from "../common/pagination.jsx";
 import "../../css/dashboard/dashboard.scss";
+import "../../css/collections/collections.scss";
+
+const SAVED_PAGE_SIZE = 25;
 
 const STATE_META = {
     live: { label: "Актуален", badgeClass: "badge badgeSuccess" },
@@ -32,12 +38,13 @@ const openTargetFor = (item) => {
     return `/snapshots/${item.id}`;
 };
 
-const SavedSets = ({ query = "" }) => {
+const SavedSets = ({ query = "", collections = [], onCollectionsChanged, hidden = false }) => {
     const [items, setItems] = useState([]);
     const [attention, setAttention] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [busyId, setBusyId] = useState(null);
+    const [page, setPage] = useState(1);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -85,6 +92,24 @@ const SavedSets = ({ query = "" }) => {
         runAction(item.id, () => setService.deleteSavedSet(item.id));
     };
 
+    // Возвращаем метку: снимки можно класть в коллекции, просто в панели они не показываются.
+    const toggleCollection = async (savedSetId, collectionId, inCollection) => {
+        setBusyId(savedSetId);
+        setError("");
+        try {
+            if (inCollection) {
+                await collectionService.addSavedSet(savedSetId, collectionId);
+            } else {
+                await collectionService.removeSavedSet(savedSetId, collectionId);
+            }
+            await load();
+        } catch (err) {
+            setError(parseApiError(err).message);
+        } finally {
+            setBusyId(null);
+        }
+    };
+
     const renderItem = (item) => {
         const meta = stateMeta(item.state);
         const target = openTargetFor(item);
@@ -110,6 +135,22 @@ const SavedSets = ({ query = "" }) => {
                     </div>
                 </div>
                 <div className="savedItemActions">
+                    <CollectionPicker
+                        collections={collections}
+                        selected={(item.collections ?? []).map((collection) => collection.id)}
+                        onToggle={(collectionId, inCollection) =>
+                            toggleCollection(item.id, collectionId, inCollection)
+                        }
+                        onCreate={async (collectionTitle) => {
+                            const data = await collectionService.create({
+                                title: collectionTitle,
+                                color: "",
+                            });
+                            await onCollectionsChanged?.();
+                            await toggleCollection(item.id, data.collection?.id ?? 0, true);
+                        }}
+                        busy={busy}
+                    />
                     <button
                         className="btn btnGhost btnSmall"
                         type="button"
@@ -175,6 +216,18 @@ const SavedSets = ({ query = "" }) => {
     const visibleAttention = attention.filter(matchQuery);
     const rest = visibleItems.filter((item) => item.state !== "attention");
 
+    // Снимков может быть много: показываем страницами, как и свои сеты.
+    const total = visibleItems.length;
+    const pages = Math.max(1, Math.ceil(total / SAVED_PAGE_SIZE));
+    const current = Math.min(page, pages);
+    const start = (current - 1) * SAVED_PAGE_SIZE;
+    const pageItems = rest.slice(start, start + SAVED_PAGE_SIZE);
+    const pageAttention = current === 1 ? visibleAttention : [];
+
+    if (hidden) {
+        return null;
+    }
+
     return (
         <div className="savedPanel">
             {error && (
@@ -187,26 +240,34 @@ const SavedSets = ({ query = "" }) => {
                 <p className="mutedText">По запросу «{query}» снимков не найдено.</p>
             ) : (
                 <>
-                    {visibleAttention.length > 0 && (
+                    {pageAttention.length > 0 && (
                         <section className="savedSection">
                             <h2 className="savedSectionTitle">
                                 Требует внимания{" "}
-                                <span className="listMeta">{visibleAttention.length}</span>
+                                <span className="listMeta">{pageAttention.length}</span>
                             </h2>
                             <p className="mutedText savedSectionHint">
                                 Автор изменил исходный сет, а снимок заморожен. Обновите снимок или
                                 оставьте как есть.
                             </p>
-                            <div className="savedList">{visibleAttention.map(renderItem)}</div>
+                            <div className="savedList">{pageAttention.map(renderItem)}</div>
                         </section>
                     )}
 
                     <section className="savedSection">
                         <h2 className="savedSectionTitle">
-                            Все снимки <span className="listMeta">{visibleItems.length}</span>
+                            Все снимки <span className="listMeta">{total}</span>
                         </h2>
-                        <div className="savedList">{rest.map(renderItem)}</div>
+                        <div className="savedList">{pageItems.map(renderItem)}</div>
                     </section>
+
+                    <Pagination
+                        page={current}
+                        pageSize={SAVED_PAGE_SIZE}
+                        total={total}
+                        onChange={setPage}
+                        label="снимков"
+                    />
                 </>
             )}
         </div>

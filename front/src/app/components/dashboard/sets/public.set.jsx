@@ -164,6 +164,7 @@ const PublicSet = () => {
                     <SetArticle
                         content={set.content}
                         links={links}
+                        boards={false}
                         emptyText="В этом сете пока нет содержимого."
                     />
                 </article>

@@ -3,6 +3,7 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { rehypeHeadingIds } from "./heading.id.js";
 import remarkGfm from "remark-gfm";
 import { remarkDashes } from "./typography.js";
+import { BOARD_PROTOCOL } from "./wikilink.js";
 
 export const WIKILINK_PROTOCOL = "wikilink";
 
@@ -16,7 +17,8 @@ export const sanitizeSchema = {
     tagNames: [...(defaultSchema.tagNames ?? []), "u"],
     protocols: {
         ...defaultSchema.protocols,
-        href: [...(defaultSchema.protocols?.href ?? []), WIKILINK_PROTOCOL],
+        // wikilink — ссылка на сет, board — на доску: и то и другое подставляем сами.
+        href: [...(defaultSchema.protocols?.href ?? []), WIKILINK_PROTOCOL, BOARD_PROTOCOL],
     },
     attributes: {
         ...defaultSchema.attributes,

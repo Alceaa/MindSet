@@ -1,3 +1,5 @@
+import { parseBoardQuery } from "../../../markdown/wikilink";
+
 const SAVED_BADGES = {
     source_gone: "⧉ источник удалён",
     hidden: "⧉ источник закрыт",
@@ -6,17 +8,36 @@ const SAVED_BADGES = {
 
 const savedBadge = (state) => SAVED_BADGES[state] ?? "⧉ снимок";
 
-export const buildPickerOptions = ({ allSets, savedSets, currentSetId, query }) => {
-    const needle = String(query ?? "").trim().toLowerCase();
-    const options = [];
+// Ограничение на каждую группу своё: иначе при сотнях сетов доски и снимки
+// в список вообще не попадают.
+const LIMIT_PER_GROUP = 12;
+
+const matches = (option, needle) => {
+    if (!needle) {
+        return true;
+    }
+    if (option.title.toLowerCase().includes(needle)) {
+        return true;
+    }
+    return Boolean(option.ref && option.ref.toLowerCase().includes(needle));
+};
+
+const pick = (options, needle) => options.filter((option) => matches(option, needle)).slice(0, LIMIT_PER_GROUP);
+
+export const buildPickerOptions = ({ allSets, savedSets, boards, currentSetId, query }) => {
+    const { board: boardQuery, needle: rawNeedle } = parseBoardQuery(query);
+    const needle = rawNeedle.toLowerCase();
+
+    const ownOptions = [];
 
     for (const item of allSets ?? []) {
         if (item.id === currentSetId) {
             continue;
         }
-        options.push({ key: `set-${item.id}`, title: item.title });
+        ownOptions.push({ key: `set-${item.id}`, title: item.title });
     }
 
+    const savedOptions = [];
     const seenRefs = new Set();
 
     for (const item of savedSets ?? []) {
@@ -30,7 +51,7 @@ export const buildPickerOptions = ({ allSets, savedSets, currentSetId, query }) 
         }
         seenRefs.add(ref);
 
-        options.push({
+        savedOptions.push({
             key: `saved-${item.id}`,
             title: item.title,
             ref,
@@ -39,17 +60,24 @@ export const buildPickerOptions = ({ allSets, savedSets, currentSetId, query }) 
         });
     }
 
-    return options
-        .filter((option) => {
-            if (!needle) {
-                return true;
-            }
-            if (option.title.toLowerCase().includes(needle)) {
-                return true;
-            }
-            return Boolean(option.ref && option.ref.toLowerCase().includes(needle));
-        })
-        .slice(0, 12);
+    // Доски — третий тип вложения: в текст попадает [[board:Название]].
+    const boardOptions = (boards ?? []).map((item) => ({
+        key: `board-${item.id}`,
+        title: item.title,
+        board: true,
+        badge: "▦ доска",
+    }));
+
+    // Если пользователь набрал [[board:, он спрашивает именно доску — остальное не мешает.
+    if (boardQuery) {
+        return pick(boardOptions, needle);
+    }
+
+    return [
+        ...pick(ownOptions, needle),
+        ...pick(savedOptions, needle),
+        ...pick(boardOptions, needle),
+    ];
 };
 
 export default buildPickerOptions;

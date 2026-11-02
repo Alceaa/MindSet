@@ -29,7 +29,7 @@ const WikilinkPicker = ({ query, options, activeIndex, position, error, onPick, 
             {options.length === 0 ? (
                 <p className="wikilinkEmpty mutedText">
                     {trimmed
-                        ? `Сета «${trimmed}» нет — ссылка не создастся`
+                        ? `«${trimmed}» не найдено — ссылка не создастся`
                         : "Ничего не найдено"}
                 </p>
             ) : (

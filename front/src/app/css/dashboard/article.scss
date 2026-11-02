@@ -149,6 +149,13 @@
     line-height: 1.6;
 }
 
+/* Ссылка на доску: помечаем её знаком, как снимок — пометкой ⧉. */
+.articleLinkBoard .boardMark {
+    margin-left: 4px;
+    color: var(--reader-muted);
+    font-size: 0.85em;
+}
+
 .article a {
     color: var(--reader-accent);
     text-decoration: none;

@@ -51,6 +51,7 @@ import useReaderSettings from "../../../hooks/use.reader.settings";
 import useReadingPosition, { readingPositionKey } from "../../../hooks/use.reading.position";
 import collectionService from "../../../api/collection.service";
 import useCollections from "../../../hooks/use.collections";
+import useBoards from "../../../hooks/use.boards";
 import CollectionPicker from "../../collections/collection.picker.jsx";
 import "../../../css/collections/collections.scss";
 import "../../../css/dashboard/dashboard.scss";
@@ -186,6 +187,7 @@ const SetEditorInner = () => {
     const [allSets, setAllSets] = useState([]);
     const [savedSets, setSavedSets] = useState([]);
     const { collections, reload: reloadCollections } = useCollections();
+    const { boards } = useBoards();
 
     const [saving, setSaving] = useState(false);
     const [removing, setRemoving] = useState(false);
@@ -603,14 +605,20 @@ const SetEditorInner = () => {
             buildPickerOptions({
                 allSets,
                 savedSets,
+                boards,
                 currentSetId: set?.id,
                 query: picker?.query ?? "",
             }),
-        [picker, allSets, savedSets, set]
+        [picker, allSets, savedSets, boards, set]
     );
 
     const handlePick = useCallback(
         (option, withAlias) => {
+            if (option.board) {
+                insertWikilink(`board:${option.title}`, withAlias);
+                return;
+            }
+
             if (option.ref) {
                 insertWikilink(option.ref, withAlias, option.title);
                 return;

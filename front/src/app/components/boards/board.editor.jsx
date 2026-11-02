@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import boardService from "../../api/board.service";
 import useAppTheme from "../../hooks/use.app.theme";
 import parseApiError from "../../utils/api.error";
+import uploadImage from "../../utils/image.upload";
+import { dataUrlToBlob, filesForLoad, filesForSave } from "./board.files";
 import "../../css/boards/boards.scss";
 
 const Canvas = React.lazy(() => import("./board.canvas.jsx"));
@@ -114,6 +116,23 @@ const sceneFromBoard = (board) => {
     };
 };
 
+// Картинку из S3 сцене нужно отдать как dataURL — читаем её обратно.
+const fetchAsDataUrl = async (url) => {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error("Не удалось загрузить картинку");
+    }
+
+    const blob = await response.blob();
+
+    return await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("Не удалось прочитать картинку"));
+        reader.readAsDataURL(blob);
+    });
+};
+
 const BoardEditor = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -132,6 +151,8 @@ const BoardEditor = () => {
     const timerRef = useRef(null);
     // Что уже сохранено: правки вида (панорама, зум) не должны вызывать новые сохранения.
     const savedRef = useRef({ signature: "" });
+    // Картинки, уже уехавшие в S3: иначе одно изображение загружалось бы при каждом сохранении.
+    const uploadedRef = useRef(new Map());
 
     useEffect(() => {
         let cancelled = false;
@@ -141,7 +162,7 @@ const BoardEditor = () => {
 
         boardService
             .get(id)
-            .then((data) => {
+            .then(async (data) => {
                 if (cancelled) {
                     return;
                 }
@@ -150,13 +171,21 @@ const BoardEditor = () => {
                 setTitle(data.title);
 
                 const fromServer = sceneFromBoard(data);
+                // Картинки лежат в S3: сцене их нужно вернуть как dataURL.
+                const files = await filesForLoad(fromServer.files, fetchAsDataUrl);
+                const sceneWithFiles = { ...fromServer, files };
+
+                if (cancelled) {
+                    return;
+                }
+
                 const draft = window.localStorage.getItem(draftKey(id));
 
                 if (draft) {
                     try {
                         const parsed = JSON.parse(draft);
                         if (Array.isArray(parsed.elements) && parsed.elements.length > 0) {
-                            setScene({ ...fromServer, ...parsed });
+                            setScene({ ...sceneWithFiles, ...parsed });
                             setRestored(true);
                             return;
                         }
@@ -165,7 +194,7 @@ const BoardEditor = () => {
                     }
                 }
 
-                setScene(fromServer);
+                setScene(sceneWithFiles);
             })
             .catch((err) => {
                 if (!cancelled) {
@@ -193,7 +222,14 @@ const BoardEditor = () => {
         setStatus("Сохраняем…");
 
         try {
-            await boardService.saveDoc(board.id, pending);
+            // Картинки уезжают в S3, в doc остаются только их адреса.
+            const files = await filesForSave(
+                pending.files,
+                (file) => uploadImage(dataUrlToBlob(file.dataURL)),
+                uploadedRef.current
+            );
+
+            await boardService.saveDoc(board.id, { ...pending, files });
             savedRef.current = { signature: sceneSignature(pending) };
             window.localStorage.removeItem(draftKey(board.id));
             setRestored(false);
@@ -206,7 +242,11 @@ const BoardEditor = () => {
             setError("");
         } catch (err) {
             // Черновик остаётся в localStorage: работа не потеряется, пока не сохранится.
-            window.localStorage.setItem(draftKey(board.id), JSON.stringify(pending));
+            try {
+                window.localStorage.setItem(draftKey(board.id), JSON.stringify(pending));
+            } catch {
+                // В хранилище не влезло (например, много картинок) — доска всё равно на сервере.
+            }
             setStatus("");
             setError(parseApiError(err).message);
         }

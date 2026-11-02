@@ -23,6 +23,8 @@ import CreateSet from "./components/dashboard/sets/create.set.jsx";
 import LoadingScreen from "./components/common/loading.screen.jsx";
 import PublicSet from "./components/dashboard/sets/public.set.jsx";
 import SnapshotView from "./components/dashboard/sets/snapshot.view.jsx";
+import BoardsList from "./components/boards/boards.list.jsx";
+import BoardEditor from "./components/boards/board.editor.jsx";
 import Explore from "./components/explore/explore.jsx";
 import NewsList from "./components/news/news.list.jsx";
 import UserProfile from "./components/profile/user.profile.jsx";
@@ -113,6 +115,22 @@ const routes = [
                 element: (
                     <RequireAuth>
                         <Dashboard />
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "boards",
+                element: (
+                    <RequireAuth>
+                        <BoardsList />
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "boards/:id",
+                element: (
+                    <RequireAuth>
+                        <BoardEditor />
                     </RequireAuth>
                 ),
             },

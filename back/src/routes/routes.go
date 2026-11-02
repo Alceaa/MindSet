@@ -147,6 +147,14 @@ func SetupRoutes(app fiber.Router) {
 	collections.Put("/:id", middlewares.RequireJSONBody, handlers.UpdateCollection)
 	collections.Delete("/:id", handlers.DeleteCollection)
 
+	boards := app.Group("/boards", middlewares.ValidateAccessToken)
+	boards.Get("", handlers.ListBoards)
+	boards.Post("", middlewares.RequireJSONBody, handlers.CreateBoard)
+	boards.Get("/:id", handlers.GetBoard)
+	boards.Put("/:id", middlewares.RequireJSONBody, handlers.UpdateBoard)
+	boards.Put("/:id/doc", middlewares.RequireJSONBody, handlers.SaveBoardDoc)
+	boards.Delete("/:id", handlers.DeleteBoard)
+
 	app.Get("/set-tombstones", middlewares.ValidateAccessToken, handlers.GetSetTombstones)
 	app.Post("/set-tombstones/:id/forbid-copies", middlewares.ValidateAccessToken, handlers.ForbidSetTombstone)
 }

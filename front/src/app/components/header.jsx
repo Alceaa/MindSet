@@ -25,8 +25,9 @@ const Header = () => {
     const isSetsTab = searchParams.get("tab") === "sets";
     const isGraphTab = searchParams.get("tab") === "graph";
     const isExploreTab = location.pathname === "/explore";
+    const isBoardsTab = location.pathname.startsWith("/boards");
     const isProfileTab = location.pathname.startsWith("/u/") || location.pathname === "/settings";
-    const isHomeTab = !isExploreTab && !isSetsTab && !isGraphTab && !isProfileTab;
+    const isHomeTab = !isExploreTab && !isSetsTab && !isGraphTab && !isBoardsTab && !isProfileTab;
 
     const closeMenu = () => setAnchorEl(null);
 
@@ -70,6 +71,12 @@ const Header = () => {
                                 to="/dashboard?tab=graph"
                             >
                                 Граф
+                            </Link>
+                            <Link
+                                className={`navLink${isBoardsTab ? " navLinkActive" : ""}`}
+                                to="/boards"
+                            >
+                                Доски
                             </Link>
                         </>
                     )}

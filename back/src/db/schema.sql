@@ -445,3 +445,32 @@ CREATE INDEX IF NOT EXISTS saved_set_collections_set_idx
 
 CREATE INDEX IF NOT EXISTS saved_set_collections_collection_idx
     ON saved_set_collections (collection_id, position, saved_set_id);
+
+
+-- Доски (whiteboard). Сцена хранится в jsonb: это формат .excalidraw как есть,
+-- поэтому её можно отдать клиенту без разбора на нашей стороне.
+CREATE TABLE IF NOT EXISTS boards (
+    id           serial PRIMARY KEY,
+    user_id      integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    title        varchar NOT NULL,
+    title_key    varchar NOT NULL,
+    visibility   varchar NOT NULL DEFAULT 'private',
+    doc          jsonb NOT NULL DEFAULT '{}'::jsonb,
+    date_created date NOT NULL DEFAULT CURRENT_DATE,
+    updated_at   timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS title_key varchar;
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS visibility varchar NOT NULL DEFAULT 'private';
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS doc jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
+UPDATE boards SET title_key = lower(title) WHERE title_key IS NULL OR title_key = '';
+
+-- Названия досок у одного пользователя уникальны: по названию доска подставляется
+-- в текст сета, как сет по викиссылке.
+CREATE UNIQUE INDEX IF NOT EXISTS boards_user_title_key_idx
+    ON boards (user_id, title_key);
+
+CREATE INDEX IF NOT EXISTS boards_user_updated_idx
+    ON boards (user_id, updated_at DESC, id DESC);

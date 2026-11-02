@@ -734,7 +734,7 @@
 
 /* Затемнение снизу показываем только когда внутри действительно есть что прокручивать. */
 .newsScrollerScrollable {
-    box-shadow: inset 0 -20px 16px -16px rgba(4, 6, 10, 0.55);
+    box-shadow: inset 0 -20px 16px -16px var(--fade-shadow);
 }
 
 .badgePinned {

@@ -9,22 +9,22 @@
 }
 
 .collectionDot-amber {
-    background-color: #e2b053;
+    background-color: var(--collection-amber);
 }
 .collectionDot-blue {
-    background-color: #6ea8fe;
+    background-color: var(--collection-blue);
 }
 .collectionDot-green {
-    background-color: #6cc48a;
+    background-color: var(--collection-green);
 }
 .collectionDot-purple {
-    background-color: #b18cff;
+    background-color: var(--collection-purple);
 }
 .collectionDot-red {
-    background-color: #f2777a;
+    background-color: var(--collection-red);
 }
 .collectionDot-teal {
-    background-color: #5fc9c2;
+    background-color: var(--collection-teal);
 }
 .collectionDot-default {
     background-color: var(--text-faint);

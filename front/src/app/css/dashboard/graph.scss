@@ -37,16 +37,16 @@
 }
 
 .graphEdgeSolid {
-    stroke: #59616e;
+    stroke: var(--graph-edge);
 }
 
 .graphEdgeOneSided {
-    stroke: rgba(200, 206, 216, 0.55);
+    stroke: var(--graph-edge-soft);
     stroke-dasharray: 6 5;
 }
 
 .graphArrowHead {
-    fill: rgba(200, 206, 216, 0.75);
+    fill: var(--graph-arrow);
     stroke: none;
 }
 
@@ -74,14 +74,14 @@
 }
 
 .graphNodeFrozen circle {
-    fill: rgba(95, 179, 161, 0.18);
-    stroke: #5fb3a1;
+    fill: var(--graph-frozen-soft);
+    stroke: var(--graph-frozen);
     stroke-width: 2;
 }
 
 .graphNodeDeleted circle {
-    fill: rgba(139, 147, 161, 0.1);
-    stroke: #8b93a1;
+    fill: var(--graph-deleted-soft);
+    stroke: var(--graph-deleted);
     stroke-dasharray: 3 4;
     stroke-width: 2;
 }
@@ -107,7 +107,7 @@
 }
 
 .graphNodeNeighbor circle {
-    stroke: #f0cd82;
+    stroke: var(--graph-neighbor);
 }
 
 .graphNodeDim {

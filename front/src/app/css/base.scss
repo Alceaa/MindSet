@@ -39,6 +39,26 @@
     --code-string: #8fd18a;
     --code-number: #e0913f;
 
+    /* Граф: связи и состояния узлов. */
+    --graph-edge: #59616e;
+    --graph-edge-soft: rgba(200, 206, 216, 0.55);
+    --graph-arrow: rgba(200, 206, 216, 0.75);
+    --graph-frozen: #5fb3a1;
+    --graph-frozen-soft: rgba(95, 179, 161, 0.18);
+    --graph-deleted: #8b93a1;
+    --graph-deleted-soft: rgba(139, 147, 161, 0.1);
+    --graph-neighbor: #f0cd82;
+
+    /* Метки коллекций, свечение на странице входа, затемнение прокрутки новостей. */
+    --collection-amber: #e2b053;
+    --collection-blue: #6ea8fe;
+    --collection-green: #6cc48a;
+    --collection-purple: #b18cff;
+    --collection-red: #f2777a;
+    --collection-teal: #5fc9c2;
+    --auth-glow: rgba(226, 176, 83, 0.12);
+    --fade-shadow: rgba(4, 6, 10, 0.55);
+
     /* Цвета обвязки: шапка, затемнения поверх страницы, свечение фона. */
     --header-bg: rgba(13, 17, 23, 0.85);
     --overlay: rgba(9, 11, 16, 0.72);

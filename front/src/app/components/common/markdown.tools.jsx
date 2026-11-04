@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import { simplifyMarkdown } from "../../markdown/simplify";
+import { normalizeCodeFences } from "../../markdown/code.fence";
 
 const safeFileName = (value) =>
     String(value ?? "")
@@ -50,7 +51,9 @@ const MarkdownTools = ({ editorRef, content, onImport, title }) => {
     };
 
     const handleExport = () => {
-        const markdown = editorRef.current?.getMarkdown() ?? content ?? "";
+        // В редакторе фенс, набранный руками, остаётся текстом с экранированными бэктиками —
+        // в файл он должен уехать настоящим блоком кода.
+        const markdown = normalizeCodeFences(editorRef.current?.getMarkdown() ?? content ?? "");
         const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");

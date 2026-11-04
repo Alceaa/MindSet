@@ -41,6 +41,7 @@ import MarkdownTools from "../../common/markdown.tools.jsx";
 import { applyMarkdownPaste } from "../../../markdown/paste";
 import { registerListSplit } from "../../../markdown/list.split";
 import { MARKDOWN_EXPORT_OPTIONS } from "../../../markdown/export.options";
+import { normalizeCodeFences } from "../../../markdown/code.fence";
 import { CODE_LANGUAGES, codeBlockPluginOptions } from "../../../markdown/code.languages.js";
 import SetArticle from "./set.article.jsx";
 import SetSidebar from "./set.sidebar.jsx";
@@ -49,6 +50,7 @@ import WikilinkPicker from "./wikilink.picker.jsx";
 import ReaderSettings from "./reader.settings.jsx";
 import useReaderSettings from "../../../hooks/use.reader.settings";
 import useReadingPosition, { readingPositionKey } from "../../../hooks/use.reading.position";
+import useSourceModeBridge from "../../../hooks/use.source.mode.bridge";
 import "../../../css/dashboard/dashboard.scss";
 import "../../../css/dashboard/workspace.scss";
 import "../../../css/dashboard/reader.scss";
@@ -128,7 +130,9 @@ const useEditorPlugins = (onOpenPicker) =>
             diffSourcePlugin({ viewMode: "rich-text" }),
             toolbarPlugin({
                 toolbarContents: () => (
-                    <DiffSourceToggleWrapper>
+                    // diff-режим MindSet не использует: сравнивать markdown не с чем,
+                    // а через него открывался тот же рассинхрон, что и в source.
+                    <DiffSourceToggleWrapper options={["rich-text", "source"]}>
                         <UndoRedo />
                         <Separator />
                         <BlockTypeSelect />
@@ -176,6 +180,13 @@ const SetEditorInner = () => {
     const [setCopied, setSetCopied] = useState(false);
     const [content, setContent] = useState("");
     const [snapshot, setSnapshot] = useState(null);
+
+    // Текст из редактора приводим к виду, который понимает статья: сериализатор markdown
+    // экранирует бэктики, поэтому блок кода, набранный руками, доезжает как \`\`\`.
+    const handleContentChange = useCallback(
+        (next) => setContent(normalizeCodeFences(next)),
+        []
+    );
 
     const [links, setLinks] = useState([]);
     const [backlinks, setBacklinks] = useState([]);
@@ -255,7 +266,9 @@ const SetEditorInner = () => {
             title: data.title ?? "",
             description: data.description ?? "",
             visibility: data.visibility ?? VISIBILITY_OPTIONS[0].value,
-            content: data.content ?? "",
+            // Фенс, набранный в обычном режиме, лежит в базе текстом с экранированными
+            // бэктиками — собираем его в блок кода, чтобы статья показывала код.
+            content: normalizeCodeFences(data.content ?? ""),
         };
         setSet(data);
         setTitle(normalized.title);
@@ -528,6 +541,15 @@ const SetEditorInner = () => {
     useEffect(() => {
         realmRef.current = realm;
     }, [realm]);
+
+    // Source-режим не проходит через onChange: без этой связи правки в нём не попадают
+    // ни в статью, ни в сохранение, а rich-text остаётся с прежним текстом.
+    useSourceModeBridge({
+        realm,
+        editorRef,
+        onSourceChange: handleContentChange,
+        prepare: normalizeCodeFences,
+    });
 
     // Снятие списка: Lexical по умолчанию убирает весь список, нам нужен только текущий пункт.
     useEffect(() => {
@@ -848,7 +870,7 @@ const SetEditorInner = () => {
                                 editorRef={editorRef}
                                 content={content}
                                 title={title}
-                                onImport={(text) => setContent(text)}
+                                onImport={handleContentChange}
                             />
                             <button
                                 className="btn btnDanger"
@@ -992,7 +1014,7 @@ const SetEditorInner = () => {
                                 className="mdxEditorTheme"
                                 contentEditableClassName="mdxContent"
                                 markdown={content}
-                                onChange={setContent}
+                                onChange={handleContentChange}
                                 placeholder=""
                                 plugins={plugins}
                                 toMarkdownOptions={MARKDOWN_EXPORT_OPTIONS}

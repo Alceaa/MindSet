@@ -236,3 +236,96 @@
 .themeOptionText .mutedText {
     font-size: 12px;
 }
+
+.tokenValueRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-sm);
+}
+
+.tokenValue {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px dashed var(--accent);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+    user-select: all;
+}
+
+.tokenList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tokenRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface-muted);
+}
+
+.tokenRowMain {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.tokenTitle {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-xs);
+    font-weight: 600;
+}
+
+.tokenBadge {
+    padding: 1px 6px;
+    border: 1px solid var(--warning-line);
+    border-radius: var(--radius);
+    color: var(--warning);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.tokenMeta {
+    color: var(--text-faint);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.tokenMeta code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.tokenRowActions {
+    display: flex;
+    gap: var(--gap-sm);
+}
+
+.tokenSample {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+    color: var(--text-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}

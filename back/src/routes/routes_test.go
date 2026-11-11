@@ -139,6 +139,16 @@ type apiSavedSet struct {
 	LastUpdate   string `json:"last_update"`
 }
 
+type apiAPIToken struct {
+	ID         int    `json:"id"`
+	Title      string `json:"title"`
+	Prefix     string `json:"prefix"`
+	CreatedAt  string `json:"created_at"`
+	LastUsedAt string `json:"last_used_at"`
+	ExpiresAt  string `json:"expires_at"`
+	Expired    bool   `json:"expired"`
+}
+
 type apiResponse struct {
 	Status         string            `json:"status"`
 	Message        string            `json:"message"`
@@ -160,6 +170,10 @@ type apiResponse struct {
 
 	EmailVerificationSent bool `json:"email_verification_sent"`
 	TwoFactorRequired     bool `json:"two_factor_required"`
+
+	Value  string        `json:"value"`
+	Token  *apiAPIToken  `json:"token"`
+	Tokens []apiAPIToken `json:"tokens"`
 }
 
 type callOptions struct {

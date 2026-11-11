@@ -65,6 +65,7 @@ type Env struct {
 	RateLimitReportPerHour   int  `mapstructure:"RATE_LIMIT_REPORT_PER_HOUR"`
 	RateLimitLikePerHour     int  `mapstructure:"RATE_LIMIT_LIKE_PER_HOUR"`
 	RateLimitCommentPerHour  int  `mapstructure:"RATE_LIMIT_COMMENT_PER_HOUR"`
+	RateLimitAPIPerMinute    int  `mapstructure:"RATE_LIMIT_API_PER_MINUTE"`
 
 	TrustProxyHeader string `mapstructure:"TRUST_PROXY_HEADER"`
 
@@ -328,6 +329,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("RATE_LIMIT_AUTH_PER_15MIN", 10)
 	v.SetDefault("RATE_LIMIT_EMAIL_PER_HOUR", 5)
 	v.SetDefault("RATE_LIMIT_REPORT_PER_HOUR", 5)
+	v.SetDefault("RATE_LIMIT_API_PER_MINUTE", 120)
 	v.SetDefault("TRUST_PROXY_HEADER", "X-Forwarded-For")
 	v.SetDefault("INVITE_TTL_DAYS", 7)
 }
@@ -344,7 +346,7 @@ func bindEnvs(v *viper.Viper) {
 		"TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "HEALTH_CHECK_INTERVAL",
 		"HEARTBEAT_URL", "HEARTBEAT_INTERVAL",
 		"RATE_LIMIT_ENABLED", "RATE_LIMIT_GLOBAL_PER_MINUTE", "RATE_LIMIT_AUTH_PER_15MIN",
-		"RATE_LIMIT_EMAIL_PER_HOUR", "RATE_LIMIT_REPORT_PER_HOUR", "TRUST_PROXY_HEADER",
+		"RATE_LIMIT_EMAIL_PER_HOUR", "RATE_LIMIT_REPORT_PER_HOUR", "RATE_LIMIT_API_PER_MINUTE", "TRUST_PROXY_HEADER",
 		"ADMIN_TOKEN", "REGISTRATION_INVITE_ONLY", "INVITE_TTL_DAYS",
 	}
 	for _, key := range keys {

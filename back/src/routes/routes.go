@@ -155,6 +155,25 @@ func SetupRoutes(app fiber.Router) {
 	boards.Put("/:id/doc", middlewares.RequireJSONBody, handlers.SaveBoardDoc)
 	boards.Delete("/:id", handlers.DeleteBoard)
 
+	apiTokens := app.Group("/api-tokens", middlewares.ValidateAccessToken)
+	apiTokens.Get("", handlers.ListAPITokens)
+	apiTokens.Post("", middlewares.RequireJSONBody, handlers.CreateAPIToken)
+	apiTokens.Delete("/:id", handlers.RevokeAPIToken)
+
+	apiLimiter := middlewares.RateLimiter(middlewares.RateLimitRule{
+		Name:       "api",
+		Max:        cfg.RateLimitAPIPerMinute,
+		Expiration: time.Minute,
+		KeyByUser:  true,
+	})
+
+	openAPI := app.Group("/api/v1", middlewares.ValidateAPIToken, apiLimiter)
+	openAPI.Get("/me", handlers.Me)
+	openAPI.Get("/sets", handlers.GetSets)
+	openAPI.Get("/sets/:id", handlers.GetSet)
+	openAPI.Get("/collections", handlers.ListCollections)
+	openAPI.Get("/graph", handlers.GetGraph)
+
 	app.Get("/set-tombstones", middlewares.ValidateAccessToken, handlers.GetSetTombstones)
 	app.Post("/set-tombstones/:id/forbid-copies", middlewares.ValidateAccessToken, handlers.ForbidSetTombstone)
 }

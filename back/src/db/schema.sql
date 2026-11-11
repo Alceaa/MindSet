@@ -474,3 +474,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS boards_user_title_key_idx
 
 CREATE INDEX IF NOT EXISTS boards_user_updated_idx
     ON boards (user_id, updated_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS api_tokens (
+    id           serial PRIMARY KEY,
+    user_id      integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    title        varchar NOT NULL,
+    prefix       varchar NOT NULL,
+    token_hash   varchar NOT NULL,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    last_used_at timestamptz,
+    expires_at   timestamptz
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS api_tokens_hash_uq ON api_tokens (token_hash);
+
+CREATE INDEX IF NOT EXISTS api_tokens_user_idx ON api_tokens (user_id, created_at DESC);

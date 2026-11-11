@@ -1,4 +1,4 @@
-{$DOMAIN} {
+alceacore.ru {
 	encode gzip zstd
 
 	handle /mindset {
@@ -6,18 +6,18 @@
 	}
 
 	handle_path /mindset/api/* {
-		reverse_proxy backend:8080
+		reverse_proxy 127.0.0.1:8080
 	}
 
 	handle_path /mindset/media/* {
-		reverse_proxy backend:8080
+		reverse_proxy 127.0.0.1:8080
 	}
 
 	handle_path /mindset/* {
-		reverse_proxy frontend:80
+		reverse_proxy 127.0.0.1:8081
 	}
 
 	handle /media/* {
-		reverse_proxy backend:8080
+		reverse_proxy 127.0.0.1:8080
 	}
 }

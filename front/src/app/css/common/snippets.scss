@@ -1,0 +1,86 @@
+.snippetsMenu {
+    display: inline-flex;
+}
+
+.toolbarSnippets {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.toolbarSnippets:hover {
+    background-color: var(--border);
+}
+
+.snippetsPopover {
+    position: fixed;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    width: min(420px, calc(100vw - 24px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--gap);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+    box-shadow: var(--shadow);
+    text-align: left;
+}
+
+.snippetsGroup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xs);
+}
+
+.snippetsGroupTitle {
+    color: var(--text-faint);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.snippetsList {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--gap-xs);
+}
+
+.snippetItem {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.snippetItem:hover {
+    border-color: var(--accent);
+    background-color: var(--accent-tint);
+}
+
+.snippetTitle {
+    font-weight: 600;
+}
+
+.snippetHint {
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.35;
+}

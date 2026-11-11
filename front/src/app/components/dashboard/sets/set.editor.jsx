@@ -36,8 +36,11 @@ import "@mdxeditor/editor/style.css";
 import setService from "../../../api/set.service";
 import parseApiError from "../../../utils/api.error";
 import { uploadImage } from "../../../utils/image.upload";
-import LoadingScreen from "../../common/loading.screen.jsx";
+import { SkeletonWorkspace } from "../../common/skeleton.jsx";
+import EmptyState from "../../common/empty.state.jsx";
+import { useToast } from "../../common/toast.jsx";
 import MarkdownTools from "../../common/markdown.tools.jsx";
+import MarkdownSnippets from "../../common/markdown.snippets.jsx";
 import { applyMarkdownPaste } from "../../../markdown/paste";
 import { registerListSplit } from "../../../markdown/list.split";
 import { MARKDOWN_EXPORT_OPTIONS } from "../../../markdown/export.options";
@@ -116,7 +119,7 @@ const imageUploadHandler = async (file) => {
     }
 };
 
-const useEditorPlugins = (onOpenPicker) =>
+const useEditorPlugins = (onOpenPicker, onInsertSnippet) =>
     useMemo(
         () => [
             headingsPlugin(),
@@ -152,12 +155,13 @@ const useEditorPlugins = (onOpenPicker) =>
                         </button>
                         <InsertTable />
                         <InsertThematicBreak />
+                        <MarkdownSnippets onInsert={onInsertSnippet} />
                     </DiffSourceToggleWrapper>
                 ),
             }),
             remoteRealmPlugin({ editorId: EDITOR_ID }),
         ],
-        [onOpenPicker]
+        [onOpenPicker, onInsertSnippet]
     );
 
 const SetEditorInner = () => {
@@ -165,6 +169,7 @@ const SetEditorInner = () => {
     const navigate = useNavigate();
     const realm = useRemoteMDXEditorRealm(EDITOR_ID);
 
+    const { push } = useToast();
     const hostRef = useRef(null);
     const editorRef = useRef(null);
     const suppressTrigger = useRef(0);
@@ -192,14 +197,17 @@ const SetEditorInner = () => {
     const [saving, setSaving] = useState(false);
     const [removing, setRemoving] = useState(false);
     const [deleteDialog, setDeleteDialog] = useState(null);
-    const [actionError, setActionError] = useState("");
     const [fieldErrors, setFieldErrors] = useState({});
     const [savedAt, setSavedAt] = useState("");
     const [mode, setMode] = useState("read");
     const [searchParams, setSearchParams] = useSearchParams();
     const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
         try {
-            return window.localStorage.getItem("mindset:sidebar:collapsed") === "1";
+            const stored = window.localStorage.getItem("mindset:sidebar:collapsed");
+            if (stored !== null) {
+                return stored === "1";
+            }
+            return window.matchMedia("(max-width: 900px)").matches;
         } catch {
             return false;
         }
@@ -361,7 +369,6 @@ const SetEditorInner = () => {
         }
 
         setSaving(true);
-        setActionError("");
         setFieldErrors({});
 
         try {
@@ -379,12 +386,12 @@ const SetEditorInner = () => {
             switchMode("read");
         } catch (error) {
             const parsed = parseApiError(error);
-            setActionError(parsed.message);
+            push(parsed.message, "error");
             setFieldErrors(parsed.fieldErrors);
         } finally {
             setSaving(false);
         }
-    }, [set, saving, dirty, title, description, visibility, content, applySet, switchMode]);
+    }, [set, saving, dirty, title, description, visibility, content, applySet, switchMode, push]);
 
     const handleLeave = useCallback(() => {
         if (dirty) {
@@ -395,7 +402,6 @@ const SetEditorInner = () => {
                 return;
             }
         }
-        setActionError("");
         switchMode("read");
     }, [dirty, switchMode]);
 
@@ -420,17 +426,16 @@ const SetEditorInner = () => {
 
             setDeleteDialog(null);
             setRemoving(true);
-            setActionError("");
 
             try {
                 await setService.deleteSet(set.id, { forbid_copies: forbidCopies });
                 navigate("/dashboard?tab=sets", { replace: true });
             } catch (error) {
-                setActionError(parseApiError(error).message);
+                push(parseApiError(error).message, "error");
                 setRemoving(false);
             }
         },
-        [set, navigate]
+        [set, navigate, push]
     );
 
     useEffect(() => {
@@ -445,7 +450,6 @@ const SetEditorInner = () => {
                 if (mode === "edit") {
                     handleLeave();
                 } else {
-                    setActionError("");
                     switchMode("edit");
                 }
             }
@@ -468,6 +472,21 @@ const SetEditorInner = () => {
         window.addEventListener("beforeunload", handleBeforeUnload);
         return () => window.removeEventListener("beforeunload", handleBeforeUnload);
     }, [dirty]);
+
+    useEffect(() => {
+        if (!deleteDialog) {
+            return undefined;
+        }
+
+        const handleKey = (event) => {
+            if (event.key === "Escape") {
+                setDeleteDialog(null);
+            }
+        };
+
+        document.addEventListener("keydown", handleKey);
+        return () => document.removeEventListener("keydown", handleKey);
+    }, [deleteDialog]);
 
     const insertWikilink = useCallback(
         (value, withAlias, alias) => {
@@ -542,6 +561,23 @@ const SetEditorInner = () => {
     useEffect(() => {
         realmRef.current = realm;
     }, [realm]);
+
+    const insertSnippet = useCallback((markdown) => {
+        const editor = editorRef.current;
+        const append = (current) => `${current.trimEnd()}${current.trim() ? "\n\n" : ""}${markdown}`;
+
+        if (!editor?.insertMarkdown) {
+            setContent(append);
+            return;
+        }
+
+        try {
+            editor.focus(undefined, { defaultSelection: "rootEnd" });
+            editor.insertMarkdown(markdown);
+        } catch {
+            setContent(append);
+        }
+    }, []);
 
     // Снятие списка: Lexical по умолчанию убирает весь список, нам нужен только текущий пункт.
     useEffect(() => {
@@ -774,23 +810,24 @@ const SetEditorInner = () => {
         return () => window.removeEventListener("keydown", handleKeyDown, true);
     }, [picker, pickerOptions, pickerIndex, handlePick]);
 
-    const plugins = useEditorPlugins(openPicker);
+    const plugins = useEditorPlugins(openPicker, insertSnippet);
 
     if (loading) {
-        return <LoadingScreen label="Загружаем сет..." />;
+        return <SkeletonWorkspace />;
     }
 
     if (notFound) {
         return (
-            <div className="emptyState">
-                <h2>Сет не найден</h2>
-                <p className="mutedText">
-                    Возможно, он удалён или принадлежит другому пользователю.
-                </p>
-                <Link className="btn btnPrimary" to="/dashboard?tab=sets">
-                    К списку сетов
-                </Link>
-            </div>
+            <EmptyState
+                icon="🔍"
+                title="Сет не найден"
+                hint="Возможно, он удалён или принадлежит другому пользователю."
+                action={
+                    <Link className="btn btnPrimary" to="/dashboard?tab=sets">
+                        К списку сетов
+                    </Link>
+                }
+            />
         );
     }
 
@@ -848,7 +885,7 @@ const SetEditorInner = () => {
 
             await reloadCollections();
         } catch (err) {
-            window.alert(parseApiError(err).message);
+            push(parseApiError(err).message, "error");
         }
     };
 
@@ -897,7 +934,7 @@ const SetEditorInner = () => {
                                 onClick={handleDelete}
                                 disabled={removing}
                             >
-                                {removing ? "Удаляем..." : "Удалить"}
+                                {removing ? "Удаляем…" : "Удалить"}
                             </button>
                         </>
                     ) : (
@@ -907,7 +944,7 @@ const SetEditorInner = () => {
                                 onClick={handleSave}
                                 disabled={!dirty || saving}
                             >
-                                {saving ? "Сохраняем..." : "Сохранить"}
+                                {saving ? "Сохраняем…" : "Сохранить"}
                             </button>
                             <button className="btn btnGhost" onClick={handleLeave} title="Ctrl+E">
                                 К статье
@@ -923,17 +960,11 @@ const SetEditorInner = () => {
                                 onClick={handleDelete}
                                 disabled={removing}
                             >
-                                {removing ? "Удаляем..." : "Удалить"}
+                                {removing ? "Удаляем…" : "Удалить"}
                             </button>
                         </>
                     )}
                 </div>
-
-                {actionError && (
-                    <div className="alert alertError" role="alert">
-                        {actionError}
-                    </div>
-                )}
 
                 {mode === "read" ? (
                     <div
@@ -969,7 +1000,7 @@ const SetEditorInner = () => {
                                                 true
                                             );
                                         } catch (err) {
-                                            window.alert(parseApiError(err).message);
+                                            push(parseApiError(err).message, "error");
                                         }
                                     }}
                                 />
@@ -1154,12 +1185,14 @@ const SetEditorInner = () => {
                         </p>
                         <div className="confirmActions">
                             <button
+                                type="button"
                                 className="btn btnDanger"
                                 onClick={() => performDelete(visibility === "private")}
                             >
                                 Удалить вместе с копиями
                             </button>
                             <button
+                                type="button"
                                 className="btn btnGhost"
                                 onClick={() => performDelete(false)}
                                 disabled={visibility === "private" || deleteDialog.copyCount === 0}
@@ -1167,8 +1200,10 @@ const SetEditorInner = () => {
                                 Оставить копии (заморозить на 30 дней)
                             </button>
                             <button
+                                type="button"
                                 className="btn btnGhost"
                                 onClick={() => setDeleteDialog(null)}
+                                autoFocus
                             >
                                 Отмена
                             </button>

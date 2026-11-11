@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import EmptyState from "../../common/empty.state.jsx";
 
 const WikilinkPicker = ({ query, options, activeIndex, position, error, onPick, onClose }) => {
     useEffect(() => {
@@ -13,7 +14,13 @@ const WikilinkPicker = ({ query, options, activeIndex, position, error, onPick, 
     const trimmed = (query ?? "").trim();
 
     return (
-        <div className="wikilinkPicker" style={style} onMouseDown={(event) => event.stopPropagation()}>
+        <div
+            className="wikilinkPicker"
+            style={style}
+            role="dialog"
+            aria-label="Выбор сета для ссылки"
+            onMouseDown={(event) => event.stopPropagation()}
+        >
             <div className="wikilinkHeader">
                 <span className="wikilinkQuery">
                     [[{query}
@@ -27,17 +34,24 @@ const WikilinkPicker = ({ query, options, activeIndex, position, error, onPick, 
             {error && <div className="alert alertError wikilinkAlert">{error}</div>}
 
             {options.length === 0 ? (
-                <p className="wikilinkEmpty mutedText">
-                    {trimmed
-                        ? `«${trimmed}» не найдено — ссылка не создастся`
-                        : "Ничего не найдено"}
-                </p>
+                <EmptyState
+                    variant="inline"
+                    className="wikilinkEmpty"
+                    title={
+                        trimmed
+                            ? `«${trimmed}» не найдено — ссылка не создастся`
+                            : "Ничего не найдено"
+                    }
+                />
             ) : (
-                <ul className="wikilinkList">
+                <ul className="wikilinkList" role="listbox" aria-label="Сеты">
                     {options.map((option, index) => (
                         <li key={option.key ?? option.title}>
                             <button
                                 type="button"
+                                id={`wikilink-option-${index}`}
+                                role="option"
+                                aria-selected={index === activeIndex}
                                 className={`wikilinkOption${
                                     index === activeIndex ? " wikilinkOptionActive" : ""
                                 }`}

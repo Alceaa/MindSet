@@ -365,5 +365,12 @@ export const applyTheme = (key) => {
     appliedNames = Object.keys(theme.variables);
     root.dataset.theme = theme.key;
 
+    root.style.colorScheme = theme.mode;
+
+    const themeColor = document.querySelector('meta[name="theme-color"]');
+    if (themeColor) {
+        themeColor.setAttribute("content", theme.variables["--bg-canvas"]);
+    }
+
     return theme;
 };

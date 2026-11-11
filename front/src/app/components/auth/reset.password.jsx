@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import authService from "../../api/auth.service";
 import parseApiError from "../../utils/api.error";
+import { desktopAutofocus } from "../../utils/autofocus";
+
+const AUTOFOCUS = desktopAutofocus();
 
 const ResetPassword = () => {
     const [params] = useSearchParams();
@@ -72,7 +75,7 @@ const ResetPassword = () => {
                         onChange={(event) => setPassword(event.target.value)}
                         autoComplete="new-password"
                         minLength={8}
-                        autoFocus
+                        autoFocus={AUTOFOCUS}
                         required
                     />
                     <span className="fieldHint">Минимум 8 символов.</span>

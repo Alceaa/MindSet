@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import newsService from "../../api/news.service";
 import parseApiError from "../../utils/api.error";
 import MarkdownContent from "../common/markdown.content.jsx";
+import { Skeleton } from "../common/skeleton.jsx";
+import EmptyState from "../common/empty.state.jsx";
 import { formatNewsDate } from "../../utils/news.date";
 import "../../css/dashboard/dashboard.scss";
 import "../../css/dashboard/feed.scss";
@@ -82,10 +84,17 @@ const NewsList = () => {
                 </div>
             )}
 
-            {loading && <p className="mutedText">Загружаем новости…</p>}
+            {loading && (
+                <div className="newsList">
+                    <Skeleton variant="row" count={4} label="Загружаем новости…" />
+                </div>
+            )}
 
             {!loading && !error && items.length === 0 && (
-                <p className="mutedText">Новостей пока нет.</p>
+                <EmptyState
+                    title="Новостей пока нет"
+                    hint="Как только появятся новости проекта, они будут здесь."
+                />
             )}
 
             <div className="newsList">

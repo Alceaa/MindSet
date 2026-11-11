@@ -2,9 +2,11 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import "./app/css/base.scss";
 import App from "./app/app.jsx";
+import { initAppTheme } from "./app/hooks/use.app.theme";
 import { installErrorReporting } from "./app/utils/error.report";
 
 installErrorReporting();
+initAppTheme();
 
 // Service worker только в проде: в разработке он мешает горячей перезагрузке.
 if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {

@@ -186,12 +186,13 @@
 .themeOptions {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    align-items: stretch;
     gap: var(--gap-sm);
 }
 
 .themeOption {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--gap-sm);
     padding: 12px;
     border: 1px solid var(--border);

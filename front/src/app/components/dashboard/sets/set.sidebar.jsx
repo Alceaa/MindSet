@@ -175,6 +175,7 @@ const SetSidebar = ({ sets, collections = [], currentId, collapsed, onToggle }) 
                     className="setSidebarToggle"
                     onClick={onToggle}
                     title="Показать меню сетов"
+                    aria-label="Показать меню сетов"
                 >
                     »
                 </button>
@@ -193,6 +194,7 @@ const SetSidebar = ({ sets, collections = [], currentId, collapsed, onToggle }) 
                     className="setSidebarToggle"
                     onClick={onToggle}
                     title="Скрыть меню сетов"
+                    aria-label="Скрыть меню сетов"
                 >
                     «
                 </button>

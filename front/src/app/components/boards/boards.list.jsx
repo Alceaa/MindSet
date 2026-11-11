@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import boardService from "../../api/board.service";
 import parseApiError from "../../utils/api.error";
+import { Skeleton } from "../common/skeleton.jsx";
+import EmptyState from "../common/empty.state.jsx";
 import "../../css/boards/boards.scss";
 
 const VISIBILITY_LABELS = {
@@ -123,11 +125,13 @@ const BoardsList = () => {
             {error ? <p className="alertError boardsAlert">{error}</p> : null}
 
             {loading ? (
-                <p className="mutedText">Загружаем доски…</p>
+                <Skeleton variant="row" count={4} label="Загружаем доски…" />
             ) : boards.length === 0 ? (
-                <p className="mutedText boardsEmpty">
-                    Досок пока нет. Создайте первую — и рисуйте схему прямо в браузере.
-                </p>
+                <EmptyState
+                    icon="▦"
+                    title="Досок пока нет"
+                    hint="Создайте первую — и рисуйте схему прямо в браузере."
+                />
             ) : (
                 <ul className="boardsList">
                     {boards.map((board) => (

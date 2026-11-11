@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import Avatar from "@mui/material/Avatar";
 import IconButton from "@mui/material/IconButton";
@@ -30,6 +30,8 @@ const Header = () => {
     const isHomeTab = !isExploreTab && !isSetsTab && !isGraphTab && !isBoardsTab && !isProfileTab;
 
     const closeMenu = () => setAnchorEl(null);
+
+    const closeSearch = useCallback(() => setSearchOpen(false), []);
 
     const handleLogout = async () => {
         closeMenu();
@@ -160,7 +162,7 @@ const Header = () => {
                 </div>
             </div>
 
-            <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+            <SearchModal open={searchOpen} onClose={closeSearch} />
         </header>
     );
 };

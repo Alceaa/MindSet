@@ -224,6 +224,8 @@
     width: min(360px, calc(100vw - 24px));
     max-height: min(420px, 70vh);
     padding: var(--gap-sm);
+    overflow: hidden;
+    overscroll-behavior: contain;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     background-color: var(--bg-surface);

@@ -514,6 +514,17 @@ a:hover {
     margin-bottom: var(--gap-sm);
 }
 
+.emptyStateIcon {
+    font-size: 28px;
+    line-height: 1;
+}
+
+.emptyStateInline {
+    margin: 0;
+    padding: var(--gap-sm) 0;
+    font-size: 13px;
+}
+
 .loadingScreen {
     display: flex;
     flex-direction: column;
@@ -751,3 +762,128 @@ body {
     max-width: 100%;
     overflow-x: clip;
 }
+
+.visuallyHidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    scroll-margin-top: calc(var(--header-height) + 12px);
+}
+
+button,
+a,
+[role="button"],
+.btn {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pageTitle,
+.exploreTitle,
+.articleTitle,
+.settingsPanelTitle,
+.cardTitle,
+.feedSectionTitle,
+.announcementTitle,
+.setTitle {
+    text-wrap: balance;
+}
+
+.listMeta,
+.statChip,
+.badge,
+.notificationsCount,
+.paginationTotal,
+.articleMeta {
+    font-variant-numeric: tabular-nums;
+}
+
+.skipLink {
+    position: absolute;
+    top: 0;
+    left: -9999px;
+    z-index: 100;
+    padding: 8px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 0 0 var(--radius) 0;
+    background-color: var(--bg-surface);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.skipLink:focus {
+    left: 0;
+}
+
+.routeFade {
+    animation: routeFade 0.24s ease backwards;
+}
+
+@keyframes routeFade {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes cardIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.setCard,
+.announcement,
+.savedItem,
+.boardRow,
+.homeSetRow {
+    animation: cardIn 0.28s ease backwards;
+}
+
+@for $i from 1 through 8 {
+    .setGrid > *:nth-child(#{$i}),
+    .savedList > *:nth-child(#{$i}),
+    .boardsList > *:nth-child(#{$i}),
+    .newsList > *:nth-child(#{$i}),
+    .newsScroller > *:nth-child(#{$i}) {
+        animation-delay: #{($i - 1) * 40}ms;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .spinner {
+        animation-duration: 0.9s !important;
+        animation-iteration-count: infinite !important;
+    }
+}
+

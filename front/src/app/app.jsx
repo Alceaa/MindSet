@@ -20,7 +20,8 @@ import VerifyEmail from "./components/auth/verify.email.jsx";
 import Logout from "./components/auth/logout.jsx";
 import Dashboard from "./components/dashboard/dashboard.jsx";
 import CreateSet from "./components/dashboard/sets/create.set.jsx";
-import LoadingScreen from "./components/common/loading.screen.jsx";
+import { SkeletonWorkspace } from "./components/common/skeleton.jsx";
+import ToastProvider from "./components/common/toast.jsx";
 import PublicSet from "./components/dashboard/sets/public.set.jsx";
 import SnapshotView from "./components/dashboard/sets/snapshot.view.jsx";
 import BoardsList from "./components/boards/boards.list.jsx";
@@ -146,7 +147,7 @@ const routes = [
                 path: "sets/:id",
                 element: (
                     <RequireAuth>
-                        <Suspense fallback={<LoadingScreen label="Загружаем редактор..." />}>
+                        <Suspense fallback={<SkeletonWorkspace label="Загружаем редактор…" />}>
                             <SetEditor />
                         </Suspense>
                     </RequireAuth>
@@ -180,7 +181,9 @@ const App = () => {
         <ThemeProvider theme={muiTheme}>
             <CssBaseline />
             <AuthProvider>
-                <RouterProvider router={router} />
+                <ToastProvider>
+                    <RouterProvider router={router} />
+                </ToastProvider>
             </AuthProvider>
         </ThemeProvider>
     );

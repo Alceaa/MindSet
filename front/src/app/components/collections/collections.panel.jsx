@@ -6,6 +6,8 @@ import parseApiError from "../../utils/api.error";
 import { stripMarkdown } from "../../utils/markdown.preview";
 import CollectionPicker from "./collection.picker.jsx";
 import { COLLECTION_COLORS } from "./collection.colors.js";
+import { Skeleton } from "../common/skeleton.jsx";
+import EmptyState from "../common/empty.state.jsx";
 
 // Выбор цвета при создании: цветные образцы, чтобы сразу видеть, что выбираешь.
 const ColorChoices = ({ value, onChange, disabled, label }) => (
@@ -197,7 +199,10 @@ const CollectionsPanel = ({ collections, onChanged, query = "", onToggleCollecti
             </div>
 
             {sorted.length === 0 ? (
-                <p className="mutedText">Коллекций пока нет — создайте первую.</p>
+                <EmptyState
+                    variant="inline"
+                    title="Коллекций пока нет — создайте первую."
+                />
             ) : (
                 <ul className="collectionsList">
                     {sorted.map((collection, index) => {
@@ -311,7 +316,13 @@ const CollectionsPanel = ({ collections, onChanged, query = "", onToggleCollecti
                                 {isOpen && (
                                     <ul className="collectionsSets">
                                         {loadingSets && !content && (
-                                            <li className="mutedText">Загружаем сеты…</li>
+                                            <li>
+                                                <Skeleton
+                                                    variant="row"
+                                                    count={2}
+                                                    label="Загружаем сеты…"
+                                                />
+                                            </li>
                                         )}
                                         {content?.own.map((set) => (
                                             <li key={set.id} className="setListRowWrap">
@@ -348,8 +359,11 @@ const CollectionsPanel = ({ collections, onChanged, query = "", onToggleCollecti
                                             </li>
                                         ))}
                                         {content && content.own.length === 0 && (
-                                            <li className="mutedText">
-                                                Здесь пока пусто — отметьте коллекцию у сета.
+                                            <li>
+                                                <EmptyState
+                                                    variant="inline"
+                                                    title="Здесь пока пусто — отметьте коллекцию у сета."
+                                                />
                                             </li>
                                         )}
                                     </ul>

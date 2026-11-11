@@ -23,6 +23,8 @@ const getTheme = () => {
     return current;
 };
 
+export const initAppTheme = () => applyTheme(readTheme());
+
 const setTheme = (key) => {
     current = key;
     applyTheme(key);

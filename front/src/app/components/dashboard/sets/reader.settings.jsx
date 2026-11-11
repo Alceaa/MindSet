@@ -16,8 +16,18 @@ const ReaderSettings = ({ settings, onChange, onReset, note }) => {
             }
         };
 
+        const handleKey = (event) => {
+            if (event.key === "Escape") {
+                setOpen(false);
+            }
+        };
+
         document.addEventListener("mousedown", handleDown);
-        return () => document.removeEventListener("mousedown", handleDown);
+        document.addEventListener("keydown", handleKey);
+        return () => {
+            document.removeEventListener("mousedown", handleDown);
+            document.removeEventListener("keydown", handleKey);
+        };
     }, [open]);
 
     return (
@@ -27,12 +37,15 @@ const ReaderSettings = ({ settings, onChange, onReset, note }) => {
                 className={`btn btnGhost btnSmall${open ? " btnActive" : ""}`}
                 onClick={() => setOpen((current) => !current)}
                 title="Вид статьи"
+                aria-label="Вид статьи"
+                aria-haspopup="dialog"
+                aria-expanded={open}
             >
                 Aa
             </button>
 
             {open && (
-                <div className="readerPopover">
+                <div className="readerPopover" role="dialog" aria-label="Вид статьи">
                     {READER_GROUPS.map((group) => (
                         <div className="readerRow" key={group.key}>
                             <span className="readerRowLabel">{group.label}</span>

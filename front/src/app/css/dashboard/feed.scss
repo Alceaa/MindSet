@@ -229,12 +229,10 @@
     font-size: 12px;
 }
 
-.feedEmpty {
-    padding: var(--gap);
-    border: 1px dashed var(--border);
-    border-radius: var(--radius-lg);
-    color: var(--text-muted);
-    font-size: 13px;
+.feedSkeleton {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xl);
 }
 
 .searchOverlay {
@@ -247,6 +245,7 @@
     padding: 8vh var(--gap) var(--gap);
     background-color: var(--overlay);
     backdrop-filter: blur(6px);
+    overscroll-behavior: contain;
 }
 
 .searchModal {
@@ -285,6 +284,10 @@
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.searchModalInput::-webkit-search-cancel-button {
+    display: none;
 }
 
 .searchModalClose {

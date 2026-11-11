@@ -8,6 +8,8 @@ import SavedSets from "./saved.sets.jsx";
 import CollectionPicker from "../collections/collection.picker.jsx";
 import CollectionsPanel from "../collections/collections.panel.jsx";
 import Pagination from "../common/pagination.jsx";
+import { Skeleton } from "../common/skeleton.jsx";
+import EmptyState from "../common/empty.state.jsx";
 import useCollections from "../../hooks/use.collections";
 import { stripMarkdown } from "../../utils/markdown.preview";
 import "../../css/dashboard/dashboard.scss";
@@ -200,7 +202,11 @@ const Sets = () => {
     };
 
     if (loading && !loadedOnce) {
-        return <p className="mutedText">Загружаем сеты…</p>;
+        return (
+            <div className="page">
+                <Skeleton variant="row" count={6} label="Загружаем сеты…" />
+            </div>
+        );
     }
 
     if (error && sets.length === 0) {
@@ -254,8 +260,8 @@ const Sets = () => {
                 </div>
 
                 <div className="filterBlock">
-                    <span className="filterBlockTitle">Вид списка</span>
-                    <div className="filterChips" role="group" aria-label="Вид списка">
+                    <span className="filterBlockTitle">Группировка</span>
+                    <div className="filterChips" role="group" aria-label="Группировка сетов">
                         <button
                             type="button"
                             className={`filterChip${!groupMode ? " filterChipActive" : ""}`}
@@ -264,7 +270,7 @@ const Sets = () => {
                                 setGrouped(false);
                             }}
                         >
-                            Все сеты
+                            Без групп
                         </button>
                         <button
                             type="button"
@@ -355,19 +361,22 @@ const Sets = () => {
                     </div>
                 </div>
                 {sets.length === 0 ? (
-                    <div className="emptyState">
-                        <h2>Сетов не найдено</h2>
-                        <p className="mutedText">
-                            {noSetsAtAll
+                    <EmptyState
+                        icon={noSetsAtAll ? "🗂️" : "🔍"}
+                        title={noSetsAtAll ? "Сетов пока нет" : "Сетов не найдено"}
+                        hint={
+                            noSetsAtAll
                                 ? "Создайте первый сет — это заметка, внутри которой можно связывать слова с другими сетами."
-                                : "Попробуйте изменить запрос или фильтр."}
-                        </p>
-                        {noSetsAtAll && (
-                            <Link className="btn btnPrimary" to="/sets/new">
-                                Создать сет
-                            </Link>
-                        )}
-                    </div>
+                                : "Попробуйте изменить запрос или фильтр."
+                        }
+                        action={
+                            noSetsAtAll ? (
+                                <Link className="btn btnPrimary" to="/sets/new">
+                                    Создать сет
+                                </Link>
+                            ) : null
+                        }
+                    />
                 ) : view === "list" ? (
                     <ul className="setList">
                         {sets.map((set) => (

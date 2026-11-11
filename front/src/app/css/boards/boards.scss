@@ -74,10 +74,6 @@
     border-radius: 999px;
 }
 
-.boardsEmpty {
-    padding: var(--gap-lg) 0;
-}
-
 /* Редактор доски: панель сверху, холст занимает остальное место. */
 .boardToolbar {
     display: flex;

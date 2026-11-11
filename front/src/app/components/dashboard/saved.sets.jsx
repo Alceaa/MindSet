@@ -5,6 +5,8 @@ import collectionService from "../../api/collection.service";
 import parseApiError from "../../utils/api.error";
 import CollectionPicker from "../collections/collection.picker.jsx";
 import Pagination from "../common/pagination.jsx";
+import { Skeleton } from "../common/skeleton.jsx";
+import EmptyState from "../common/empty.state.jsx";
 import "../../css/dashboard/dashboard.scss";
 import "../../css/collections/collections.scss";
 
@@ -181,7 +183,11 @@ const SavedSets = ({ query = "", collections = [], onCollectionsChanged, hidden 
     };
 
     if (loading) {
-        return <p className="mutedText">Загружаем сохранённые сеты...</p>;
+        return (
+            <div className="savedPanel">
+                <Skeleton variant="row" count={4} label="Загружаем сохранённые сеты…" />
+            </div>
+        );
     }
 
     if (error && items.length === 0) {
@@ -197,16 +203,16 @@ const SavedSets = ({ query = "", collections = [], onCollectionsChanged, hidden 
 
     if (items.length === 0) {
         return (
-            <div className="emptyState">
-                <h2>Сохранённых сетов пока нет</h2>
-                <p className="mutedText">
-                    Откройте «Обзор» и сохраните чужой сет — появится личный снимок,
-                    который переживёт удаление источника.
-                </p>
-                <Link className="btn btnPrimary" to="/explore">
-                    Перейти в обзор
-                </Link>
-            </div>
+            <EmptyState
+                icon="🔖"
+                title="Сохранённых сетов пока нет"
+                hint="Откройте «Обзор» и сохраните чужой сет — появится личный снимок, который переживёт удаление источника."
+                action={
+                    <Link className="btn btnPrimary" to="/explore">
+                        Перейти в обзор
+                    </Link>
+                }
+            />
         );
     }
 

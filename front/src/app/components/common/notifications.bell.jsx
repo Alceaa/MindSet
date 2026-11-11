@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router-dom";
 import notificationsService from "../../api/notifications.service";
 import parseApiError from "../../utils/api.error";
 import { formatRelativeTime } from "../../utils/relative.time";
+import { Skeleton } from "./skeleton.jsx";
+import EmptyState from "./empty.state.jsx";
 
 const linkFor = (item) => {
     switch (item.kind) {
@@ -223,6 +225,7 @@ const NotificationsBell = ({ unread, onUnread }) => {
                 className="btn btnGhost btnSmall notificationsTrigger"
                 onClick={() => setOpen((current) => !current)}
                 aria-expanded={open}
+                aria-haspopup="dialog"
                 aria-label={unread > 0 ? `Уведомления: ${unread} новых` : "Уведомления"}
             >
                 <span aria-hidden="true">🔔</span>
@@ -247,9 +250,13 @@ const NotificationsBell = ({ unread, onUnread }) => {
                     </div>
 
                     {error && <p className="notificationsError">{error}</p>}
-                    {loading && <p className="notificationsEmpty mutedText">Загружаем…</p>}
+                    {loading && (
+                        <div className="notificationsEmpty">
+                            <Skeleton variant="row" count={3} label="Загружаем уведомления…" />
+                        </div>
+                    )}
                     {!loading && !error && items.length === 0 && (
-                        <p className="notificationsEmpty mutedText">Пока ничего нового.</p>
+                        <EmptyState variant="inline" title="Пока ничего нового." />
                     )}
 
                     <ul className="notificationsList">

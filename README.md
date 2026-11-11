@@ -44,15 +44,15 @@
 |---|---|
 | `back/` | Go 1.24, Fiber v2, PostgreSQL 16, JWT, AWS SDK v2 (S3), validator |
 | `front/` | React 18 (Create React App), MUI 7, SCSS, react-router 6, axios, react-markdown, MDXEditor |
-| Прод | Docker Compose: PostgreSQL, backend, nginx со статикой, Caddy с автоматическим HTTPS |
+| Прод | Docker Compose: PostgreSQL, backend, nginx со статикой; Caddy с автоматическим HTTPS стоит на хосте и проксирует все проекты |
 
 ## Структура
 
 ```
 back/                     API на Go: src/ — код, Dockerfile, README с описанием API и переменных окружения
 front/                    SPA на React: src/app — код, Dockerfile
-docker-compose.yml        прод-сборка: db + backend + frontend + caddy
-Caddyfile                 конфигурация Caddy (HTTPS, раздача под /mindset)
+docker-compose.yml        прод-сборка: db + backend + frontend (порты только на 127.0.0.1)
+Caddyfile                 сниппет системного Caddy: HTTPS и раздача под /mindset
 CHANGELOG.md              история версий (Keep a Changelog + SemVer)
 .env.production.example   шаблон окружения для docker compose
 docker-compose.images.yml запуск из готовых образов GHCR
@@ -126,9 +126,10 @@ cp .env.production.example .env
 docker compose up -d --build
 ```
 
-В `.env` заполняются `DATABASE_*`, `JWT_*`, `S3_*`, `SMTP_*`, `TELEGRAM_*`, `DOMAIN`, `ADMIN_TOKEN`.
+В `.env` заполняются `DATABASE_*`, `JWT_*`, `S3_*`, `SMTP_*`, `TELEGRAM_*`, `ADMIN_TOKEN`.
 Приложение разворачивается под подпутём `/mindset`, API — `/mindset/api`, медиа — `/media`.
 В проде значения-заглушки секретов не принимаются: с `change-me*` и примерными паролями приложение не стартует.
+
 
 Утилиты в `back/src/cmd`: `migrate` (схема БД), `admin` (роли, блокировки), `mailcheck` (проверка SMTP).
 

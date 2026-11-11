@@ -812,7 +812,7 @@ a,
 .skipLink {
     position: absolute;
     top: 0;
-    left: -9999px;
+    left: 0;
     z-index: 100;
     padding: 8px 14px;
     border: 1px solid var(--accent);
@@ -821,10 +821,12 @@ a,
     color: var(--text);
     font-size: 13px;
     font-weight: 600;
+    transform: translateY(-120%);
+    transition: transform 0.15s ease;
 }
 
 .skipLink:focus {
-    left: 0;
+    transform: translateY(0);
 }
 
 .routeFade {

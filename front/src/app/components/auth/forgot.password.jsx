@@ -2,6 +2,9 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import authService from "../../api/auth.service";
 import parseApiError from "../../utils/api.error";
+import { desktopAutofocus } from "../../utils/autofocus";
+
+const AUTOFOCUS = desktopAutofocus();
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState("");
@@ -63,7 +66,8 @@ const ForgotPassword = () => {
                         value={email}
                         onChange={(event) => setEmail(event.target.value)}
                         autoComplete="email"
-                        autoFocus
+                        autoFocus={AUTOFOCUS}
+                        spellCheck={false}
                         required
                     />
                 </label>

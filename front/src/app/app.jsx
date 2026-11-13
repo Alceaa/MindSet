@@ -1,8 +1,9 @@
-import React, { Suspense } from "react";
+import React, { Suspense, useMemo } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
-import theme from "./theme";
+import { createAppTheme } from "./theme";
+import useAppTheme from "./hooks/use.app.theme";
 import { AuthProvider } from "./context/auth.context";
 import "./css/print.scss";
 import RequireAuth from "./components/routing/require.auth.jsx";
@@ -19,9 +20,12 @@ import VerifyEmail from "./components/auth/verify.email.jsx";
 import Logout from "./components/auth/logout.jsx";
 import Dashboard from "./components/dashboard/dashboard.jsx";
 import CreateSet from "./components/dashboard/sets/create.set.jsx";
-import LoadingScreen from "./components/common/loading.screen.jsx";
+import { SkeletonWorkspace } from "./components/common/skeleton.jsx";
+import ToastProvider from "./components/common/toast.jsx";
 import PublicSet from "./components/dashboard/sets/public.set.jsx";
 import SnapshotView from "./components/dashboard/sets/snapshot.view.jsx";
+import BoardsList from "./components/boards/boards.list.jsx";
+import BoardEditor from "./components/boards/board.editor.jsx";
 import Explore from "./components/explore/explore.jsx";
 import NewsList from "./components/news/news.list.jsx";
 import UserProfile from "./components/profile/user.profile.jsx";
@@ -116,6 +120,22 @@ const routes = [
                 ),
             },
             {
+                path: "boards",
+                element: (
+                    <RequireAuth>
+                        <BoardsList />
+                    </RequireAuth>
+                ),
+            },
+            {
+                path: "boards/:id",
+                element: (
+                    <RequireAuth>
+                        <BoardEditor />
+                    </RequireAuth>
+                ),
+            },
+            {
                 path: "sets/new",
                 element: (
                     <RequireAuth>
@@ -127,7 +147,7 @@ const routes = [
                 path: "sets/:id",
                 element: (
                     <RequireAuth>
-                        <Suspense fallback={<LoadingScreen label="Загружаем редактор..." />}>
+                        <Suspense fallback={<SkeletonWorkspace label="Загружаем редактор…" />}>
                             <SetEditor />
                         </Suspense>
                     </RequireAuth>
@@ -151,13 +171,22 @@ const routes = [
 
 const router = createBrowserRouter(routes, { basename: process.env.PUBLIC_URL || "/" });
 
-const App = () => (
-    <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <AuthProvider>
-            <RouterProvider router={router} />
-        </AuthProvider>
-    </ThemeProvider>
-);
+const App = () => {
+    // Тема применяется ко всему приложению: набор переменных на <html>,
+    // а MUI-тема собирается из тех же данных, чтобы её компоненты совпадали.
+    const { theme } = useAppTheme();
+    const muiTheme = useMemo(() => createAppTheme(theme), [theme]);
+
+    return (
+        <ThemeProvider theme={muiTheme}>
+            <CssBaseline />
+            <AuthProvider>
+                <ToastProvider>
+                    <RouterProvider router={router} />
+                </ToastProvider>
+            </AuthProvider>
+        </ThemeProvider>
+    );
+};
 
 export default App;

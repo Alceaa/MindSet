@@ -64,6 +64,8 @@ func SetupRoutes(app fiber.Router) {
 	panel.Get("/reports", handlers.ListAdminReports)
 	panel.Put("/reports/:id/status", middlewares.RequireJSONBody, handlers.UpdateReportStatus)
 	panel.Get("/actions", handlers.ListAdminActions)
+	panel.Get("/themes", handlers.ListAdminThemes)
+	panel.Put("/themes/:id/status", middlewares.RequireJSONBody, handlers.ModerateTheme)
 
 	auth := app.Group("/auth")
 	auth.Get("/config", handlers.RegistrationConfig)
@@ -132,9 +134,56 @@ func SetupRoutes(app fiber.Router) {
 	saved.Post("/:id/refresh", handlers.RefreshSavedSet)
 	saved.Post("/:id/freeze", middlewares.RequireJSONBody, handlers.FreezeSavedSet)
 	saved.Delete("/:id", handlers.DeleteSavedSet)
+	saved.Put("/:id/collections", middlewares.RequireJSONBody, handlers.AddSavedSetCollection)
+	saved.Delete("/:id/collections/:collectionId", handlers.RemoveSavedSetCollection)
 
 	app.Get("/graph", middlewares.ValidateAccessToken, handlers.GetGraph)
 	sets.Get("/:id/copy-stats", handlers.GetSetCopyStats)
+	sets.Put("/:id/collections", middlewares.RequireJSONBody, handlers.AddSetCollection)
+	sets.Delete("/:id/collections/:collectionId", handlers.RemoveSetCollection)
+
+	// Коллекции: личные полки для сетов и сохранённых снимков.
+	collections := app.Group("/collections", middlewares.ValidateAccessToken)
+	collections.Get("", handlers.ListCollections)
+	collections.Post("", middlewares.RequireJSONBody, handlers.CreateCollection)
+	collections.Put("/:id", middlewares.RequireJSONBody, handlers.UpdateCollection)
+	collections.Delete("/:id", handlers.DeleteCollection)
+
+	boards := app.Group("/boards", middlewares.ValidateAccessToken)
+	boards.Get("", handlers.ListBoards)
+	boards.Post("", middlewares.RequireJSONBody, handlers.CreateBoard)
+	boards.Get("/:id", handlers.GetBoard)
+	boards.Put("/:id", middlewares.RequireJSONBody, handlers.UpdateBoard)
+	boards.Put("/:id/doc", middlewares.RequireJSONBody, handlers.SaveBoardDoc)
+	boards.Delete("/:id", handlers.DeleteBoard)
+
+	apiTokens := app.Group("/api-tokens", middlewares.ValidateAccessToken)
+	apiTokens.Get("", handlers.ListAPITokens)
+	apiTokens.Post("", middlewares.RequireJSONBody, handlers.CreateAPIToken)
+	apiTokens.Delete("/:id", handlers.RevokeAPIToken)
+
+	app.Get("/themes", handlers.ListPublishedThemes)
+
+	themes := app.Group("/theme-packages", middlewares.ValidateAccessToken)
+	themes.Get("", handlers.ListOwnThemes)
+	themes.Post("", middlewares.RequireJSONBody, handlers.CreateTheme)
+	themes.Put("/:id", middlewares.RequireJSONBody, handlers.UpdateTheme)
+	themes.Delete("/:id", handlers.DeleteTheme)
+	themes.Post("/:id/submit", handlers.SubmitTheme)
+
+	apiLimiter := middlewares.RateLimiter(middlewares.RateLimitRule{
+		Name:       "api",
+		Max:        cfg.RateLimitAPIPerMinute,
+		Expiration: time.Minute,
+		KeyByUser:  true,
+	})
+
+	openAPI := app.Group("/api/v1", middlewares.ValidateAPIToken, apiLimiter)
+	openAPI.Get("/me", handlers.Me)
+	openAPI.Get("/sets", handlers.GetSets)
+	openAPI.Get("/sets/:id", handlers.GetSet)
+	openAPI.Get("/collections", handlers.ListCollections)
+	openAPI.Get("/graph", handlers.GetGraph)
 
 	app.Get("/set-tombstones", middlewares.ValidateAccessToken, handlers.GetSetTombstones)
 	app.Post("/set-tombstones/:id/forbid-copies", middlewares.ValidateAccessToken, handlers.ForbidSetTombstone)

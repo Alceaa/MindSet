@@ -12,7 +12,7 @@
     align-items: center;
     justify-content: center;
     padding: var(--gap);
-    background-color: rgba(0, 0, 0, 0.55);
+    background-color: var(--overlay);
 }
 
 .confirmDialog {
@@ -90,7 +90,7 @@
 }
 
 .setSidebarToggle:hover {
-    background-color: #30363d;
+    background-color: var(--border);
     color: var(--text);
 }
 

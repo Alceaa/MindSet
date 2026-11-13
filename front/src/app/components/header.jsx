@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import Avatar from "@mui/material/Avatar";
 import IconButton from "@mui/material/IconButton";
@@ -25,10 +25,13 @@ const Header = () => {
     const isSetsTab = searchParams.get("tab") === "sets";
     const isGraphTab = searchParams.get("tab") === "graph";
     const isExploreTab = location.pathname === "/explore";
+    const isBoardsTab = location.pathname.startsWith("/boards");
     const isProfileTab = location.pathname.startsWith("/u/") || location.pathname === "/settings";
-    const isHomeTab = !isExploreTab && !isSetsTab && !isGraphTab && !isProfileTab;
+    const isHomeTab = !isExploreTab && !isSetsTab && !isGraphTab && !isBoardsTab && !isProfileTab;
 
     const closeMenu = () => setAnchorEl(null);
+
+    const closeSearch = useCallback(() => setSearchOpen(false), []);
 
     const handleLogout = async () => {
         closeMenu();
@@ -70,6 +73,12 @@ const Header = () => {
                                 to="/dashboard?tab=graph"
                             >
                                 Граф
+                            </Link>
+                            <Link
+                                className={`navLink${isBoardsTab ? " navLinkActive" : ""}`}
+                                to="/boards"
+                            >
+                                Доски
                             </Link>
                         </>
                     )}
@@ -153,7 +162,7 @@ const Header = () => {
                 </div>
             </div>
 
-            <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+            <SearchModal open={searchOpen} onClose={closeSearch} />
         </header>
     );
 };

@@ -3,6 +3,9 @@ import { Link, useSearchParams } from "react-router-dom";
 import authService from "../../../api/auth.service";
 import { useAuth } from "../../../context/auth.context";
 import parseApiError from "../../../utils/api.error";
+import { desktopAutofocus } from "../../../utils/autofocus";
+
+const AUTOFOCUS = desktopAutofocus();
 
 const EMPTY_FORM = {
     login: "",
@@ -150,7 +153,9 @@ const Registration = () => {
                         value={form.login}
                         onChange={updateField("login")}
                         autoComplete="username"
-                        autoFocus
+                        autoFocus={AUTOFOCUS}
+                        spellCheck={false}
+                        autoCorrect="off"
                         required
                     />
                     {fieldErrors.login && <span className="fieldError">{fieldErrors.login}</span>}
@@ -165,6 +170,7 @@ const Registration = () => {
                         value={form.email}
                         onChange={updateField("email")}
                         autoComplete="email"
+                        spellCheck={false}
                         required
                     />
                     <span className="fieldHint">На неё придёт ссылка подтверждения.</span>
@@ -204,7 +210,7 @@ const Registration = () => {
                 </label>
 
                 <button className="btn btnPrimary btnBlock" type="submit" disabled={pending}>
-                    {pending ? "Отправляем письмо..." : "Зарегистрироваться"}
+                    {pending ? "Отправляем письмо…" : "Зарегистрироваться"}
                 </button>
             </form>
 

@@ -6,12 +6,16 @@ import socialService from "../../api/social.service";
 import { useAuth } from "../../context/auth.context";
 import { prepareMarkdown } from "../../markdown/wikilink";
 import { remarkPlugins } from "../../markdown/render";
+import { codeComponents } from "../../markdown/code.block.jsx";
+import CollectionPicker from "../collections/collection.picker.jsx";
+import "../../css/collections/collections.scss";
 
 const initialOf = (login) => (login ? login.trim().charAt(0).toUpperCase() : "?");
 
 const PREVIEW_LIMIT = 400;
 
 const previewComponents = {
+    ...codeComponents,
     a({ node, href, children, ...rest }) {
         if (typeof href === "string" && href.startsWith("wikilink:")) {
             return <span className="previewWikilink">{children}</span>;
@@ -38,6 +42,9 @@ const SetCard = ({
     onSave,
     saveLabel = "Сохранить",
     saving = false,
+    collections = [],
+    onToggleCollection,
+    onCreateCollection,
 }) => {
     const { isAuthenticated } = useAuth();
     const navigate = useNavigate();
@@ -130,6 +137,15 @@ const SetCard = ({
                     ) : null}
                     <span className="listMeta">изменён {set.last_activity}</span>
                 </span>
+
+                {onToggleCollection && (
+                    <CollectionPicker
+                        collections={collections}
+                        selected={(set.collections ?? []).map((item) => item.id)}
+                        onToggle={onToggleCollection}
+                        onCreate={onCreateCollection}
+                    />
+                )}
             </div>
 
             {(likeable || onSave) && (

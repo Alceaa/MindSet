@@ -10,7 +10,7 @@
     top: 0;
     z-index: 10;
     border-bottom: 1px solid var(--border);
-    background-color: rgba(13, 17, 23, 0.85);
+    background-color: var(--header-bg);
     backdrop-filter: blur(8px);
 }
 
@@ -106,8 +106,8 @@
 }
 
 .verifyBanner {
-    border-bottom: 1px solid rgba(226, 176, 83, 0.35);
-    background-color: rgba(226, 176, 83, 0.12);
+    border-bottom: 1px solid var(--accent-line);
+    background-color: var(--accent-tint-strong);
     font-size: 13px;
 }
 
@@ -208,7 +208,7 @@
     padding: 0 5px;
     border-radius: 999px;
     background-color: var(--accent);
-    color: #0d1117;
+    color: var(--on-accent);
     font-size: 11px;
     font-weight: 600;
     line-height: 1;
@@ -224,6 +224,8 @@
     width: min(360px, calc(100vw - 24px));
     max-height: min(420px, 70vh);
     padding: var(--gap-sm);
+    overflow: hidden;
+    overscroll-behavior: contain;
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     background-color: var(--bg-surface);

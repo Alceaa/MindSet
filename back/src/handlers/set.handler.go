@@ -95,6 +95,7 @@ func GetSets(c *fiber.Ctx) error {
 
 	limit := c.QueryInt("limit", 0)
 	offset := c.QueryInt("offset", 0)
+	collectionID := c.QueryInt("collection_id", -1)
 	search := strings.TrimSpace(c.Query("search"))
 	visibility := strings.TrimSpace(c.Query("visibility"))
 
@@ -112,7 +113,7 @@ func GetSets(c *fiber.Ctx) error {
 		search = string(runes[:ownSearchMaxLength])
 	}
 
-	sets, total, err := db.SearchUserSets(c.Context(), user.ID, search, visibility, limit, offset)
+	sets, total, err := db.SearchUserSets(c.Context(), user.ID, search, visibility, collectionID, limit, offset)
 	if err != nil {
 		return utils.Fail(c, fiber.StatusInternalServerError, "Не удалось загрузить сеты", err)
 	}

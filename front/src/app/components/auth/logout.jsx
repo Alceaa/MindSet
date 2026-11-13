@@ -23,7 +23,7 @@ const Logout = () => {
 
             <div className="formActions">
                 <button className="btn btnDanger btnBlock" onClick={handleLogout} disabled={pending}>
-                    {pending ? "Выходим..." : "Выйти"}
+                    {pending ? "Выходим…" : "Выйти"}
                 </button>
                 <button className="btn btnGhost btnBlock" onClick={() => navigate(-1)}>
                     Остаться

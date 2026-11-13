@@ -3,23 +3,12 @@ import { useCallback, useEffect, useState } from "react";
 const STORAGE_KEY = "mindset:reader";
 
 export const READER_DEFAULTS = {
-    theme: "default",
     width: "normal",
     font: "sans",
     scale: "m",
 };
 
 export const READER_GROUPS = [
-    {
-        key: "theme",
-        label: "Тема",
-        options: [
-            { value: "default", label: "Обычная" },
-            { value: "sepia", label: "Сепия" },
-            { value: "nord", label: "Nord" },
-            { value: "contrast", label: "Контраст" },
-        ],
-    },
     {
         key: "width",
         label: "Ширина",

@@ -1,0 +1,488 @@
+/* Коллекции: метки, группы в сайдбаре, меню выбора. */
+
+.collectionDot {
+    width: 8px;
+    height: 8px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background-color: var(--text-faint);
+}
+
+.collectionDot-amber {
+    background-color: var(--collection-amber);
+}
+.collectionDot-blue {
+    background-color: var(--collection-blue);
+}
+.collectionDot-green {
+    background-color: var(--collection-green);
+}
+.collectionDot-purple {
+    background-color: var(--collection-purple);
+}
+.collectionDot-red {
+    background-color: var(--collection-red);
+}
+.collectionDot-teal {
+    background-color: var(--collection-teal);
+}
+.collectionDot-default {
+    background-color: var(--text-faint);
+}
+
+.collectionPicker {
+    position: relative;
+    display: inline-flex;
+}
+
+.collectionChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background-color: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+/* Длинное название коллекции переносится, а не растягивает строку за экран. */
+.collectionChipLabel {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.collectionChip:hover {
+    border-color: var(--accent);
+    color: var(--text);
+}
+
+.collectionChipActive {
+    background-color: var(--bg-surface-muted);
+    color: var(--text);
+}
+
+.collectionMenu {
+    z-index: 1200;
+    display: flex;
+    flex-direction: column;
+    width: min(320px, calc(100vw - 24px));
+    max-height: min(320px, 60vh);
+    overflow-y: auto;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface);
+    box-shadow: var(--shadow);
+}
+
+.collectionMenuItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border: 0;
+    border-radius: var(--radius);
+    background: none;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.collectionMenuItem:hover {
+    background-color: var(--bg-surface-muted);
+    color: var(--text);
+}
+
+.collectionMenuItemActive {
+    color: var(--accent);
+}
+
+.collectionMenuTitle {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.collectionMenuCreate {
+    color: var(--text-faint);
+}
+
+/* Сайдбар: группы по коллекциям */
+
+.setSidebarGroupHead {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: var(--radius);
+    background: none;
+    color: var(--text-faint);
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: left;
+    cursor: pointer;
+}
+
+.setSidebarGroupHead:hover {
+    color: var(--text-muted);
+}
+
+.setSidebarGroupArrow {
+    width: 10px;
+    font-size: 10px;
+}
+
+.setSidebarGroupTitle {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.setSidebarGroupList {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+/* Сеты внутри коллекции чуть смещены — видно, что они лежат в группе. */
+.setSidebarGroupList .setSidebarItem {
+    padding-left: 24px;
+}
+
+/* Страница «Сеты»: группы по коллекциям */
+
+.setGroup + .setGroup {
+    margin-top: var(--gap-lg);
+}
+
+.setGroupHead {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    margin-bottom: var(--gap-sm);
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-muted);
+}
+
+.setGroupTitle {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.setMeta {
+    flex-wrap: wrap;
+}
+
+.savedItemActions {
+    flex-wrap: wrap;
+}
+
+/* Строка списка и метка коллекции рядом: строка занимает всё место, метка — сбоку. */
+.setListRowWrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-sm);
+}
+
+.setListRowWrap .setListRow {
+    flex: 1;
+    min-width: 0;
+}
+
+.setListRowWrap + .setListRowWrap .setListRow {
+    border-top: 1px solid var(--border);
+}
+
+/* Панель управления коллекциями */
+
+.collectionsManager {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+}
+
+.collectionsCreate {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+}
+
+.collectionsCreate .input {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+.collectionsColorSelect {
+    flex: 0 0 auto;
+    max-width: 160px;
+}
+
+/* Блоки фильтров: рамка, заголовок и фон — чтобы чипы читались как группы. */
+.filterBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1 1 320px;
+    min-width: 0;
+    padding: var(--gap-sm) var(--gap);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface-muted);
+}
+
+.filterBlockTitle {
+    color: var(--text-faint);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* Выбор цвета у готовой коллекции: свёрнут в кнопку, палитра выдвигается. */
+.collectionColorToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: none;
+    cursor: pointer;
+}
+
+.collectionColorToggle:hover {
+    border-color: var(--accent);
+}
+
+.collectionColors {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    overflow: hidden;
+    max-height: 0;
+    opacity: 0;
+    transition: max-height 0.2s ease, opacity 0.2s ease;
+}
+
+.collectionColorsOpen {
+    max-height: 90px;
+    opacity: 1;
+}
+
+/* Коллекция в панели: заголовок-кнопка и раскрывающийся список сетов. */
+.collectionsRow {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+}
+
+.collectionsRowHead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-sm);
+    padding: 6px 8px;
+}
+
+.collectionsToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.collectionsToggle:hover {
+    color: var(--accent);
+}
+
+.collectionsToggleArrow {
+    width: 10px;
+    color: var(--text-faint);
+    font-size: 10px;
+}
+
+.collectionsName {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.collectionsSets {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 260px;
+    margin: 0;
+    padding: 0 var(--gap-sm) var(--gap-sm);
+    overflow-y: auto;
+    list-style: none;
+}
+
+.collectionsSetRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+    padding: 5px 6px;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.collectionsSetRow:hover {
+    background-color: var(--bg-surface);
+    color: var(--text);
+    text-decoration: none;
+}
+
+.collectionsSetTitle {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Постраничный вывод: «назад / страницы / вперёд» для длинных списков. */
+.pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding-top: var(--gap);
+}
+
+.paginationBtn {
+    min-width: 34px;
+    padding: 5px 9px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.paginationBtn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--text);
+}
+
+.paginationBtn:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.paginationBtnActive {
+    border-color: var(--accent);
+    background-color: var(--accent-soft);
+    color: var(--text);
+}
+
+.paginationTotal {
+    margin: 0;
+    padding-top: var(--gap-sm);
+    font-size: 13px;
+    text-align: center;
+}
+
+
+.collectionColorChoice {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    background: none;
+    cursor: pointer;
+}
+
+.collectionColorChoice:hover {
+    border-color: var(--border);
+}
+
+.collectionColorChoiceActive {
+    border-color: var(--accent);
+    background-color: var(--bg-surface-muted);
+}
+
+/* Отметка в меню выбора коллекций: у сета их может быть несколько. */
+.collectionCheck {
+    width: 14px;
+    flex: 0 0 auto;
+    color: var(--accent);
+    font-size: 12px;
+    text-align: center;
+}
+
+.collectionsList {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.collectionsRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-sm);
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+}
+
+.collectionsName {
+    flex: 1;
+    min-width: 120px;
+    border: 0;
+    background: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.collectionsName:hover {
+    color: var(--accent);
+}

@@ -36,8 +36,11 @@ import "@mdxeditor/editor/style.css";
 import setService from "../../../api/set.service";
 import parseApiError from "../../../utils/api.error";
 import { uploadImage } from "../../../utils/image.upload";
-import LoadingScreen from "../../common/loading.screen.jsx";
+import { SkeletonWorkspace } from "../../common/skeleton.jsx";
+import EmptyState from "../../common/empty.state.jsx";
+import { useToast } from "../../common/toast.jsx";
 import MarkdownTools from "../../common/markdown.tools.jsx";
+import MarkdownSnippets from "../../common/markdown.snippets.jsx";
 import { applyMarkdownPaste } from "../../../markdown/paste";
 import { registerListSplit } from "../../../markdown/list.split";
 import { MARKDOWN_EXPORT_OPTIONS } from "../../../markdown/export.options";
@@ -51,6 +54,11 @@ import ReaderSettings from "./reader.settings.jsx";
 import useReaderSettings from "../../../hooks/use.reader.settings";
 import useReadingPosition, { readingPositionKey } from "../../../hooks/use.reading.position";
 import useSourceModeBridge from "../../../hooks/use.source.mode.bridge";
+import collectionService from "../../../api/collection.service";
+import useCollections from "../../../hooks/use.collections";
+import useBoards from "../../../hooks/use.boards";
+import CollectionPicker from "../../collections/collection.picker.jsx";
+import "../../../css/collections/collections.scss";
 import "../../../css/dashboard/dashboard.scss";
 import "../../../css/dashboard/workspace.scss";
 import "../../../css/dashboard/reader.scss";
@@ -113,7 +121,7 @@ const imageUploadHandler = async (file) => {
     }
 };
 
-const useEditorPlugins = (onOpenPicker) =>
+const useEditorPlugins = (onOpenPicker, onInsertSnippet) =>
     useMemo(
         () => [
             headingsPlugin(),
@@ -151,12 +159,13 @@ const useEditorPlugins = (onOpenPicker) =>
                         </button>
                         <InsertTable />
                         <InsertThematicBreak />
+                        <MarkdownSnippets onInsert={onInsertSnippet} />
                     </DiffSourceToggleWrapper>
                 ),
             }),
             remoteRealmPlugin({ editorId: EDITOR_ID }),
         ],
-        [onOpenPicker]
+        [onOpenPicker, onInsertSnippet]
     );
 
 const SetEditorInner = () => {
@@ -164,6 +173,7 @@ const SetEditorInner = () => {
     const navigate = useNavigate();
     const realm = useRemoteMDXEditorRealm(EDITOR_ID);
 
+    const { push } = useToast();
     const hostRef = useRef(null);
     const editorRef = useRef(null);
     const suppressTrigger = useRef(0);
@@ -192,18 +202,23 @@ const SetEditorInner = () => {
     const [backlinks, setBacklinks] = useState([]);
     const [allSets, setAllSets] = useState([]);
     const [savedSets, setSavedSets] = useState([]);
+    const { collections, reload: reloadCollections } = useCollections();
+    const { boards } = useBoards();
 
     const [saving, setSaving] = useState(false);
     const [removing, setRemoving] = useState(false);
     const [deleteDialog, setDeleteDialog] = useState(null);
-    const [actionError, setActionError] = useState("");
     const [fieldErrors, setFieldErrors] = useState({});
     const [savedAt, setSavedAt] = useState("");
     const [mode, setMode] = useState("read");
     const [searchParams, setSearchParams] = useSearchParams();
     const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
         try {
-            return window.localStorage.getItem("mindset:sidebar:collapsed") === "1";
+            const stored = window.localStorage.getItem("mindset:sidebar:collapsed");
+            if (stored !== null) {
+                return stored === "1";
+            }
+            return window.matchMedia("(max-width: 900px)").matches;
         } catch {
             return false;
         }
@@ -315,7 +330,14 @@ const SetEditorInner = () => {
             .getSets()
             .then((items) => {
                 if (active) {
-                    setAllSets(items.map((item) => ({ id: item.id, title: item.title })));
+                    // В сайдбаре нужны и коллекции: по ним сеты раскладываются по группам.
+                    setAllSets(
+                        items.map((item) => ({
+                            id: item.id,
+                            title: item.title,
+                            collections: item.collections ?? [],
+                        }))
+                    );
                 }
             })
             .catch(() => {
@@ -360,7 +382,6 @@ const SetEditorInner = () => {
         }
 
         setSaving(true);
-        setActionError("");
         setFieldErrors({});
 
         try {
@@ -378,12 +399,12 @@ const SetEditorInner = () => {
             switchMode("read");
         } catch (error) {
             const parsed = parseApiError(error);
-            setActionError(parsed.message);
+            push(parsed.message, "error");
             setFieldErrors(parsed.fieldErrors);
         } finally {
             setSaving(false);
         }
-    }, [set, saving, dirty, title, description, visibility, content, applySet, switchMode]);
+    }, [set, saving, dirty, title, description, visibility, content, applySet, switchMode, push]);
 
     const handleLeave = useCallback(() => {
         if (dirty) {
@@ -394,7 +415,6 @@ const SetEditorInner = () => {
                 return;
             }
         }
-        setActionError("");
         switchMode("read");
     }, [dirty, switchMode]);
 
@@ -419,17 +439,16 @@ const SetEditorInner = () => {
 
             setDeleteDialog(null);
             setRemoving(true);
-            setActionError("");
 
             try {
                 await setService.deleteSet(set.id, { forbid_copies: forbidCopies });
                 navigate("/dashboard?tab=sets", { replace: true });
             } catch (error) {
-                setActionError(parseApiError(error).message);
+                push(parseApiError(error).message, "error");
                 setRemoving(false);
             }
         },
-        [set, navigate]
+        [set, navigate, push]
     );
 
     useEffect(() => {
@@ -444,7 +463,6 @@ const SetEditorInner = () => {
                 if (mode === "edit") {
                     handleLeave();
                 } else {
-                    setActionError("");
                     switchMode("edit");
                 }
             }
@@ -467,6 +485,21 @@ const SetEditorInner = () => {
         window.addEventListener("beforeunload", handleBeforeUnload);
         return () => window.removeEventListener("beforeunload", handleBeforeUnload);
     }, [dirty]);
+
+    useEffect(() => {
+        if (!deleteDialog) {
+            return undefined;
+        }
+
+        const handleKey = (event) => {
+            if (event.key === "Escape") {
+                setDeleteDialog(null);
+            }
+        };
+
+        document.addEventListener("keydown", handleKey);
+        return () => document.removeEventListener("keydown", handleKey);
+    }, [deleteDialog]);
 
     const insertWikilink = useCallback(
         (value, withAlias, alias) => {
@@ -551,6 +584,23 @@ const SetEditorInner = () => {
         prepare: normalizeCodeFences,
     });
 
+    const insertSnippet = useCallback((markdown) => {
+        const editor = editorRef.current;
+        const append = (current) => `${current.trimEnd()}${current.trim() ? "\n\n" : ""}${markdown}`;
+
+        if (!editor?.insertMarkdown) {
+            setContent(append);
+            return;
+        }
+
+        try {
+            editor.focus(undefined, { defaultSelection: "rootEnd" });
+            editor.insertMarkdown(markdown);
+        } catch {
+            setContent(append);
+        }
+    }, []);
+
     // Снятие списка: Lexical по умолчанию убирает весь список, нам нужен только текущий пункт.
     useEffect(() => {
         if (mode !== "edit") {
@@ -613,14 +663,20 @@ const SetEditorInner = () => {
             buildPickerOptions({
                 allSets,
                 savedSets,
+                boards,
                 currentSetId: set?.id,
                 query: picker?.query ?? "",
             }),
-        [picker, allSets, savedSets, set]
+        [picker, allSets, savedSets, boards, set]
     );
 
     const handlePick = useCallback(
         (option, withAlias) => {
+            if (option.board) {
+                insertWikilink(`board:${option.title}`, withAlias);
+                return;
+            }
+
             if (option.ref) {
                 insertWikilink(option.ref, withAlias, option.title);
                 return;
@@ -776,23 +832,24 @@ const SetEditorInner = () => {
         return () => window.removeEventListener("keydown", handleKeyDown, true);
     }, [picker, pickerOptions, pickerIndex, handlePick]);
 
-    const plugins = useEditorPlugins(openPicker);
+    const plugins = useEditorPlugins(openPicker, insertSnippet);
 
     if (loading) {
-        return <LoadingScreen label="Загружаем сет..." />;
+        return <SkeletonWorkspace />;
     }
 
     if (notFound) {
         return (
-            <div className="emptyState">
-                <h2>Сет не найден</h2>
-                <p className="mutedText">
-                    Возможно, он удалён или принадлежит другому пользователю.
-                </p>
-                <Link className="btn btnPrimary" to="/dashboard?tab=sets">
-                    К списку сетов
-                </Link>
-            </div>
+            <EmptyState
+                icon="🔍"
+                title="Сет не найден"
+                hint="Возможно, он удалён или принадлежит другому пользователю."
+                action={
+                    <Link className="btn btnPrimary" to="/dashboard?tab=sets">
+                        К списку сетов
+                    </Link>
+                }
+            />
         );
     }
 
@@ -807,10 +864,58 @@ const SetEditorInner = () => {
         );
     }
 
+    // Метка коллекций в статье: отмечаем и снимаем полки без перезагрузки страницы.
+    const handleToggleCollection = async (collectionId, inCollection) => {
+        try {
+            if (inCollection) {
+                await collectionService.addSet(id, collectionId);
+            } else {
+                await collectionService.removeSet(id, collectionId);
+            }
+
+            const collection = collections.find((item) => item.id === collectionId);
+            const applyCollections = (list) => {
+                if (!collection) {
+                    return list;
+                }
+
+                const exists = list.some((item) => item.id === collectionId);
+                if (inCollection && !exists) {
+                    return [
+                        ...list,
+                        { id: collection.id, title: collection.title, color: collection.color },
+                    ];
+                }
+                if (!inCollection && exists) {
+                    return list.filter((item) => item.id !== collectionId);
+                }
+                return list;
+            };
+
+            setSet((current) =>
+                current
+                    ? { ...current, collections: applyCollections(current.collections ?? []) }
+                    : current
+            );
+            setAllSets((current) =>
+                current.map((item) =>
+                    String(item.id) === String(id)
+                        ? { ...item, collections: applyCollections(item.collections ?? []) }
+                        : item
+                )
+            );
+
+            await reloadCollections();
+        } catch (err) {
+            push(parseApiError(err).message, "error");
+        }
+    };
+
     return (
         <div className="setWorkspace">
             <SetSidebar
                 sets={allSets}
+                collections={collections}
                 currentId={id}
                 collapsed={sidebarCollapsed}
                 onToggle={toggleSidebar}
@@ -851,7 +956,7 @@ const SetEditorInner = () => {
                                 onClick={handleDelete}
                                 disabled={removing}
                             >
-                                {removing ? "Удаляем..." : "Удалить"}
+                                {removing ? "Удаляем…" : "Удалить"}
                             </button>
                         </>
                     ) : (
@@ -861,7 +966,7 @@ const SetEditorInner = () => {
                                 onClick={handleSave}
                                 disabled={!dirty || saving}
                             >
-                                {saving ? "Сохраняем..." : "Сохранить"}
+                                {saving ? "Сохраняем…" : "Сохранить"}
                             </button>
                             <button className="btn btnGhost" onClick={handleLeave} title="Ctrl+E">
                                 К статье
@@ -877,22 +982,15 @@ const SetEditorInner = () => {
                                 onClick={handleDelete}
                                 disabled={removing}
                             >
-                                {removing ? "Удаляем..." : "Удалить"}
+                                {removing ? "Удаляем…" : "Удалить"}
                             </button>
                         </>
                     )}
                 </div>
 
-                {actionError && (
-                    <div className="alert alertError" role="alert">
-                        {actionError}
-                    </div>
-                )}
-
                 {mode === "read" ? (
                     <div
                         className="articleCard"
-                        data-reader-theme={readerView.theme}
                         data-reader-width={effectiveReaderWidth}
                         data-reader-font={readerView.font}
                         data-reader-scale={readerView.scale}
@@ -908,6 +1006,26 @@ const SetEditorInner = () => {
                                 {links.length > 0 && (
                                     <span className="badge">Связей: {links.length}</span>
                                 )}
+                                <CollectionPicker
+                                    collections={collections}
+                                    selected={(set.collections ?? []).map((item) => item.id)}
+                                    onToggle={handleToggleCollection}
+                                    onCreate={async (collectionTitle) => {
+                                        try {
+                                            const data = await collectionService.create({
+                                                title: collectionTitle,
+                                                color: "",
+                                            });
+                                            await reloadCollections();
+                                            await handleToggleCollection(
+                                                data.collection?.id ?? 0,
+                                                true
+                                            );
+                                        } catch (err) {
+                                            push(parseApiError(err).message, "error");
+                                        }
+                                    }}
+                                />
                                 {dirty && <span className="badge badgeWarning">не сохранено</span>}
                                 {!dirty && savedAt && (
                                     <span className="badge badgeSuccess">сохранено в {savedAt}</span>
@@ -1089,12 +1207,14 @@ const SetEditorInner = () => {
                         </p>
                         <div className="confirmActions">
                             <button
+                                type="button"
                                 className="btn btnDanger"
                                 onClick={() => performDelete(visibility === "private")}
                             >
                                 Удалить вместе с копиями
                             </button>
                             <button
+                                type="button"
                                 className="btn btnGhost"
                                 onClick={() => performDelete(false)}
                                 disabled={visibility === "private" || deleteDialog.copyCount === 0}
@@ -1102,8 +1222,10 @@ const SetEditorInner = () => {
                                 Оставить копии (заморозить на 30 дней)
                             </button>
                             <button
+                                type="button"
                                 className="btn btnGhost"
                                 onClick={() => setDeleteDialog(null)}
+                                autoFocus
                             >
                                 Отмена
                             </button>

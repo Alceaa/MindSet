@@ -138,7 +138,8 @@
     overflow-x: auto;
     border: 1px solid var(--reader-strong);
     border-radius: var(--radius);
-    background-color: var(--reader-code-block-bg);
+    background-color: var(--code-bg);
+    color: var(--code-text);
 }
 
 .article pre code {
@@ -146,6 +147,13 @@
     background: none;
     font-size: 13px;
     line-height: 1.6;
+}
+
+/* Ссылка на доску: помечаем её знаком, как снимок — пометкой ⧉. */
+.articleLinkBoard .boardMark {
+    margin-left: 4px;
+    color: var(--reader-muted);
+    font-size: 0.85em;
 }
 
 .article a {

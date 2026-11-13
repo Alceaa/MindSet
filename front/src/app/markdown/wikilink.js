@@ -4,6 +4,28 @@ import { stripEscapes } from "./escapes";
 export const normalizeTitle = (title) =>
     title.toLowerCase().split(/\s+/).filter(Boolean).join(" ");
 
+// Ссылка на доску: [[board:Схема деплоя]] или [[доска:Схема деплоя|схема]].
+// Протокол отличается от викиссылки, чтобы доска была отдельным типом вложения,
+// а не ещё одним сетом.
+export const BOARD_PROTOCOL = "board";
+
+const BOARD_PREFIX = /^(?:board|доска)\s*:\s*/i;
+
+/**
+ * Разбор того, что набрано в пикере ссылок. `[[board:Схема` — это явно доска,
+ * поэтому искать нужно по «Схема», а не по всей строке с префиксом.
+ */
+export const parseBoardQuery = (raw) => {
+    const text = String(raw ?? "");
+    const match = BOARD_PREFIX.exec(text);
+
+    if (!match) {
+        return { board: false, needle: text.trim() };
+    }
+
+    return { board: true, needle: text.slice(match[0].length).trim() };
+};
+
 const STASH = "\u0001";
 const ANY_OPEN = /\\?\[\\?\[/;
 const WIKILINK = /\\?\[\\?\[([^[\]\n]*?)\\?\]\\?\]/g;
@@ -64,13 +86,36 @@ export const prepareMarkdown = (markdown) => {
         const pipe = raw.indexOf("|");
         const label = (pipe === -1 ? raw : raw.slice(0, pipe)).trim();
         const alias = pipe === -1 ? "" : raw.slice(pipe + 1).trim();
+
+        // Доска подставляется по названию, как сет по викиссылке.
+        const board = BOARD_PREFIX.exec(label);
+        if (board) {
+            const boardTitle = label.slice(board[0].length).trim();
+            const boardKey = normalizeTitle(stripEscapes(boardTitle));
+
+            if (!boardKey) {
+                return match;
+            }
+
+            stashLinks.push({ protocol: BOARD_PROTOCOL, key: boardKey });
+            return (
+                STASH +
+                "L" +
+                (stashLinks.length - 1) +
+                STASH +
+                "(" +
+                (alias || boardTitle) +
+                ")"
+            );
+        }
+
         const key = normalizeTitle(stripEscapes(label));
 
         if (!key) {
             return match;
         }
 
-        stashLinks.push(key);
+        stashLinks.push({ protocol: "wikilink", key });
         return (
             STASH +
             "L" +
@@ -94,8 +139,10 @@ export const prepareMarkdown = (markdown) => {
 
     text = text.replace(
         new RegExp(`${STASH}L(\\d+)${STASH}\\(([^)]*)\\)`, "g"),
-        (match, index, label) =>
-            "[" + label + "](wikilink:" + encodeURIComponent(stashLinks[Number(index)]) + ")"
+        (match, index, label) => {
+            const link = stashLinks[Number(index)];
+            return "[" + label + "](" + link.protocol + ":" + encodeURIComponent(link.key) + ")";
+        }
     );
 
     return text.replace(new RegExp(`${STASH}(\\d+)${STASH}`, "g"), (match, index) =>

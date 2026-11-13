@@ -1,0 +1,146 @@
+/* Доски: список и редактор холста. */
+
+.boardsPage {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+}
+
+.boardsHead {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--gap);
+}
+
+.boardsTitle {
+    margin: 0 0 4px;
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.boardsCreate {
+    display: flex;
+    gap: var(--gap-sm);
+}
+
+.boardsCreate .input {
+    flex: 1;
+}
+
+.boardsList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.boardRow {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    padding: 10px var(--gap-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface);
+}
+
+.boardRowMain {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.boardRowTitle {
+    color: var(--text);
+    font-weight: 500;
+}
+
+.boardRowMeta {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    font-size: 12px;
+}
+
+.boardRowVisibility {
+    padding: 1px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+}
+
+/* Редактор доски: панель сверху, холст занимает остальное место. */
+.boardToolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-sm);
+}
+
+.boardBack {
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.boardTitleInput {
+    flex: 1;
+    min-width: 180px;
+    font-weight: 600;
+}
+
+.boardVisibility {
+    width: auto;
+}
+
+.boardStatus {
+    font-size: 12px;
+}
+
+.boardActions {
+    display: flex;
+    gap: var(--gap-xs);
+    margin-left: auto;
+}
+
+.boardAlert {
+    margin: 0;
+}
+
+.boardCanvas {
+    height: calc(100vh - var(--header-height) - 140px);
+    min-height: 420px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.boardCanvas .excalidraw {
+    --color-primary: var(--accent);
+}
+
+.boardLoading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+@media (max-width: 640px) {
+    .boardsCreate {
+        flex-direction: column;
+    }
+
+    .boardActions {
+        margin-left: 0;
+    }
+
+    .boardCanvas {
+        height: calc(100vh - var(--header-height) - 220px);
+    }
+}

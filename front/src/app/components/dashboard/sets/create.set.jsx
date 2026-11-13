@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import setService from "../../../api/set.service";
 import parseApiError from "../../../utils/api.error";
+import { desktopAutofocus } from "../../../utils/autofocus";
 import "../../../css/dashboard/dashboard.scss";
 
 const DESCRIPTION_LIMIT = 250;
+const AUTOFOCUS = desktopAutofocus();
 
 const CreateSet = () => {
     const navigate = useNavigate();
@@ -67,7 +69,7 @@ const CreateSet = () => {
                             onChange={(event) => setTitle(event.target.value)}
                             placeholder="Например: Go — конкурентность"
                             maxLength={100}
-                            autoFocus
+                            autoFocus={AUTOFOCUS}
                             required
                         />
                         {fieldErrors.title && <span className="fieldError">{fieldErrors.title}</span>}
@@ -96,7 +98,7 @@ const CreateSet = () => {
 
                     <div className="formActions">
                         <button className="btn btnPrimary" type="submit" disabled={pending}>
-                            {pending ? "Создаём..." : "Создать сет"}
+                            {pending ? "Создаём…" : "Создать сет"}
                         </button>
                     </div>
                 </form>

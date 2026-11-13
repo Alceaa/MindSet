@@ -388,3 +388,144 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS sets_title_trgm_idx ON sets USING gin (title gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS sets_description_trgm_idx ON sets USING gin (description gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS sets_content_trgm_idx ON sets USING gin (content gin_trgm_ops);
+
+-- Коллекции: личные полки для сетов, один уровень без вложенности.
+-- Смысл ближе к группе по теме, чем к тегу: сетов много и они путаются.
+CREATE TABLE IF NOT EXISTS collections (
+    id         serial PRIMARY KEY,
+    user_id    integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    title      varchar NOT NULL,
+    title_key  varchar NOT NULL,
+    color      varchar NOT NULL DEFAULT '',
+    position   integer NOT NULL DEFAULT 0,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Названия коллекций у одного пользователя уникальны (как у сетов).
+CREATE UNIQUE INDEX IF NOT EXISTS collections_user_title_key_idx
+    ON collections (user_id, title_key);
+
+CREATE INDEX IF NOT EXISTS collections_user_position_idx
+    ON collections (user_id, position, id);
+
+-- Сет лежит в нескольких коллекциях: связь «многие ко многим», один сет может быть
+-- в разных полках (например, «Работа» и «Идеи»). Удаление коллекции сеты не удаляет.
+CREATE TABLE IF NOT EXISTS set_collections (
+    set_id        integer NOT NULL REFERENCES sets (id) ON DELETE CASCADE,
+    collection_id integer NOT NULL REFERENCES collections (id) ON DELETE CASCADE,
+    position      integer NOT NULL DEFAULT 0,
+    PRIMARY KEY (set_id, collection_id)
+);
+
+-- Для баз, где таблица уже была с ключом только по set_id: снимаем его и запрещаем
+-- только повтор одной и той же пары.
+ALTER TABLE set_collections DROP CONSTRAINT IF EXISTS set_collections_pkey;
+CREATE UNIQUE INDEX IF NOT EXISTS set_collections_set_collection_uq
+    ON set_collections (set_id, collection_id);
+
+CREATE INDEX IF NOT EXISTS set_collections_set_idx ON set_collections (set_id);
+
+CREATE INDEX IF NOT EXISTS set_collections_collection_idx
+    ON set_collections (collection_id, position, set_id);
+
+-- Сохранённые сеты раскладываются по коллекциям так же, как авторские.
+CREATE TABLE IF NOT EXISTS saved_set_collections (
+    saved_set_id  integer NOT NULL REFERENCES saved_sets (id) ON DELETE CASCADE,
+    collection_id integer NOT NULL REFERENCES collections (id) ON DELETE CASCADE,
+    position      integer NOT NULL DEFAULT 0,
+    PRIMARY KEY (saved_set_id, collection_id)
+);
+
+ALTER TABLE saved_set_collections DROP CONSTRAINT IF EXISTS saved_set_collections_pkey;
+CREATE UNIQUE INDEX IF NOT EXISTS saved_set_collections_set_collection_uq
+    ON saved_set_collections (saved_set_id, collection_id);
+
+CREATE INDEX IF NOT EXISTS saved_set_collections_set_idx
+    ON saved_set_collections (saved_set_id);
+
+CREATE INDEX IF NOT EXISTS saved_set_collections_collection_idx
+    ON saved_set_collections (collection_id, position, saved_set_id);
+
+
+-- Доски (whiteboard). Сцена хранится в jsonb: это формат .excalidraw как есть,
+-- поэтому её можно отдать клиенту без разбора на нашей стороне.
+CREATE TABLE IF NOT EXISTS boards (
+    id           serial PRIMARY KEY,
+    user_id      integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    title        varchar NOT NULL,
+    title_key    varchar NOT NULL,
+    visibility   varchar NOT NULL DEFAULT 'private',
+    doc          jsonb NOT NULL DEFAULT '{}'::jsonb,
+    date_created date NOT NULL DEFAULT CURRENT_DATE,
+    updated_at   timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS title_key varchar;
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS visibility varchar NOT NULL DEFAULT 'private';
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS doc jsonb NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE boards ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+
+UPDATE boards SET title_key = lower(title) WHERE title_key IS NULL OR title_key = '';
+
+-- Названия досок у одного пользователя уникальны: по названию доска подставляется
+-- в текст сета, как сет по викиссылке.
+CREATE UNIQUE INDEX IF NOT EXISTS boards_user_title_key_idx
+    ON boards (user_id, title_key);
+
+CREATE INDEX IF NOT EXISTS boards_user_updated_idx
+    ON boards (user_id, updated_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS api_tokens (
+    id           serial PRIMARY KEY,
+    user_id      integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    title        varchar NOT NULL,
+    prefix       varchar NOT NULL,
+    token_hash   varchar NOT NULL,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    last_used_at timestamptz,
+    expires_at   timestamptz
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS api_tokens_hash_uq ON api_tokens (token_hash);
+
+CREATE INDEX IF NOT EXISTS api_tokens_user_idx ON api_tokens (user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS theme_packages (
+    id              serial PRIMARY KEY,
+    author_id       integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    theme_key       varchar NOT NULL,
+    title           varchar NOT NULL,
+    description     varchar NOT NULL DEFAULT '',
+    mode            varchar NOT NULL DEFAULT 'dark',
+    base_theme      varchar NOT NULL DEFAULT 'dark',
+    variables       jsonb NOT NULL DEFAULT '{}'::jsonb,
+    status          varchar NOT NULL DEFAULT 'draft',
+    moderation_note varchar NOT NULL DEFAULT '',
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+    published_at    timestamptz
+);
+
+DO $$
+BEGIN
+    ALTER TABLE theme_packages
+        ADD CONSTRAINT theme_packages_status_check
+        CHECK (status IN ('draft', 'pending', 'approved', 'rejected'));
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER TABLE theme_packages
+        ADD CONSTRAINT theme_packages_mode_check
+        CHECK (mode IN ('light', 'dark'));
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS theme_packages_key_uq ON theme_packages (theme_key);
+
+CREATE INDEX IF NOT EXISTS theme_packages_status_idx ON theme_packages (status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS theme_packages_author_idx ON theme_packages (author_id, updated_at DESC);

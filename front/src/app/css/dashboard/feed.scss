@@ -229,12 +229,10 @@
     font-size: 12px;
 }
 
-.feedEmpty {
-    padding: var(--gap);
-    border: 1px dashed var(--border);
-    border-radius: var(--radius-lg);
-    color: var(--text-muted);
-    font-size: 13px;
+.feedSkeleton {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xl);
 }
 
 .searchOverlay {
@@ -245,8 +243,9 @@
     justify-content: center;
     align-items: flex-start;
     padding: 8vh var(--gap) var(--gap);
-    background-color: rgba(6, 8, 12, 0.75);
+    background-color: var(--overlay);
     backdrop-filter: blur(6px);
+    overscroll-behavior: contain;
 }
 
 .searchModal {
@@ -285,6 +284,10 @@
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.searchModalInput::-webkit-search-cancel-button {
+    display: none;
 }
 
 .searchModalClose {
@@ -500,18 +503,18 @@
 }
 
 .setCardOwn {
-    border-color: rgba(226, 176, 83, 0.4);
-    background-color: rgba(226, 176, 83, 0.05);
+    border-color: var(--accent-line);
+    background-color: var(--accent-tint);
 }
 
 .setCardOwn:hover {
-    border-color: rgba(226, 176, 83, 0.6);
-    background-color: rgba(226, 176, 83, 0.09);
+    border-color: var(--accent-line-strong);
+    background-color: var(--accent-tint);
 }
 
 .badgeOwn {
-    border-color: rgba(226, 176, 83, 0.5);
-    background-color: rgba(226, 176, 83, 0.14);
+    border-color: var(--accent-line);
+    background-color: var(--accent-soft);
     color: var(--accent);
 }
 
@@ -656,7 +659,7 @@
 }
 
 .setListRow:hover {
-    background-color: rgba(226, 176, 83, 0.08);
+    background-color: var(--accent-tint);
     text-decoration: none;
 }
 
@@ -734,7 +737,7 @@
 
 /* Затемнение снизу показываем только когда внутри действительно есть что прокручивать. */
 .newsScrollerScrollable {
-    box-shadow: inset 0 -20px 16px -16px rgba(4, 6, 10, 0.55);
+    box-shadow: inset 0 -20px 16px -16px var(--fade-shadow);
 }
 
 .badgePinned {

@@ -123,14 +123,14 @@
 }
 
 .adminBadgeDanger {
-    border-color: rgba(240, 101, 95, 0.4);
-    background-color: rgba(240, 101, 95, 0.12);
+    border-color: var(--danger-line);
+    background-color: var(--danger-soft);
     color: var(--danger);
 }
 
 .adminBadgeSuccess {
-    border-color: rgba(87, 196, 105, 0.4);
-    background-color: rgba(87, 196, 105, 0.12);
+    border-color: var(--success-line);
+    background-color: var(--success-soft);
     color: var(--success);
 }
 
@@ -154,6 +154,57 @@
     max-width: 520px;
     white-space: pre-wrap;
     word-break: break-word;
+}
+
+.adminSwatches {
+    display: flex;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.adminSwatch {
+    width: 18px;
+    height: 28px;
+}
+
+.adminSwatchSmall {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    vertical-align: middle;
+}
+
+.adminVariableList {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 160px;
+    overflow-y: auto;
+    font-size: 12px;
+}
+
+.adminVariable {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+}
+
+.adminVariable code {
+    color: var(--text-faint);
+}
+
+.adminRowActionsColumn {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.adminNoteInput {
+    width: 180px;
+    font-size: 12px;
 }
 
 @media (max-width: 900px) {

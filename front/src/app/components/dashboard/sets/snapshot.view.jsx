@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import setService from "../../../api/set.service";
 import parseApiError from "../../../utils/api.error";
 import { useAuth } from "../../../context/auth.context";
-import LoadingScreen from "../../common/loading.screen.jsx";
+import { Skeleton } from "../../common/skeleton.jsx";
 import SetArticle from "./set.article.jsx";
 import useReaderSettings, {
     READER_DEFAULTS,
@@ -102,7 +102,13 @@ const SnapshotView = () => {
     }, [id, isAuthenticated]);
 
     if (loading) {
-        return <LoadingScreen label="Загружаем снимок..." />;
+        return (
+            <div className="publicPage">
+                <div className="articleCard">
+                    <Skeleton variant="article" label="Загружаем снимок…" />
+                </div>
+            </div>
+        );
     }
 
     if (error || !snapshot) {
@@ -127,7 +133,6 @@ const SnapshotView = () => {
         <div className="publicPage">
             <article
                 className="articleCard"
-                data-reader-theme={readerView.theme}
                 data-reader-width={readerView.width}
                 data-reader-font={readerView.font}
                 data-reader-scale={readerView.scale}

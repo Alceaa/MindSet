@@ -103,4 +103,75 @@ describe("buildPickerOptions", () => {
         expect(options.every((option) => option.saved)).toBe(true);
         expect(options[0].ref).toBe("@alice/go");
     });
+
+    it("доски идут отдельным типом вложения", () => {
+        const options = buildPickerOptions({
+            allSets: ownSets,
+            savedSets: [],
+            boards: [{ id: 5, title: "Схема деплоя" }],
+            currentSetId: null,
+            query: "",
+        });
+
+        expect(options).toEqual([
+            { key: "set-1", title: "Мой сет" },
+            { key: "set-2", title: "Другой сет" },
+            { key: "board-5", title: "Схема деплоя", board: true, badge: "▦ доска" },
+        ]);
+    });
+
+    it("доски фильтруются по названию вместе с сетами", () => {
+        const options = buildPickerOptions({
+            allSets: ownSets,
+            savedSets: [],
+            boards: [
+                { id: 5, title: "Схема деплоя" },
+                { id: 6, title: "Другая доска" },
+            ],
+            currentSetId: null,
+            query: "схема",
+        });
+
+        expect(options.map((option) => option.key)).toEqual(["board-5"]);
+    });
+
+    it("без досок список не меняется", () => {
+        const options = buildPickerOptions({
+            allSets: ownSets,
+            savedSets: [],
+            currentSetId: null,
+            query: "",
+        });
+
+        expect(options.every((option) => !option.board)).toBe(true);
+    });
+
+    it("запрос board: ищет только среди досок и без префикса", () => {
+        const options = buildPickerOptions({
+            allSets: ownSets,
+            savedSets,
+            boards: [
+                { id: 5, title: "Схема деплоя" },
+                { id: 6, title: "Другая доска" },
+            ],
+            currentSetId: null,
+            query: "board:Схема",
+        });
+
+        expect(options).toEqual([
+            { key: "board-5", title: "Схема деплоя", board: true, badge: "▦ доска" },
+        ]);
+    });
+
+    it("русский префикс доски работает так же", () => {
+        const options = buildPickerOptions({
+            allSets: ownSets,
+            savedSets,
+            boards: [{ id: 5, title: "Схема деплоя" }],
+            currentSetId: null,
+            query: "доска: ",
+        });
+
+        expect(options.map((option) => option.key)).toEqual(["board-5"]);
+    });
 });

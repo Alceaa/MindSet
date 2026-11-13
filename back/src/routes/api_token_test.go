@@ -78,14 +78,14 @@ func TestAPITokenLifecycle(t *testing.T) {
 		t.Errorf("чужой отзыв токена = %d, ожидалось 404", resp.StatusCode)
 	}
 
-	resp, me, raw := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/api/v1/me", Bearer: secret})
+	resp, me, raw := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/v1/me", Bearer: secret})
 	if resp.StatusCode != fiber.StatusOK || me.User == nil || me.User.Login != login {
-		t.Fatalf("GET /api/v1/me по токену = %d (%s), ожидался профиль %s", resp.StatusCode, raw, login)
+		t.Fatalf("GET /v1/me по токену = %d (%s), ожидался профиль %s", resp.StatusCode, raw, login)
 	}
 
-	resp, sets, raw := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/api/v1/sets", Bearer: secret})
+	resp, sets, raw := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/v1/sets", Bearer: secret})
 	if resp.StatusCode != fiber.StatusOK {
-		t.Fatalf("GET /api/v1/sets = %d: %s", resp.StatusCode, raw)
+		t.Fatalf("GET /v1/sets = %d: %s", resp.StatusCode, raw)
 	}
 
 	visible := false
@@ -100,36 +100,36 @@ func TestAPITokenLifecycle(t *testing.T) {
 
 	resp, one, raw := call(t, app, callOptions{
 		Method: fiber.MethodGet,
-		Path:   fmt.Sprintf("/api/v1/sets/%d", set.ID),
+		Path:   fmt.Sprintf("/v1/sets/%d", set.ID),
 		Bearer: secret,
 	})
 	if resp.StatusCode != fiber.StatusOK || one.Set == nil || one.Set.Content == "" {
-		t.Fatalf("GET /api/v1/sets/%d = %d (%s), ожидался сет с содержимым", set.ID, resp.StatusCode, raw)
+		t.Fatalf("GET /v1/sets/%d = %d (%s), ожидался сет с содержимым", set.ID, resp.StatusCode, raw)
 	}
 
-	resp, _, raw = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/api/v1/collections", Bearer: secret})
+	resp, _, raw = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/v1/collections", Bearer: secret})
 	if resp.StatusCode != fiber.StatusOK {
-		t.Errorf("GET /api/v1/collections = %d: %s", resp.StatusCode, raw)
+		t.Errorf("GET /v1/collections = %d: %s", resp.StatusCode, raw)
 	}
 
-	resp, graph, raw := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/api/v1/graph", Bearer: secret})
+	resp, graph, raw := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/v1/graph", Bearer: secret})
 	if resp.StatusCode != fiber.StatusOK || len(graph.Nodes) == 0 {
-		t.Errorf("GET /api/v1/graph = %d (%s), ожидался непустой граф", resp.StatusCode, raw)
+		t.Errorf("GET /v1/graph = %d (%s), ожидался непустой граф", resp.StatusCode, raw)
 	}
 
-	resp, _, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/api/v1/me"})
+	resp, _, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/v1/me"})
 	if resp.StatusCode != fiber.StatusUnauthorized {
-		t.Errorf("GET /api/v1/me без токена = %d, ожидалось 401", resp.StatusCode)
+		t.Errorf("GET /v1/me без токена = %d, ожидалось 401", resp.StatusCode)
 	}
 
-	resp, _, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/api/v1/me", Bearer: "msk_битый-токен"})
+	resp, _, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/v1/me", Bearer: "msk_битый-токен"})
 	if resp.StatusCode != fiber.StatusUnauthorized {
-		t.Errorf("GET /api/v1/me с мусором = %d, ожидалось 401", resp.StatusCode)
+		t.Errorf("GET /v1/me с мусором = %d, ожидалось 401", resp.StatusCode)
 	}
 
-	resp, _, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/api/v1/me", Cookies: cookies})
+	resp, _, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/v1/me", Cookies: cookies})
 	if resp.StatusCode != fiber.StatusUnauthorized {
-		t.Errorf("cookie-сессия на /api/v1 = %d, ожидалось 401", resp.StatusCode)
+		t.Errorf("cookie-сессия на /v1 = %d, ожидалось 401", resp.StatusCode)
 	}
 
 	resp, _, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/sets", Bearer: secret})
@@ -154,7 +154,7 @@ func TestAPITokenLifecycle(t *testing.T) {
 		t.Fatalf("отзыв токена = %d: %s", resp.StatusCode, raw)
 	}
 
-	resp, _, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/api/v1/me", Bearer: secret})
+	resp, _, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/v1/me", Bearer: secret})
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Errorf("отозванный токен = %d, ожидалось 401", resp.StatusCode)
 	}
@@ -240,7 +240,7 @@ func TestAPITokenExpiry(t *testing.T) {
 
 	expireAPIToken(t, cfg.DBUrl, body.Token.ID)
 
-	resp, _, raw = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/api/v1/me", Bearer: body.Value})
+	resp, _, raw = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/v1/me", Bearer: body.Value})
 	if resp.StatusCode != fiber.StatusUnauthorized {
 		t.Errorf("истёкший токен = %d, ожидалось 401: %s", resp.StatusCode, raw)
 	}

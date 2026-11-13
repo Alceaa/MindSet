@@ -25,25 +25,25 @@ test("токен интеграции создаётся, работает и о
     await page.click('button:has-text("Готово")');
     await expect(page.locator(".tokenValue")).toHaveCount(0);
 
-    const me = await context.request.get(`${BASE_URL}/api/v1/me`, {
+    const me = await context.request.get(`${BASE_URL}/v1/me`, {
         headers: { Authorization: `Bearer ${secret}` },
     });
     expect(me.status(), "запрос по токену не прошёл").toBe(200);
     expect((await me.json()).user?.login).toBe(LOGIN);
 
-    const sets = await context.request.get(`${BASE_URL}/api/v1/sets?limit=3`, {
+    const sets = await context.request.get(`${BASE_URL}/v1/sets?limit=3`, {
         headers: { Authorization: `Bearer ${secret}` },
     });
     expect(sets.status()).toBe(200);
 
-    const withSession = await context.request.get(`${BASE_URL}/api/v1/me`);
-    expect(withSession.status(), "cookie-сессия не должна открывать /api/v1").toBe(401);
+    const withSession = await context.request.get(`${BASE_URL}/v1/me`);
+    expect(withSession.status(), "cookie-сессия не должна открывать /v1").toBe(401);
 
     await row.locator('button:has-text("Отозвать")').click();
     await row.locator(".tokenRowActions .btnDanger").click();
     await expect(page.locator(".tokenRow", { hasText: title })).toHaveCount(0);
 
-    const afterRevoke = await context.request.get(`${BASE_URL}/api/v1/me`, {
+    const afterRevoke = await context.request.get(`${BASE_URL}/v1/me`, {
         headers: { Authorization: `Bearer ${secret}` },
     });
     expect(afterRevoke.status(), "отозванный токен продолжает работать").toBe(401);

@@ -178,7 +178,7 @@ func SetupRoutes(app fiber.Router) {
 		KeyByUser:  true,
 	})
 
-	openAPI := app.Group("/api/v1", middlewares.ValidateAPIToken, apiLimiter)
+	openAPI := app.Group("/v1", middlewares.ValidateAPIToken, apiLimiter)
 	openAPI.Get("/me", handlers.Me)
 	openAPI.Get("/sets", handlers.GetSets)
 	openAPI.Get("/sets/:id", handlers.GetSet)

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { applyTheme, DEFAULT_THEME, themeByKey } from "../themes/app.themes";
+import themeService from "../api/theme.service";
+import { applyTheme, DEFAULT_THEME, registerThemePackages, themeByKey } from "../themes/app.themes";
 
 const STORAGE_KEY = "mindset:theme";
 
@@ -7,6 +8,7 @@ const STORAGE_KEY = "mindset:theme";
 // поэтому переключатель в настройках и MUI-тема в App.jsx не расходятся.
 const listeners = new Set();
 let current = null;
+let catalogRequested = false;
 
 const readTheme = () => {
     try {
@@ -24,6 +26,21 @@ const getTheme = () => {
 };
 
 export const initAppTheme = () => applyTheme(readTheme());
+
+const loadThemeCatalog = async () => {
+    if (catalogRequested) {
+        return;
+    }
+    catalogRequested = true;
+
+    try {
+        const data = await themeService.published();
+        registerThemePackages(data?.themes ?? []);
+        applyTheme(getTheme());
+    } catch {
+        catalogRequested = false;
+    }
+};
 
 const setTheme = (key) => {
     current = key;
@@ -47,6 +64,7 @@ export const useAppTheme = () => {
         listeners.add(setLocalTheme);
         // Применяем сразу: если тему выбрали до монтирования, вид не мигнёт.
         applyTheme(getTheme());
+        loadThemeCatalog();
 
         return () => {
             listeners.delete(setLocalTheme);

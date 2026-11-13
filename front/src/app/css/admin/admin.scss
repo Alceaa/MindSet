@@ -156,6 +156,57 @@
     word-break: break-word;
 }
 
+.adminSwatches {
+    display: flex;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.adminSwatch {
+    width: 18px;
+    height: 28px;
+}
+
+.adminSwatchSmall {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    vertical-align: middle;
+}
+
+.adminVariableList {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 160px;
+    overflow-y: auto;
+    font-size: 12px;
+}
+
+.adminVariable {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+}
+
+.adminVariable code {
+    color: var(--text-faint);
+}
+
+.adminRowActionsColumn {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.adminNoteInput {
+    width: 180px;
+    font-size: 12px;
+}
+
 @media (max-width: 900px) {
     .adminLayout {
         grid-template-columns: minmax(0, 1fr);

@@ -9,6 +9,8 @@
  * Задел под плагины-темы (этап 5): новая тема — это такой же объект,
  * поэтому её можно принести данными, не трогая стили.
  */
+import { CUSTOM_THEME_PREFIX, THEME_VARIABLE_NAMES, validThemeColor } from "./theme.packages";
+
 export const APP_THEMES = [
     {
         key: "dark",
@@ -337,8 +339,115 @@ export const APP_THEMES = [
 
 export const DEFAULT_THEME = "dark";
 
-export const themeByKey = (key) =>
-    APP_THEMES.find((item) => item.key === key) ?? APP_THEMES[0];
+const CACHE_KEY = "mindset:theme:cache";
+const ALLOWED_VARIABLES = new Set(THEME_VARIABLE_NAMES);
+
+const customThemes = new Map();
+let cachedThemes = null;
+
+const readCache = () => {
+    try {
+        return JSON.parse(window.localStorage.getItem(CACHE_KEY) || "{}");
+    } catch {
+        return {};
+    }
+};
+
+const writeCache = (cache) => {
+    try {
+        window.localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch {
+        cachedThemes = cache;
+        return;
+    }
+    cachedThemes = cache;
+};
+
+const cachedTheme = (key) => {
+    if (cachedThemes === null) {
+        cachedThemes = readCache();
+    }
+    return cachedThemes[key];
+};
+
+export const customThemeFromPackage = (item) => {
+    if (!item?.key) {
+        return null;
+    }
+
+    const base = APP_THEMES.find((theme) => theme.key === item.base) ?? APP_THEMES[0];
+    const overrides = {};
+
+    Object.entries(item.variables ?? {}).forEach(([name, value]) => {
+        if (ALLOWED_VARIABLES.has(name) && validThemeColor(value)) {
+            overrides[name] = String(value).trim();
+        }
+    });
+
+    if (Object.keys(overrides).length === 0) {
+        return null;
+    }
+
+    return {
+        key: CUSTOM_THEME_PREFIX + item.key,
+        label: item.title || item.key,
+        hint: item.description || `Тема из сообщества${item.author ? ` · @${item.author}` : ""}`,
+        mode: item.mode === "light" ? "light" : "dark",
+        variables: { ...base.variables, ...overrides },
+        custom: true,
+        packageKey: item.key,
+    };
+};
+
+export const registerThemePackages = (packages) => {
+    const cache = readCache();
+    const registered = [];
+
+    (packages ?? []).forEach((item) => {
+        const theme = customThemeFromPackage(item);
+        if (!theme) {
+            return;
+        }
+
+        customThemes.set(theme.key, theme);
+        cache[theme.key] = { variables: theme.variables, mode: theme.mode };
+        registered.push(theme);
+    });
+
+    writeCache(cache);
+
+    return registered;
+};
+
+export const registeredThemes = () => [...customThemes.values()];
+
+export const isCustomTheme = (key) => String(key ?? "").startsWith(CUSTOM_THEME_PREFIX);
+
+export const themeByKey = (key) => {
+    const builtIn = APP_THEMES.find((item) => item.key === key);
+    if (builtIn) {
+        return builtIn;
+    }
+
+    const registered = customThemes.get(key);
+    if (registered) {
+        return registered;
+    }
+
+    const cached = cachedTheme(key);
+    if (cached?.variables) {
+        return {
+            key,
+            label: "Своя тема",
+            hint: "Тема из сообщества",
+            mode: cached.mode === "light" ? "light" : "dark",
+            variables: cached.variables,
+            custom: true,
+        };
+    }
+
+    return APP_THEMES[0];
+};
 
 // MUI умеет только "light" и "dark", поэтому тема хранит режим отдельно.
 export const themeMode = (key) => themeByKey(key).mode;

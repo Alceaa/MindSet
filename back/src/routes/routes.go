@@ -64,6 +64,8 @@ func SetupRoutes(app fiber.Router) {
 	panel.Get("/reports", handlers.ListAdminReports)
 	panel.Put("/reports/:id/status", middlewares.RequireJSONBody, handlers.UpdateReportStatus)
 	panel.Get("/actions", handlers.ListAdminActions)
+	panel.Get("/themes", handlers.ListAdminThemes)
+	panel.Put("/themes/:id/status", middlewares.RequireJSONBody, handlers.ModerateTheme)
 
 	auth := app.Group("/auth")
 	auth.Get("/config", handlers.RegistrationConfig)
@@ -159,6 +161,15 @@ func SetupRoutes(app fiber.Router) {
 	apiTokens.Get("", handlers.ListAPITokens)
 	apiTokens.Post("", middlewares.RequireJSONBody, handlers.CreateAPIToken)
 	apiTokens.Delete("/:id", handlers.RevokeAPIToken)
+
+	app.Get("/themes", handlers.ListPublishedThemes)
+
+	themes := app.Group("/theme-packages", middlewares.ValidateAccessToken)
+	themes.Get("", handlers.ListOwnThemes)
+	themes.Post("", middlewares.RequireJSONBody, handlers.CreateTheme)
+	themes.Put("/:id", middlewares.RequireJSONBody, handlers.UpdateTheme)
+	themes.Delete("/:id", handlers.DeleteTheme)
+	themes.Post("/:id/submit", handlers.SubmitTheme)
 
 	apiLimiter := middlewares.RateLimiter(middlewares.RateLimitRule{
 		Name:       "api",

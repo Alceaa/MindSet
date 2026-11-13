@@ -489,3 +489,43 @@ CREATE TABLE IF NOT EXISTS api_tokens (
 CREATE UNIQUE INDEX IF NOT EXISTS api_tokens_hash_uq ON api_tokens (token_hash);
 
 CREATE INDEX IF NOT EXISTS api_tokens_user_idx ON api_tokens (user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS theme_packages (
+    id              serial PRIMARY KEY,
+    author_id       integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    theme_key       varchar NOT NULL,
+    title           varchar NOT NULL,
+    description     varchar NOT NULL DEFAULT '',
+    mode            varchar NOT NULL DEFAULT 'dark',
+    base_theme      varchar NOT NULL DEFAULT 'dark',
+    variables       jsonb NOT NULL DEFAULT '{}'::jsonb,
+    status          varchar NOT NULL DEFAULT 'draft',
+    moderation_note varchar NOT NULL DEFAULT '',
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+    published_at    timestamptz
+);
+
+DO $$
+BEGIN
+    ALTER TABLE theme_packages
+        ADD CONSTRAINT theme_packages_status_check
+        CHECK (status IN ('draft', 'pending', 'approved', 'rejected'));
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+    ALTER TABLE theme_packages
+        ADD CONSTRAINT theme_packages_mode_check
+        CHECK (mode IN ('light', 'dark'));
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS theme_packages_key_uq ON theme_packages (theme_key);
+
+CREATE INDEX IF NOT EXISTS theme_packages_status_idx ON theme_packages (status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS theme_packages_author_idx ON theme_packages (author_id, updated_at DESC);

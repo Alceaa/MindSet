@@ -329,3 +329,107 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
+
+.tokenBadgePending {
+    border-color: var(--accent-line);
+    color: var(--accent);
+}
+
+.tokenBadgeApproved {
+    border-color: var(--success-line);
+    color: var(--success);
+}
+
+.tokenBadgeRejected {
+    border-color: var(--danger-line);
+    color: var(--danger);
+}
+
+.themeGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--gap-sm);
+}
+
+.themePreview {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+}
+
+.themePreviewSwatch {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.themeVariableList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    max-height: 420px;
+    overflow-y: auto;
+    padding: var(--gap-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+}
+
+.themeVariableGroup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xs);
+}
+
+.themeVariableGroupTitle {
+    color: var(--text-faint);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.themeVariableRow {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) 36px minmax(120px, 1fr);
+    align-items: center;
+    gap: var(--gap-sm);
+}
+
+.themeVariableCheck {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-xs);
+    min-width: 0;
+    font-size: 13px;
+}
+
+.themeVariableColor {
+    width: 36px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: none;
+    cursor: pointer;
+}
+
+.themeVariableValue {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+}
+
+.themeNote {
+    color: var(--warning);
+    font-size: 12px;
+}
+
+@media (max-width: 640px) {
+    .themeVariableRow {
+        grid-template-columns: minmax(0, 1fr) 36px;
+    }
+
+    .themeVariableValue {
+        grid-column: 1 / -1;
+    }
+}

@@ -141,13 +141,17 @@
     min-width: 0;
 }
 
+/* Окно выбора сета держим в координатах экрана: позицию считает set.editor.jsx по курсору,
+   поэтому при прокрутке длинной заметки панель остаётся на виду. */
 .wikilinkPicker {
-    position: absolute;
+    position: fixed;
     z-index: 30;
     display: flex;
     flex-direction: column;
     gap: var(--gap-sm);
     width: min(320px, calc(100vw - 24px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: var(--gap-sm);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);

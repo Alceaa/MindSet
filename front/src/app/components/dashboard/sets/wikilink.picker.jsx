@@ -9,6 +9,7 @@ const WikilinkPicker = ({ query, options, activeIndex, position, error, onPick, 
     const style = {
         left: `${position?.left ?? 12}px`,
         top: `${position?.top ?? 52}px`,
+        maxHeight: position?.maxHeight ? `${position.maxHeight}px` : undefined,
     };
 
     const trimmed = (query ?? "").trim();

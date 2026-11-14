@@ -2,11 +2,12 @@ import React, { useEffect, useState } from "react";
 import themeService from "../../api/theme.service";
 import parseApiError from "../../utils/api.error";
 import useAppTheme, { registerLocalTheme } from "../../hooks/use.app.theme";
-import { APP_THEMES, DEFAULT_THEME } from "../../themes/app.themes";
+import { APP_THEMES, DEFAULT_THEME, themeByKey } from "../../themes/app.themes";
 import {
     LOCAL_THEME_KEY,
     THEME_PRESETS,
     packageVariables,
+    rolesFromVariables,
 } from "../../themes/theme.roles";
 import ThemeRolesFields from "./theme.roles.fields.jsx";
 import "../../css/settings/settings.scss";
@@ -64,6 +65,19 @@ const LocalThemeSettings = () => {
             base: preset.base,
             roles: { ...preset.roles },
         }));
+
+    // Базовая тема — это стартовая точка: берём из неё режим и восемь цветов, а дальше их правят
+    // руками. Иначе выбор базы влиял только на тени и подсветку кода, и казалось, что он мёртвый.
+    const applyBase = (key) => {
+        const baseTheme = themeByKey(key);
+
+        setForm((current) => ({
+            ...current,
+            base: key,
+            mode: baseTheme.mode === "light" ? "light" : "dark",
+            roles: rolesFromVariables(baseTheme.variables),
+        }));
+    };
 
     const save = async () => {
         setBusy(true);
@@ -201,7 +215,7 @@ const LocalThemeSettings = () => {
                     <select
                         className="input"
                         value={form.base}
-                        onChange={(event) => setForm({ ...form, base: event.target.value })}
+                        onChange={(event) => applyBase(event.target.value)}
                     >
                         {APP_THEMES.map((item) => (
                             <option key={item.key} value={item.key}>

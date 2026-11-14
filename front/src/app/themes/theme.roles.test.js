@@ -51,6 +51,22 @@ test("роли попадают в свои переменные", () => {
     expect(isRoleColor(variables["--accent-hover"])).toBe(true);
 });
 
+test("пресеты не повторяют базовые темы и не дублируются", () => {
+    const keys = THEME_PRESETS.map((preset) => preset.key);
+    const titles = THEME_PRESETS.map((preset) => preset.title);
+
+    // Сепия уже есть среди базовых тем, поэтому в пресетах её быть не должно.
+    expect(keys).not.toContain("sepia");
+    expect(keys.length).toBe(new Set(keys).size);
+    expect(titles.length).toBe(new Set(titles).size);
+    expect(keys.length).toBeGreaterThanOrEqual(5);
+
+    THEME_PRESETS.forEach((preset) => {
+        expect(THEME_ROLES.every((role) => isRoleColor(preset.roles[role.key]))).toBe(true);
+        expect(APP_THEMES.some((theme) => theme.key === preset.base)).toBe(true);
+    });
+});
+
 test("пресеты не дают предупреждений о контрасте", () => {
     THEME_PRESETS.forEach((preset) => {
         const warnings = contrastWarnings(preset.roles)

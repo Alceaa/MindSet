@@ -68,13 +68,6 @@ const ThemesSettings = ({ onApplied }) => {
     return (
         <div className="card settingsForm">
             <h3 className="settingsSectionLabel">Мои темы в каталоге</h3>
-            <p className="mutedText">
-                Соберите тему в блоке «Своя тема» выше и нажмите там «Отправить на модерацию»:
-                одобренная тема появится у всех в списке тем, а правка уже опубликованной подождёт
-                проверки — до неё в каталоге работает прежняя версия. Здесь видно, что стало с
-                вашими темами; снять тему с публикации или удалить её можно без админа.
-            </p>
-
             {notice && (
                 <div
                     className={`alert${notice.kind === "error" ? " alertError" : " alertSuccess"}`}

@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import themeService from "../../api/theme.service";
+import { APP_THEMES } from "../../themes/app.themes";
 import { THEME_PRESETS } from "../../themes/theme.roles";
 import LocalThemeSettings from "./settings.local.theme.jsx";
 
@@ -113,6 +114,28 @@ test("цвет можно вписать текстом", async () => {
 
     await waitFor(() => expect(themeService.saveProfileTheme).toHaveBeenCalledTimes(1));
     expect(themeService.saveProfileTheme.mock.calls[0][0].roles.accent).toBe("#ff00ff");
+});
+
+test("смена базовой темы подставляет её цвета и режим", async () => {
+    const light = APP_THEMES.find((item) => item.key === "light");
+
+    render(<LocalThemeSettings />);
+    await screen.findByText("Фон страницы");
+
+    fireEvent.change(screen.getByLabelText("Базовая тема"), { target: { value: "light" } });
+    fireEvent.change(screen.getByPlaceholderText("Моя тема"), { target: { value: "Светлая" } });
+
+    await act(async () => {
+        screen.getByRole("button", { name: /^(Сохранить|Применить и сохранить)$/ }).click();
+    });
+
+    await waitFor(() => expect(themeService.saveProfileTheme).toHaveBeenCalledTimes(1));
+
+    const payload = themeService.saveProfileTheme.mock.calls[0][0];
+    expect(payload.base).toBe("light");
+    expect(payload.mode).toBe("light");
+    expect(payload.roles.canvas).toBe(light.variables["--bg-canvas"].toLowerCase());
+    expect(payload.roles.text).toBe(light.variables["--text"].toLowerCase());
 });
 
 test("отправляет свою тему на модерацию", async () => {

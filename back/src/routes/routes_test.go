@@ -67,6 +67,7 @@ type apiSet struct {
 	Content      string `json:"content"`
 	DateCreated  string `json:"date_created"`
 	LastActivity string `json:"last_activity"`
+	IsSaved      bool   `json:"is_saved"`
 	Author       *struct {
 		Login string `json:"login"`
 	} `json:"author"`

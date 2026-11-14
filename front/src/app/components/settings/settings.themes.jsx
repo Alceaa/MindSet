@@ -11,7 +11,6 @@ import {
     isHexColor,
     themeVariableLabel,
     validThemeColor,
-    validThemeKey,
 } from "../../themes/theme.packages";
 
 const SWATCH_PREVIEW = ["--bg-canvas", "--bg-surface", "--text", "--accent", "--border"];
@@ -32,7 +31,6 @@ const STATUS_CLASSES = {
 
 const emptyForm = () => ({
     id: 0,
-    key: "",
     title: "",
     description: "",
     mode: "dark",
@@ -80,9 +78,6 @@ const ThemesSettings = ({ onApplied }) => {
     const validation = useMemo(() => {
         if (!form) {
             return "";
-        }
-        if (!validThemeKey(form.key)) {
-            return "Ключ темы: латиница, цифры и дефис, от 3 до 32 символов";
         }
         if (form.title.trim().length < 3) {
             return "Название темы: минимум 3 символа";
@@ -145,7 +140,6 @@ const ThemesSettings = ({ onApplied }) => {
         }
 
         const payload = {
-            key: form.key.trim().toLowerCase(),
             title: form.title.trim(),
             description: form.description.trim(),
             mode: form.mode,
@@ -343,19 +337,8 @@ const ThemesSettings = ({ onApplied }) => {
                                 placeholder="Северные сумерки"
                                 required
                             />
-                        </label>
-                        <label className="settingsField">
-                            <span className="settingsFieldLabel">Ключ</span>
-                            <input
-                                className="input"
-                                value={form.key}
-                                onChange={(event) => setForm({ ...form, key: event.target.value })}
-                                maxLength={32}
-                                placeholder="northern-dusk"
-                                required
-                            />
                             <span className="fieldHint">
-                                Латиница, цифры и дефис — по нему тему видно в адресе.
+                                Ключ темы соберётся из названия сам — придумывать его не нужно.
                             </span>
                         </label>
                         <label className="settingsField">

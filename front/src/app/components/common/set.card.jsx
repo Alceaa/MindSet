@@ -42,6 +42,7 @@ const SetCard = ({
     onSave,
     saveLabel = "Сохранить",
     saving = false,
+    saved = false,
     collections = [],
     onToggleCollection,
     onCreateCollection,
@@ -181,7 +182,7 @@ const SetCard = ({
                                 event.stopPropagation();
                                 onSave(set);
                             }}
-                            disabled={saving}
+                            disabled={saving || saved}
                         >
                             {saving ? "Сохраняем…" : saveLabel}
                         </button>

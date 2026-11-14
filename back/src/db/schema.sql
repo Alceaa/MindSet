@@ -293,6 +293,9 @@ CREATE TABLE IF NOT EXISTS bug_reports (
 
 CREATE INDEX IF NOT EXISTS bug_reports_created_idx ON bug_reports (created_at DESC);
 
+-- Вложения отчёта: ссылки на изображения в объектном хранилище (не больше трёх на отчёт).
+ALTER TABLE bug_reports ADD COLUMN IF NOT EXISTS attachments text[] NOT NULL DEFAULT '{}';
+
 DO $$
 BEGIN
     IF to_regclass('public.announcements') IS NOT NULL THEN

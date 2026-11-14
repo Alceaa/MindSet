@@ -94,6 +94,70 @@
     font-weight: 600;
 }
 
+.settingsFieldHint {
+    color: var(--text-faint);
+    font-size: 12px;
+}
+
+/* Скриншоты в отчёте: файл выбирается кнопкой, поле оставляем скрытым — иначе
+   кнопка браузера не попадает в оформление. */
+.settingsFileInput {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    clip-path: inset(50%);
+}
+
+.settingsAttachments {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-sm);
+}
+
+.settingsAttachment {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.settingsAttachmentThumb {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+}
+
+.settingsAttachmentRemove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background-color: var(--bg-surface);
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.settingsAttachmentRemove:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
 .settingsActions {
     display: flex;
     justify-content: flex-start;

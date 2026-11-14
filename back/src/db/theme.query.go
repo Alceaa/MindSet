@@ -9,7 +9,11 @@ import (
 	"mindset/models"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
+
+// Код PostgreSQL «нарушение уникальности»: по нему понимаем, что ключ темы занят.
+const pgUniqueViolation = "23505"
 
 const themePackageColumns = `t.id, t.theme_key, t.title, t.description, t.mode, t.base_theme, t.variables,
 	t.status, t.moderation_note,
@@ -127,25 +131,42 @@ func CreateThemePackage(ctx context.Context, authorID int, payload models.ThemeP
 		return nil, fmt.Errorf("encode theme variables: %w", err)
 	}
 
-	var id int
-	err = conn.QueryRow(ctx, `
-		INSERT INTO theme_packages (author_id, theme_key, title, description, mode, base_theme, variables, status)
-		VALUES (@author_id, @theme_key, @title, @description, @mode, @base_theme, @variables::jsonb, @status)
-		RETURNING id`, pgx.NamedArgs{
-		"author_id":   authorID,
-		"theme_key":   payload.Key,
-		"title":       payload.Title,
-		"description": payload.Description,
-		"mode":        payload.Mode,
-		"base_theme":  payload.Base,
-		"variables":   string(encoded),
-		"status":      models.ThemeStatusDraft,
-	}).Scan(&id)
-	if err != nil {
-		return nil, fmt.Errorf("create theme package: %w", err)
+	// Ключ собирается из названия и может быть занят другой темой: тогда берём следующий
+	// свободный — автору не нужно придумывать ключ, а конфликт не превращается в ошибку.
+	for attempt := 0; attempt < themeKeyAttempts; attempt++ {
+		var id int
+		err = conn.QueryRow(ctx, `
+			INSERT INTO theme_packages (author_id, theme_key, title, description, mode, base_theme, variables, status)
+			VALUES (@author_id, @theme_key, @title, @description, @mode, @base_theme, @variables::jsonb, @status)
+			RETURNING id`, pgx.NamedArgs{
+			"author_id":   authorID,
+			"theme_key":   models.ThemeKeyCandidate(payload.Key, attempt),
+			"title":       payload.Title,
+			"description": payload.Description,
+			"mode":        payload.Mode,
+			"base_theme":  payload.Base,
+			"variables":   string(encoded),
+			"status":      models.ThemeStatusDraft,
+		}).Scan(&id)
+
+		if err == nil {
+			return GetThemePackageByID(ctx, id)
+		}
+		if !isThemeKeyConflict(err) {
+			return nil, fmt.Errorf("create theme package: %w", err)
+		}
 	}
 
-	return GetThemePackageByID(ctx, id)
+	return nil, fmt.Errorf("create theme package: не удалось подобрать свободный ключ")
+}
+
+// Сколько раз пробуем ключ из названия, прежде чем сдаться: base, base-2, base-3…
+const themeKeyAttempts = 50
+
+func isThemeKeyConflict(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation &&
+		pgErr.ConstraintName == models.ThemeKeyConstraint
 }
 
 func UpdateThemePackage(ctx context.Context, authorID, id int, payload models.ThemePayload) (*models.ThemePackage, error) {
@@ -161,13 +182,12 @@ func UpdateThemePackage(ctx context.Context, authorID, id int, payload models.Th
 
 	tag, err := conn.Exec(ctx, `
 		UPDATE theme_packages
-		SET theme_key = @theme_key, title = @title, description = @description, mode = @mode,
+		SET title = @title, description = @description, mode = @mode,
 		    base_theme = @base_theme, variables = @variables::jsonb, status = @status,
 		    moderation_note = '', updated_at = now()
 		WHERE id = @id AND author_id = @author_id`, pgx.NamedArgs{
 		"id":          id,
 		"author_id":   authorID,
-		"theme_key":   payload.Key,
 		"title":       payload.Title,
 		"description": payload.Description,
 		"mode":        payload.Mode,

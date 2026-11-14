@@ -80,7 +80,7 @@ func ListAdminActions(ctx context.Context, limit int) ([]*models.AdminAction, er
 	return actions, nil
 }
 
-func CreateBugReport(ctx context.Context, userID int, login, page, topic, message string) error {
+func CreateBugReport(ctx context.Context, userID int, login, page, topic, message string, attachments []string) error {
 	conn, err := pool()
 	if err != nil {
 		return err
@@ -91,15 +91,20 @@ func CreateBugReport(ctx context.Context, userID int, login, page, topic, messag
 		author = userID
 	}
 
+	if attachments == nil {
+		attachments = []string{}
+	}
+
 	_, err = conn.Exec(ctx, `
-		INSERT INTO bug_reports (user_id, login, page, topic, message)
-		VALUES (@user_id, @login, @page, @topic, @message)`,
+		INSERT INTO bug_reports (user_id, login, page, topic, message, attachments)
+		VALUES (@user_id, @login, @page, @topic, @message, @attachments)`,
 		pgx.NamedArgs{
-			"user_id": author,
-			"login":   login,
-			"page":    page,
-			"topic":   topic,
-			"message": message,
+			"user_id":     author,
+			"login":       login,
+			"page":        page,
+			"topic":       topic,
+			"message":     message,
+			"attachments": attachments,
 		},
 	)
 	if err != nil {
@@ -119,7 +124,8 @@ func ListBugReports(ctx context.Context, status string, limit int) ([]*models.Bu
 	}
 
 	rows, err := conn.Query(ctx, `
-		SELECT id, coalesce(login, ''), coalesce(page, ''), topic, message, status,
+		SELECT id, coalesce(login, ''), coalesce(page, ''), topic, message,
+		       coalesce(attachments, '{}'), status,
 		       to_char(created_at AT TIME ZONE 'UTC', `+isoUTCTimeFormat+`)
 		FROM bug_reports
 		WHERE (@status = '' OR status = @status)
@@ -139,6 +145,7 @@ func ListBugReports(ctx context.Context, status string, limit int) ([]*models.Bu
 			&report.Page,
 			&report.Topic,
 			&report.Message,
+			&report.Attachments,
 			&report.Status,
 			&report.CreatedAt,
 		); err != nil {

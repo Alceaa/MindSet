@@ -30,6 +30,8 @@ const Explore = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [savingId, setSavingId] = useState(null);
+    // Сеты, для которых снимок уже сделан в этой сессии: кнопка показывает «Сохранено».
+    const [savedIds, setSavedIds] = useState(() => new Set());
     const [newsScrollable, setNewsScrollable] = useState(false);
     const newsListRef = useRef(null);
 
@@ -85,6 +87,8 @@ const Explore = () => {
             setSavingId(set.id);
             try {
                 await setService.saveExternalSet(set.slug);
+                // Снимок сделан: кнопка становится «Сохранено», чтобы не жать её дважды.
+                setSavedIds((current) => new Set(current).add(set.id));
                 push(`Сет «${set.title}» сохранён в вашу библиотеку`, "success");
             } catch (err) {
                 push(parseApiError(err).message, "error");
@@ -98,6 +102,9 @@ const Explore = () => {
     const isOwn = (set) =>
         Boolean(set.author) && Boolean(user) && set.author.login === user.login;
 
+    // Снимок мог быть сделан раньше (серверный is_saved) или только что в этой сессии.
+    const isSaved = (set) => Boolean(set.is_saved) || savedIds.has(set.id);
+
     const renderCard = (set) => (
         <SetCard
             key={set.id}
@@ -105,6 +112,8 @@ const Explore = () => {
             own={isOwn(set)}
             onSave={isOwn(set) ? undefined : handleSave}
             saving={savingId === set.id}
+            saved={isSaved(set)}
+            saveLabel={isSaved(set) ? "Сохранено" : "Сохранить"}
         />
     );
 

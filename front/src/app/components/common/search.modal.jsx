@@ -22,6 +22,8 @@ const SearchModal = ({ open, onClose }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [savingId, setSavingId] = useState(null);
+    // Сеты, для которых снимок уже сделан в этой сессии: кнопка показывает «Сохранено».
+    const [savedIds, setSavedIds] = useState(() => new Set());
     const inputRef = useRef(null);
     const modalRef = useRef(null);
     const previousFocus = useRef(null);
@@ -126,6 +128,8 @@ const SearchModal = ({ open, onClose }) => {
         setSavingId(set.id);
         try {
             await setService.saveExternalSet(set.slug);
+            // Снимок сделан: кнопка становится «Сохранено», чтобы не жать её дважды.
+            setSavedIds((current) => new Set(current).add(set.id));
             push(`Сет «${set.title}» сохранён в вашу библиотеку`, "success");
         } catch (err) {
             push(parseApiError(err).message, "error");
@@ -136,6 +140,9 @@ const SearchModal = ({ open, onClose }) => {
 
     const isOwn = (set) =>
         Boolean(set.author) && Boolean(user) && set.author.login === user.login;
+
+    // Снимок мог быть сделан раньше (серверный is_saved) или только что в этой сессии.
+    const isSaved = (set) => Boolean(set.is_saved) || savedIds.has(set.id);
 
     if (!open) {
         return null;
@@ -191,6 +198,8 @@ const SearchModal = ({ open, onClose }) => {
                                 own={isOwn(set)}
                                 onSave={isOwn(set) ? undefined : handleSave}
                                 saving={savingId === set.id}
+                                saved={isSaved(set)}
+                                saveLabel={isSaved(set) ? "Сохранено" : "Сохранить"}
                             />
                         ))}
                     </div>

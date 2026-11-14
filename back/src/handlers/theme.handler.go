@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-const themeKeyConflict = "theme_packages_key_uq"
+const themeKeyConflict = models.ThemeKeyConstraint
 
 func ListOwnThemes(c *fiber.Ctx) error {
 	user, ok := middlewares.CurrentUser(c)
@@ -175,18 +175,15 @@ func themePayloadFromRequest(c *fiber.Ctx) (models.ThemePayload, bool) {
 		return req, false
 	}
 
-	req.Key = strings.ToLower(strings.TrimSpace(req.Key))
-	if !models.ValidThemeKey(req.Key) {
-		_ = utils.Fail(c, fiber.StatusBadRequest,
-			"Ключ темы: латиница, цифры и дефис, от 3 до 32 символов", nil)
-		return req, false
-	}
-
 	req.Title = strings.TrimSpace(req.Title)
 	if utf8.RuneCountInString(req.Title) > models.ThemeTitleMaxLength {
 		_ = utils.Fail(c, fiber.StatusBadRequest, "Название темы слишком длинное", nil)
 		return req, false
 	}
+
+	// Ключ у клиента не спрашиваем: он собирается из названия, а если такой ключ занят,
+	// база возьмёт следующий свободный (см. db.CreateThemePackage).
+	req.Key = models.ThemeKeyFromTitle(req.Title)
 
 	req.Description = strings.TrimSpace(req.Description)
 	if utf8.RuneCountInString(req.Description) > models.ThemeDescriptionMax {

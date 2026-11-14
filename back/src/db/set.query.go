@@ -507,7 +507,8 @@ const publicSetColumns = `s.id, s.user_id, s.title, s.slug, s.visibility, s.forb
 	left(coalesce(s.content, ''), 280) AS preview,
 	(SELECT count(*) FROM set_likes l WHERE l.set_id = s.id) AS likes_count,
 	(SELECT count(*) FROM set_comments cm WHERE cm.set_id = s.id) AS comments_count,
-	(@viewer > 0 AND EXISTS(SELECT 1 FROM set_likes l2 WHERE l2.set_id = s.id AND l2.user_id = @viewer)) AS is_liked`
+	(@viewer > 0 AND EXISTS(SELECT 1 FROM set_likes l2 WHERE l2.set_id = s.id AND l2.user_id = @viewer)) AS is_liked,
+	(@viewer > 0 AND EXISTS(SELECT 1 FROM saved_sets sv WHERE sv.set_id = s.id AND sv.owner_user_id = @viewer)) AS is_saved`
 
 const publicSetsFilter = `s.visibility = 'public'
 	  AND (@search = '' OR s.title ILIKE '%' || @search || '%' OR coalesce(s.description, '') ILIKE '%' || @search || '%')`
@@ -534,6 +535,7 @@ func scanPublicSet(row pgx.Row) (*models.Set, error) {
 		&set.LikesCount,
 		&set.CommentsCount,
 		&set.IsLiked,
+		&set.IsSaved,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

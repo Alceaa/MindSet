@@ -6,13 +6,22 @@ import (
 	"time"
 )
 
-func BugReportText(author, page, topic, message string) string {
+func BugReportText(author, page, topic, message string, attachments []string) string {
 	if strings.TrimSpace(author) == "" {
 		author = "аноним"
 	}
 
-	return fmt.Sprintf("🐞 Баг-репорт\nАвтор: %s\nСтраница: %s\nТема: %s\n\n%s",
+	text := fmt.Sprintf("🐞 Баг-репорт\nАвтор: %s\nСтраница: %s\nТема: %s\n\n%s",
 		author, orDash(page), orDash(topic), strings.TrimSpace(message))
+
+	if len(attachments) > 0 {
+		text += "\n\n📎 Вложения:"
+		for _, link := range attachments {
+			text += "\n" + link
+		}
+	}
+
+	return text
 }
 
 func ServerErrorText(method, path string, status int, author, details string) string {

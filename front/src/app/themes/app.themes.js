@@ -474,8 +474,10 @@ export const applyTheme = (key) => {
     appliedNames = Object.keys(theme.variables);
     root.dataset.theme = theme.key;
 
-    root.style.colorScheme = theme.mode;
-
+    // «only light» — просьба к браузеру не подменять светлую тему своей тёмной:
+    // Firefox и Chrome умеют автоматически затемнять страницы, которые объявлены
+    // как поддерживающие тёмную схему (был баг: цвета темы «перезаписывались»).
+    root.style.colorScheme = theme.mode === "light" ? "only light" : "dark";
     const themeColor = document.querySelector('meta[name="theme-color"]');
     if (themeColor) {
         themeColor.setAttribute("content", theme.variables["--bg-canvas"]);

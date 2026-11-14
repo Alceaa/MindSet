@@ -36,6 +36,9 @@ type Set struct {
 	LikesCount    int        `json:"likes_count" db:"-"`
 	CommentsCount int        `json:"comments_count" db:"-"`
 	IsLiked       bool       `json:"is_liked" db:"-"`
+	// IsSaved — у смотрящего уже есть снимок этого сета: по нему кнопка «Сохранить»
+	// в обзоре и поиске знает, что делать снимок повторно не нужно.
+	IsSaved bool `json:"is_saved" db:"-"`
 	Author        *SetAuthor `json:"author,omitempty" db:"-"`
 
 	// Коллекции — личные полки автора. Заполняются только в своих списках:

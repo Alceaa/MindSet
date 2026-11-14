@@ -8,6 +8,7 @@ import CollectionPicker from "./collection.picker.jsx";
 import { COLLECTION_COLORS } from "./collection.colors.js";
 import { Skeleton } from "../common/skeleton.jsx";
 import EmptyState from "../common/empty.state.jsx";
+import "../../css/collections/collections.scss";
 
 // Выбор цвета при создании: цветные образцы, чтобы сразу видеть, что выбираешь.
 const ColorChoices = ({ value, onChange, disabled, label }) => (

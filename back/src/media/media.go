@@ -91,3 +91,12 @@ func PublicURL(key string) string {
 	}
 	return instance.public + "/" + strings.TrimLeft(key, "/")
 }
+
+// IsPublicURL проверяет, что адрес ведёт в наше хранилище: ссылки в отчётах приходят
+// от клиента, а получатели уведомления — живые люди.
+func IsPublicURL(raw string) bool {
+	if instance == nil || instance.public == "" {
+		return false
+	}
+	return strings.HasPrefix(strings.TrimSpace(raw), instance.public+"/")
+}

@@ -42,7 +42,7 @@ import { useToast } from "../../common/toast.jsx";
 import MarkdownTools from "../../common/markdown.tools.jsx";
 import MarkdownSnippets from "../../common/markdown.snippets.jsx";
 import { applyMarkdownPaste } from "../../../markdown/paste";
-import { registerListSplit } from "../../../markdown/list.split";
+import useListToggle from "../../../hooks/use.list.toggle";
 import { MARKDOWN_EXPORT_OPTIONS } from "../../../markdown/export.options";
 import { normalizeCodeFences } from "../../../markdown/code.fence";
 import { CODE_LANGUAGES, codeBlockPluginOptions } from "../../../markdown/code.languages.js";
@@ -76,7 +76,10 @@ export const VISIBILITY_OPTIONS = [
 export const visibilityLabel = (value) =>
     VISIBILITY_OPTIONS.find((option) => option.value === value)?.label ?? "";
 
-export const shareUrl = (slug) => `${window.location.origin}/s/${slug}`;
+// Публичная ссылка строится от базового пути приложения: в проде он /mindset,
+// иначе скопированный адрес вёл бы в корень домена и открывал 404.
+export const shareUrl = (slug) =>
+    `${window.location.origin}${process.env.PUBLIC_URL || ""}/s/${slug}`;
 
 export const copyShareLink = async (slug, current, setCopied) => {
     const url = shareUrl(slug);
@@ -601,37 +604,9 @@ const SetEditorInner = () => {
         }
     }, []);
 
-    // Снятие списка: Lexical по умолчанию убирает весь список, нам нужен только текущий пункт.
-    useEffect(() => {
-        if (mode !== "edit") {
-            return undefined;
-        }
-
-        let unregister = null;
-        let attempts = 0;
-        let timer = null;
-
-        const attach = () => {
-            const editor = realmRef.current?.getValue(rootEditor$);
-
-            if (editor) {
-                unregister = registerListSplit(editor);
-                return;
-            }
-
-            attempts += 1;
-            if (attempts < 20) {
-                timer = window.setTimeout(attach, 150);
-            }
-        };
-
-        attach();
-
-        return () => {
-            window.clearTimeout(timer);
-            unregister?.();
-        };
-    }, [mode, loading]);
+    // Снятие списка и чек-листа: Lexical по умолчанию убирает список целиком,
+    // нам нужно снять только выделенные пункты (или тот, где стоит курсор).
+    useListToggle(() => realmRef.current?.getValue(rootEditor$), mode);
 
     const openPicker = useCallback(() => {
         const editor = realmRef.current?.getValue(rootEditor$);
@@ -1102,7 +1077,7 @@ const SetEditorInner = () => {
                                     <div className="visibilityShare">
                                         <span className="mutedText">Адрес страницы:</span>
                                         <code className="visibilitySlug">
-                                            {`${window.location.origin}/s/${set.slug}`}
+                                            {shareUrl(set.slug)}
                                         </code>
                                         <button
                                             type="button"

@@ -3,6 +3,7 @@ package routes
 import (
 	"testing"
 
+	"mindset/media"
 	"mindset/utils"
 
 	"github.com/gofiber/fiber/v2"
@@ -32,18 +33,49 @@ func TestBugReportEndpoint(t *testing.T) {
 
 	authCookies := registerVerified(t, app, login, email, password)
 
+	// Вложения проверяются по адресу: хранилище должно быть настроено, а ссылка — своя.
+	if err := media.Setup(media.Config{
+		Endpoint:   "https://s3.twcstorage.ru",
+		AccessKey:  "test-access-key",
+		SecretKey:  "test-secret-key",
+		Bucket:     "mindset-media",
+		PublicBase: "https://s3.twcstorage.ru/mindset-media/",
+	}); err != nil {
+		t.Fatalf("media.Setup: %v", err)
+	}
+	own := media.PublicURL("reports/1.png")
+
 	resp, _, raw = call(t, app, callOptions{
 		Method:  fiber.MethodPost,
 		Path:    "/reports",
 		Cookies: authCookies,
-		Body: map[string]string{
+		Body: map[string]any{
 			"topic":   "Ошибка в редакторе",
 			"message": "При вставке картинки редактор падает с ошибкой на пустом сете.",
 			"page":    "/sets/12",
+			// Повтор той же ссылки не должен считаться вторым вложением.
+			"attachments": []any{own, own},
 		},
 	})
 	if resp.StatusCode != fiber.StatusCreated {
-		t.Fatalf("отчёт пользователя = %d, ожидалось 201: %s", resp.StatusCode, raw)
+		t.Fatalf("отчёт со своим вложением = %d, ожидалось 201: %s", resp.StatusCode, raw)
+	}
+
+	resp, _, raw = call(t, app, callOptions{
+		Method:  fiber.MethodPost,
+		Path:    "/reports",
+		Cookies: authCookies,
+		Body: map[string]any{
+			"topic":   "Ошибка в редакторе",
+			"message": "Чужая ссылка не должна попадать в отчёт и в уведомление.",
+			"page":    "/sets/12",
+			"attachments": []any{
+				"https://evil.example/reports/2.png",
+			},
+		},
+	})
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("чужое вложение = %d, ожидалось 400: %s", resp.StatusCode, raw)
 	}
 
 	resp, body, raw := call(t, app, callOptions{

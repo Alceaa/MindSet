@@ -144,7 +144,7 @@ go run ./cmd/mailcheck you@example.com  # письмо на свой адрес
 | POST | `/auth/forgot` | публичный | Запрос ссылки на сброс пароля (`{email}`); ответ не выдаёт, зарегистрирован адрес или нет |
 | POST | `/auth/reset` | публичный | Новый пароль по токену из письма (`{token, password, password_confirm}`); сбрасывает все сессии |
 | PUT | `/users/me/2fa` | по access-токену | Включение/выключение входа по коду (`{enabled, password}`), по умолчанию выключено |
-| POST | `/reports` | публичный | Баг-репорт (`{topic, message, page}`) → уходит в Telegram, для вошедших приложен логин |
+| POST | `/reports` | публичный | Баг-репорт (`{topic, message, page, attachments}`) → уходит в Telegram, для вошедших приложен логин; `attachments` — до трёх ссылок на изображения из нашего хранилища |
 | GET | `/auth/config` | публичный | Настройки для фронтенда: `invite_only`, `registration_open` |
 | POST | `/admin/invites` | по `ADMIN_TOKEN` или роли `admin` | Выдать одноразовое приглашение (`{note, days}`) → `{invite, url}` |
 | GET | `/admin/invites` | по `ADMIN_TOKEN` или роли `admin` | Последние приглашения и их статус |
@@ -161,7 +161,7 @@ go run ./cmd/mailcheck you@example.com  # письмо на свой адрес
 | POST | `/admin/news` | роль `admin` | Создать новость (`{title, body, is_published}`) |
 | PUT | `/admin/news/:id` | роль `admin` | Изменить новость |
 | DELETE | `/admin/news/:id` | роль `admin` | Удалить новость |
-| GET | `/admin/reports` | роль `admin` | Баг-репорты (`status`, `limit`) |
+| GET | `/admin/reports` | роль `admin` | Баг-репорты (`status`, `limit`) со ссылками на вложения |
 | PUT | `/admin/reports/:id/status` | роль `admin` | Статус репорта (`new`, `in_progress`, `done`, `rejected`) |
 | GET | `/admin/actions` | роль `admin` | Журнал действий администраторов |
 
@@ -204,7 +204,7 @@ go run ./cmd/admin unblock Alcea
 | DELETE | `/sets/:id` | по access-токену | Удаление сета; тело `{"forbid_copies":true}` удаляет и копии сразу, иначе копии замораживаются до ярлыка (30 дней) |
 | GET | `/sets/:id/copy-stats` | по access-токену | Сколько копий у сета и у скольких аккаунтов (только владелец) |
 | GET | `/graph` | по access-токену | Граф связей: `nodes` (свои и внешние), `edges` (одно ребро на пару, `one_sided` = направление стрелки) |
-| GET | `/public/sets` | публичный | Каталог публичных сетов (`limit`, `offset`, `q`) |
+| GET | `/public/sets` | публичный | Каталог публичных сетов (`limit`, `offset`, `q`); для вошедших в каждом сете есть `is_liked` и `is_saved` (снимок этого сета уже сделан) |
 | GET | `/public/sets/:slug` | публичный | Публичный сет с автором, `links` и `backlinks` |
 | GET | `/public/snapshots/:id` | публичный | Публичный снимок (копия), пока автор не отозвал доступ |
 | GET | `/saved-sets` | по access-токену | Библиотека снимков: `saved` и раздел `attention` |

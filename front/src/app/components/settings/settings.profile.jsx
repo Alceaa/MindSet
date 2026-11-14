@@ -25,6 +25,7 @@ import setService from "../../api/set.service";
 import parseApiError from "../../utils/api.error";
 import { useAuth } from "../../context/auth.context";
 import { desktopAutofocus } from "../../utils/autofocus";
+import useListToggle from "../../hooks/use.list.toggle";
 import "../../css/dashboard/dashboard.scss";
 import "../../css/dashboard/profile.scss";
 
@@ -46,6 +47,10 @@ const ProfileSettingsPanel = () => {
     const [linkQuery, setLinkQuery] = useState("");
     const fileInputRef = useRef(null);
     const editorRef = useRef(null);
+
+    // Снятие списка и чек-листа: Lexical убирает список целиком, нам нужны только
+    // выделенные пункты (или тот, где стоит курсор).
+    useListToggle(() => editorRef.current);
 
     useEffect(() => {
         setBio(user?.bio ?? "");

@@ -40,6 +40,46 @@ func TestPresignPutWithoutSetup(t *testing.T) {
 	}
 }
 
+func TestIsPublicURL(t *testing.T) {
+	resetStore()
+	t.Cleanup(resetStore)
+
+	if IsPublicURL("https://s3.twcstorage.ru/mindset-media/reports/1.png") {
+		t.Error("без Setup ссылка не должна считаться нашей")
+	}
+
+	err := Setup(Config{
+		Endpoint:   "https://s3.twcstorage.ru",
+		AccessKey:  "test-access-key",
+		SecretKey:  "test-secret-key",
+		Bucket:     "mindset-media",
+		PublicBase: "https://s3.twcstorage.ru/mindset-media/",
+	})
+	if err != nil {
+		t.Fatalf("Setup вернул ошибку: %v", err)
+	}
+
+	own := PublicURL("reports/1.png")
+	if !IsPublicURL(own) {
+		t.Errorf("своя ссылка %q не распознана", own)
+	}
+	if !IsPublicURL("  " + own + "  ") {
+		t.Error("пробелы вокруг ссылки не должны мешать")
+	}
+
+	for _, foreign := range []string{
+		"",
+		"https://evil.example/reports/1.png",
+		// Похожий, но чужой префикс: без слэша это уже другой адрес.
+		"https://s3.twcstorage.ru/mindset-media-evil/1.png",
+		"https://s3.twcstorage.ru/mindset-media",
+	} {
+		if IsPublicURL(foreign) {
+			t.Errorf("чужая ссылка %q принята за нашу", foreign)
+		}
+	}
+}
+
 func TestPresignPutTimewebShape(t *testing.T) {
 	resetStore()
 	t.Cleanup(resetStore)

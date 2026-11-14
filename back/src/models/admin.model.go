@@ -37,13 +37,14 @@ type News struct {
 }
 
 type BugReport struct {
-	ID        int    `json:"id"`
-	Login     string `json:"login"`
-	Page      string `json:"page"`
-	Topic     string `json:"topic"`
-	Message   string `json:"message"`
-	Status    string `json:"status"`
-	CreatedAt string `json:"created_at"`
+	ID          int      `json:"id"`
+	Login       string   `json:"login"`
+	Page        string   `json:"page"`
+	Topic       string   `json:"topic"`
+	Message     string   `json:"message"`
+	Attachments []string `json:"attachments"`
+	Status      string   `json:"status"`
+	CreatedAt   string   `json:"created_at"`
 }
 
 type BlockUserPayload struct {

@@ -16,6 +16,8 @@ const DENSE_ITERATIONS = 220;
 const NODE_PADDING = 12;
 const DRAG_GROWTH = 1.3;
 const DRAG_PASSES = 4;
+// Порог перетаскивания узла в пикселях экрана: меньше — это клик, а не сдвиг.
+const DRAG_THRESHOLD = 4;
 const SETTLE_PASSES = 12;
 const DENSE_SETTLE_PASSES = 24;
 const LERP = 0.28;
@@ -590,12 +592,15 @@ const Graph = () => {
         event.preventDefault();
 
         const point = toGraphPoint(event);
+        const pressed = toCanvasPoint(event);
         dragged.current = false;
         draggingRef.current = true;
         setDragging({
             key,
             offsetX: (positions[key]?.x ?? point.x) - point.x,
             offsetY: (positions[key]?.y ?? point.y) - point.y,
+            pressPx: pressed.px,
+            pressPy: pressed.py,
         });
     };
 
@@ -623,6 +628,18 @@ const Graph = () => {
                 x: clamp(point.x + dragging.offsetX, CANVAS_MARGIN, canvas.width - CANVAS_MARGIN),
                 y: clamp(point.y + dragging.offsetY, CANVAS_MARGIN, canvas.height - CANVAS_MARGIN),
             };
+
+            // Перетаскивание включается только после порога в пикселях: иначе клик
+            // по узлу считался перетаскиванием и сет не открывался.
+            if (!dragged.current) {
+                const moved = toCanvasPoint(event);
+                if (
+                    Math.hypot(moved.px - dragging.pressPx, moved.py - dragging.pressPy) <
+                    DRAG_THRESHOLD
+                ) {
+                    return;
+                }
+            }
 
             dragged.current = true;
 

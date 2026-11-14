@@ -67,9 +67,6 @@ test("создаёт черновик с выбранными переменны
     fireEvent.change(screen.getByPlaceholderText("Северные сумерки"), {
         target: { value: "Ледяная ночь" },
     });
-    fireEvent.change(screen.getByPlaceholderText("northern-dusk"), {
-        target: { value: "ice-night" },
-    });
 
     fireEvent.click(screen.getByRole("checkbox", { name: "Фон страницы" }));
     fireEvent.change(screen.getByLabelText("Фон страницы: цвет"), {
@@ -81,8 +78,8 @@ test("создаёт черновик с выбранными переменны
     });
 
     await waitFor(() => expect(themeService.create).toHaveBeenCalled());
+    // Ключ не отправляем: сервер соберёт его из названия.
     expect(themeService.create).toHaveBeenCalledWith({
-        key: "ice-night",
         title: "Ледяная ночь",
         description: "",
         mode: "dark",
@@ -91,7 +88,7 @@ test("создаёт черновик с выбранными переменны
     });
 });
 
-test("не отправляет тему без переменных и с плохим ключом", async () => {
+test("не отправляет тему без переменных", async () => {
     render(<ThemesSettings onApplied={() => {}} />);
     await screen.findByText("Северные сумерки");
 
@@ -102,18 +99,9 @@ test("не отправляет тему без переменных и с пл�
     fireEvent.change(screen.getByPlaceholderText("Северные сумерки"), {
         target: { value: "Проверка" },
     });
-    fireEvent.change(screen.getByPlaceholderText("northern-dusk"), {
-        target: { value: "Плохой ключ" },
-    });
-
-    expect(await screen.findByText(/Ключ темы: латиница, цифры и дефис/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Создать черновик" }).disabled).toBe(true);
-
-    fireEvent.change(screen.getByPlaceholderText("northern-dusk"), {
-        target: { value: "good-key" },
-    });
 
     expect(await screen.findByText(/Отметьте хотя бы одну переменную/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Создать черновик" }).disabled).toBe(true);
     expect(themeService.create).not.toHaveBeenCalled();
 });
 

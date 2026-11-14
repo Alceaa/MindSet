@@ -156,6 +156,31 @@
     word-break: break-word;
 }
 
+/* Вложения отчёта: миниатюры-ссылки на изображения в хранилище. */
+.adminAttachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: var(--gap-sm);
+}
+
+.adminAttachment {
+    display: inline-flex;
+}
+
+.adminAttachmentThumb {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+}
+
+.adminAttachment:hover .adminAttachmentThumb {
+    border-color: var(--accent);
+}
+
 .adminSwatches {
     display: flex;
     overflow: hidden;

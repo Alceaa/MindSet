@@ -343,6 +343,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-width: 0;
     max-height: 260px;
     margin: 0;
     padding: 0 var(--gap-sm) var(--gap-sm);
@@ -460,29 +461,56 @@
     list-style: none;
 }
 
-.collectionsRow {
+/* Содержимое коллекции: строки те же, что в списке сетов, но панель настроек не тянет
+   feed.scss — задаём нужное здесь. Без этих правил длинное превью растягивало панель. */
+.collectionsSets .setListRow {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--gap-sm);
-    padding: 6px 8px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background-color: var(--bg-surface-muted);
-}
-
-.collectionsName {
     flex: 1;
-    min-width: 120px;
-    border: 0;
-    background: none;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+    min-width: 0;
     color: var(--text);
-    font-family: inherit;
-    font-size: 14px;
-    text-align: left;
-    cursor: pointer;
+    text-decoration: none;
 }
 
-.collectionsName:hover {
+.collectionsSets .setListRow:hover {
     color: var(--accent);
+}
+
+.collectionsSets .setListMain {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.collectionsSets .setListTitle {
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.collectionsSets .setListPreview {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 13px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.collectionsSets .setListMeta {
+    flex: 0 0 auto;
+    color: var(--text-faint);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    /* Телефон: название коллекции занимает свою строку, кнопки управления идут ниже
+       и не наслаиваются друг на друга. */
+    .collectionsToggle {
+        flex: 1 1 100%;
+    }
 }

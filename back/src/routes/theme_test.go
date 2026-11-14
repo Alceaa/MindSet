@@ -48,12 +48,29 @@ func TestThemePackageLifecycle(t *testing.T) {
 
 	key := fmt.Sprintf("theme-%d", suffix)
 
-	bad := themeDraft("Плохой ключ")
-	resp, _, raw := call(t, app, callOptions{
-		Method: fiber.MethodPost, Path: "/theme-packages", Cookies: cookies, Body: bad,
+	// Ключ не задаём и не проверяем: он собирается из названия («Тёплый вечер» →
+	// teplyy-vecher), а занятый ключ база заменит следующим свободным.
+	first := themeDraft("")
+	first["key"] = "Плохой ключ"
+	resp, firstBody, raw := call(t, app, callOptions{
+		Method: fiber.MethodPost, Path: "/theme-packages", Cookies: cookies, Body: first,
 	})
-	if resp.StatusCode != fiber.StatusBadRequest {
-		t.Errorf("ключ с пробелами = %d (%s), ожидалось 400", resp.StatusCode, raw)
+	if resp.StatusCode != fiber.StatusCreated || firstBody.Theme == nil {
+		t.Fatalf("создание темы без ключа = %d (%s)", resp.StatusCode, raw)
+	}
+	if !strings.HasPrefix(firstBody.Theme.Key, "teplyy-vecher") {
+		t.Errorf("ключ темы = %q, ожидался собранный из названия", firstBody.Theme.Key)
+	}
+
+	second := themeDraft("")
+	resp, secondBody, raw := call(t, app, callOptions{
+		Method: fiber.MethodPost, Path: "/theme-packages", Cookies: cookies, Body: second,
+	})
+	if resp.StatusCode != fiber.StatusCreated || secondBody.Theme == nil {
+		t.Fatalf("вторая тема с тем же названием = %d (%s)", resp.StatusCode, raw)
+	}
+	if secondBody.Theme.Key == firstBody.Theme.Key {
+		t.Errorf("две темы с одним названием получили одинаковый ключ: %q", secondBody.Theme.Key)
 	}
 
 	unknown := themeDraft(key)
@@ -148,6 +165,7 @@ func TestThemeModerationFlow(t *testing.T) {
 		t.Fatalf("создание темы = %d (%s)", resp.StatusCode, raw)
 	}
 	themeID := body.Theme.ID
+	themeKey := body.Theme.Key
 
 	resp, body, raw = call(t, app, callOptions{
 		Method: fiber.MethodPost, Path: fmt.Sprintf("/theme-packages/%d/submit", themeID), Cookies: cookies,
@@ -252,7 +270,7 @@ func TestThemeModerationFlow(t *testing.T) {
 
 	visible := false
 	for _, item := range published.Themes {
-		if item.Key != key {
+		if item.Key != themeKey {
 			continue
 		}
 		visible = true
@@ -285,7 +303,7 @@ func TestThemeModerationFlow(t *testing.T) {
 
 	resp, published, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/themes"})
 	for _, item := range published.Themes {
-		if item.Key == key {
+		if item.Key == themeKey {
 			t.Errorf("удалённая тема осталась в каталоге: %s", item.Key)
 		}
 	}

@@ -3,6 +3,7 @@ package routes
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -33,11 +34,13 @@ func TestSavedSetLibraryLifecycle(t *testing.T) {
 	authorCookies := registerSnapshotUser(t, app, authorLogin, password)
 	saverCookies := registerSnapshotUser(t, app, saverLogin, password)
 
+	sourceTitle := fmt.Sprintf("Заметки автора %d", suffix)
+
 	resp, authorBody, raw := call(t, app, callOptions{
 		Method: fiber.MethodPost,
 		Path:   "/sets",
 		Body: map[string]any{
-			"title":       "Заметки автора",
+			"title":       sourceTitle,
 			"visibility":  "public",
 			"description": "источник для снимка",
 			"content":     "первая редакция",
@@ -50,6 +53,39 @@ func TestSavedSetLibraryLifecycle(t *testing.T) {
 	sourceSlug := authorBody.Set.Slug
 	sourceID := authorBody.Set.ID
 
+	// is_saved — серверный признак «снимок этого сета у меня уже есть»: по нему кнопка
+	// «Сохранить» в обзоре и поиске остаётся «Сохранено» и после перезагрузки страницы.
+	isSavedFor := func(cookies []*http.Cookie) bool {
+		t.Helper()
+
+		opts := callOptions{
+			Method: fiber.MethodGet,
+			Path:   "/public/sets?q=" + url.QueryEscape(sourceTitle),
+			Cookies: cookies,
+		}
+		resp, body, raw := call(t, app, opts)
+		if resp.StatusCode != fiber.StatusOK {
+			t.Fatalf("публичный список сетов = %d: %s", resp.StatusCode, raw)
+		}
+		for _, item := range body.Sets {
+			if item.ID == sourceID {
+				return item.IsSaved
+			}
+		}
+		t.Fatalf("сет %d не найден в публичном списке", sourceID)
+		return false
+	}
+
+	if isSavedFor(saverCookies) {
+		t.Error("до сохранения is_saved должен быть false")
+	}
+	if isSavedFor(nil) {
+		t.Error("для анонимного смотрящего is_saved должен быть false")
+	}
+	if isSavedFor(authorCookies) {
+		t.Error("автор не сохранял свой сет — is_saved должен быть false")
+	}
+
 	resp, saverBody, raw := call(t, app, callOptions{
 		Method:  fiber.MethodPost,
 		Path:    "/saved-sets",
@@ -61,6 +97,9 @@ func TestSavedSetLibraryLifecycle(t *testing.T) {
 	}
 	if len(saverBody.Saved) != 1 {
 		t.Fatalf("ожидался один снимок, получено %d", len(saverBody.Saved))
+	}
+	if !isSavedFor(saverCookies) {
+		t.Error("после сохранения is_saved должен быть true")
 	}
 
 	saved := saverBody.Saved[0]

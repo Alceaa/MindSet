@@ -48,16 +48,25 @@ func ModerateTheme(c *fiber.Ctx) error {
 		note = ""
 	}
 
-	item, err := db.ModerateThemePackage(c.Context(), id, req.Status, note)
+	item, before, err := db.ModerateThemePackage(c.Context(), id, req.Status, note)
 	if err != nil {
 		return writeThemeError(c, err, "Не удалось обновить статус темы")
 	}
 
 	recordAction(c, "theme_"+req.Status, "theme", item.ID, item.Key)
 
+	// Админ мог одобрить или отклонить отложенную правку опубликованной темы: сообщаем это
+	// прямо, иначе выглядит так, будто вся тема снята с публикации.
 	message := "Тема опубликована"
-	if req.Status == models.ThemeStatusRejected {
+	switch {
+	case req.Status == models.ThemeStatusRejected && before.WasStaged:
+		message = "Правка отклонена: тема осталась опубликованной"
+	case req.Status == models.ThemeStatusRejected && before.Previous == models.ThemeStatusApproved:
+		message = "Тема снята с публикации"
+	case req.Status == models.ThemeStatusRejected:
 		message = "Тема отклонена"
+	case req.Status == models.ThemeStatusApproved && before.WasStaged:
+		message = "Правка опубликована"
 	}
 
 	return utils.Success(c, fiber.StatusOK, fiber.Map{"message": message, "theme": item})

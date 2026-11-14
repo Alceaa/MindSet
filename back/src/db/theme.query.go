@@ -371,21 +371,41 @@ func ListPublishedThemes(ctx context.Context) ([]*models.ThemePackage, error) {
 	return collectThemePackages(rows)
 }
 
-func ModerateThemePackage(ctx context.Context, id int, status, note string) (*models.ThemePackage, error) {
+// ThemeModeration — что именно изменил админ: саму тему или отложенную правку. Нужно для
+// точного ответа: «правка отклонена» и «тема отклонена» — разные вещи для автора.
+type ThemeModeration struct {
+	WasStaged bool
+	Previous  string
+}
+
+func ModerateThemePackage(ctx context.Context, id int, status, note string) (*models.ThemePackage, ThemeModeration, error) {
 	conn, err := pool()
 	if err != nil {
-		return nil, err
+		return nil, ThemeModeration{}, err
+	}
+
+	var before ThemeModeration
+	if err := conn.QueryRow(ctx,
+		`SELECT status, pending_payload IS NOT NULL FROM theme_packages WHERE id = @id`,
+		pgx.NamedArgs{"id": id}).Scan(&before.Previous, &before.WasStaged); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, before, ErrNotFound
+		}
+		return nil, before, fmt.Errorf("read theme package before moderate: %w", err)
 	}
 
 	tag, err := conn.Exec(ctx, `
 		UPDATE theme_packages
-		SET title = CASE WHEN pending_payload IS NOT NULL THEN pending_payload->>'title' ELSE title END,
-		    description = CASE WHEN pending_payload IS NOT NULL
+		SET title = CASE WHEN pending_payload IS NOT NULL AND @status = @approved
+		        THEN pending_payload->>'title' ELSE title END,
+		    description = CASE WHEN pending_payload IS NOT NULL AND @status = @approved
 		        THEN coalesce(pending_payload->>'description', '') ELSE description END,
-		    mode = CASE WHEN pending_payload IS NOT NULL THEN pending_payload->>'mode' ELSE mode END,
-		    base_theme = CASE WHEN pending_payload IS NOT NULL
-		        THEN pending_payload->>'base_theme' ELSE base_theme END,
-		    variables = CASE WHEN pending_payload IS NOT NULL THEN pending_payload->'variables' ELSE variables END,
+		    mode = CASE WHEN pending_payload IS NOT NULL AND @status = @approved
+		        THEN pending_payload->>'mode' ELSE mode END,
+		    base_theme = CASE WHEN pending_payload IS NOT NULL AND @status = @approved
+		        THEN pending_payload->>'base' ELSE base_theme END,
+		    variables = CASE WHEN pending_payload IS NOT NULL AND @status = @approved
+		        THEN pending_payload->'variables' ELSE variables END,
 		    -- Отклонение правки не снимает тему с публикации: в каталоге остаётся прежняя версия.
 		    status = CASE WHEN pending_payload IS NOT NULL AND @status <> @approved THEN status ELSE @status END,
 		    pending_payload = NULL,
@@ -399,13 +419,18 @@ func ModerateThemePackage(ctx context.Context, id int, status, note string) (*mo
 		"approved": models.ThemeStatusApproved,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("moderate theme package: %w", err)
+		return nil, before, fmt.Errorf("moderate theme package: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return nil, ErrNotFound
+		return nil, before, ErrNotFound
 	}
 
-	return GetThemePackageByID(ctx, id)
+	item, err := GetThemePackageByID(ctx, id)
+	if err != nil {
+		return nil, before, err
+	}
+
+	return item, before, nil
 }
 
 func collectThemePackages(rows pgx.Rows) ([]*models.ThemePackage, error) {

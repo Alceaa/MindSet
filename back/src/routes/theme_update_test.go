@@ -25,6 +25,10 @@ func TestPublishedThemeUpdateLifecycle(t *testing.T) {
 	cookies := registerForPrivacy(t, app, authorLogin, authorLogin+"@example.com", password)
 	otherCookies := registerForPrivacy(t, app, otherLogin, otherLogin+"@example.com", password)
 
+	// Модерация тем доступна админам, а тест редактирует именно её — иначе шаги одобрения
+	// вернут 404 и жизненный цикл правки останется непроверенным.
+	setUserRole(t, cfg.DBUrl, authorLogin, "admin")
+
 	payload := themeDraft("")
 	payload["title"] = fmt.Sprintf("Обновляемая тема %d", suffix)
 	payload["variables"] = map[string]string{"--bg-canvas": "#101010", "--accent": "#ffcc00"}

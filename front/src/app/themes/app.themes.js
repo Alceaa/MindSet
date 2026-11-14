@@ -391,8 +391,10 @@ export const customThemeFromPackage = (item) => {
     return {
         key: CUSTOM_THEME_PREFIX + item.key,
         label: item.title || item.key,
-        hint: item.description || `Тема из сообщества${item.author ? ` · @${item.author}` : ""}`,
+        // Описание показываем как есть: нет описания — под названием ничего не выводим.
+        hint: item.description || "",
         mode: item.mode === "light" ? "light" : "dark",
+        base: item.base || "dark",
         variables: { ...base.variables, ...overrides },
         custom: true,
         packageKey: item.key,

@@ -14,6 +14,7 @@ const ThemeOption = ({ item, active, badge, onPick }) => (
         className={`themeOption${active ? " themeOptionActive" : ""}`}
         onClick={onPick}
         aria-pressed={active}
+        title={item.author ? `Автор: @${item.author}` : undefined}
     >
         <span className="themeOptionSwatches" aria-hidden="true">
             {SWATCHES.map((name) => (
@@ -29,7 +30,7 @@ const ThemeOption = ({ item, active, badge, onPick }) => (
                 {item.label}
                 {badge ? <span className="themeOptionBadge">{badge}</span> : null}
             </span>
-            <span className="mutedText">{item.hint}</span>
+            {item.hint ? <span className="mutedText">{item.hint}</span> : null}
         </span>
     </button>
 );
@@ -61,6 +62,16 @@ const AppearanceSettingsPanel = () => {
     // карточкой оттуда, поэтому отдельной карточки нет — только пометка «ваша».
     const isOwn = (item) =>
         Boolean(user?.login) && item.author.toLowerCase() === user.login.toLowerCase();
+
+    // «Изменить» в списке своих тем: включаем тему и уводим к конструктору — он покажет её цвета.
+    const editTheme = (key) => {
+        setTheme(key);
+        window.setTimeout(() => {
+            document
+                .getElementById("themeConstructor")
+                ?.scrollIntoView({ block: "start", behavior: "smooth" });
+        }, 80);
+    };
 
     return (
         <div className="settingsPanel">
@@ -116,7 +127,7 @@ const AppearanceSettingsPanel = () => {
 
             <LocalThemeSettings />
 
-            <ThemesSettings onApplied={setTheme} />
+            <ThemesSettings onApplied={setTheme} onEdit={editTheme} />
         </div>
     );
 };

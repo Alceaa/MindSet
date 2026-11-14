@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import themeService from "../../api/theme.service";
 import parseApiError from "../../utils/api.error";
 import useAppTheme, { registerLocalTheme } from "../../hooks/use.app.theme";
-import { APP_THEMES, DEFAULT_THEME, themeByKey } from "../../themes/app.themes";
+import { APP_THEMES, DEFAULT_THEME, isCustomTheme, themeByKey } from "../../themes/app.themes";
+import { CUSTOM_THEME_PREFIX } from "../../themes/theme.packages";
 import {
     LOCAL_THEME_KEY,
     THEME_PRESETS,
@@ -14,6 +15,7 @@ import "../../css/settings/settings.scss";
 
 const emptyTheme = () => ({
     title: "",
+    description: "",
     mode: THEME_PRESETS[0].mode,
     base: THEME_PRESETS[0].base,
     roles: { ...THEME_PRESETS[0].roles },
@@ -29,29 +31,70 @@ const LocalThemeSettings = () => {
     const [busy, setBusy] = useState(false);
     const [notice, setNotice] = useState(null);
 
+    // Если включена тема из каталога, конструктор показывает её цвета — правку видно глазами.
+    // Иначе показываем свою тему из профиля.
     useEffect(() => {
         let alive = true;
 
-        themeService
-            .profileTheme()
-            .then((data) => {
-                if (!alive || !data?.theme) {
-                    return;
-                }
+        const ownPackages = async () =>
+            (await themeService.own().catch(() => null))?.themes ?? [];
 
-                setForm({
-                    title: data.theme.title ?? "",
-                    mode: data.theme.mode === "light" ? "light" : "dark",
-                    base: data.theme.base || DEFAULT_THEME,
-                    roles: { ...emptyTheme().roles, ...(data.theme.roles ?? {}) },
-                });
-            })
-            .catch(() => {});
+        const fillFromProfile = async () => {
+            const data = await themeService.profileTheme().catch(() => null);
+
+            if (!alive || !data?.theme) {
+                return;
+            }
+
+            const title = data.theme.title ?? "";
+            const packages = await ownPackages();
+
+            if (!alive) {
+                return;
+            }
+
+            // Описание живёт в каталоге, а не в профиле: берём у своей темы с тем же названием.
+            const twin = packages.find((item) => (item.title ?? "").trim() === title.trim());
+
+            setForm({
+                title,
+                description: twin?.description ?? "",
+                mode: data.theme.mode === "light" ? "light" : "dark",
+                base: data.theme.base || DEFAULT_THEME,
+                roles: { ...emptyTheme().roles, ...(data.theme.roles ?? {}) },
+            });
+        };
+
+        const fillFromApplied = async () => {
+            const applied = themeByKey(theme);
+            const packages = await ownPackages();
+
+            if (!alive) {
+                return;
+            }
+
+            const mine = packages.find((item) => `${CUSTOM_THEME_PREFIX}${item.key}` === theme);
+
+            setForm({
+                // Чужую тему не подписываем её названием: это уже своя тема, автор назовёт её сам.
+                title: mine ? mine.title : "",
+                description: mine?.description ?? "",
+                mode: applied.mode === "light" ? "light" : "dark",
+                base: mine?.base || applied.base || DEFAULT_THEME,
+                roles: rolesFromVariables(applied.variables),
+            });
+        };
+
+        if (isCustomTheme(theme) && theme !== LOCAL_THEME_KEY) {
+            fillFromApplied();
+        } else {
+            fillFromProfile();
+        }
 
         return () => {
             alive = false;
         };
-    }, []);
+    }, [theme]);
 
     const enabled = theme === LOCAL_THEME_KEY;
 
@@ -113,7 +156,7 @@ const LocalThemeSettings = () => {
 
         const payload = {
             title: form.title.trim() || "Своя тема",
-            description: "Своя тема: восемь цветов поверх базовой",
+            description: form.description.trim(),
             mode: form.mode,
             base: form.base,
             variables: packageVariables(form.roles, form.base),
@@ -173,13 +216,13 @@ const LocalThemeSettings = () => {
     };
 
     return (
-        <section className="card settingsForm">
+        <section className="card settingsForm" id="themeConstructor">
             <span className="settingsSectionLabel">Конструктор темы</span>
             <p className="mutedText">
                 Соберите оформление под себя: восемь цветов, остальное подберётся само. Тема
                 хранится в профиле, а вернуть базовую можно кнопкой «Сбросить» или сочетанием
-                Ctrl+Alt+D. Сохранённая тема появляется в списке выше; когда она понравится —
-                отправьте её на модерацию, и после одобрения её увидят все.
+                Ctrl+Alt+D. Если включена тема из каталога, конструктор показывает её цвета:
+                правьте и отправляйте правку на модерацию.
             </p>
 
             {notice && (
@@ -206,6 +249,17 @@ const LocalThemeSettings = () => {
                     onChange={(event) => setForm({ ...form, title: event.target.value })}
                     maxLength={40}
                     placeholder="Моя тема"
+                />
+            </label>
+
+            <label className="settingsField">
+                <span className="settingsFieldLabel">Описание (необязательно)</span>
+                <input
+                    className="input"
+                    value={form.description}
+                    onChange={(event) => setForm({ ...form, description: event.target.value })}
+                    maxLength={200}
+                    placeholder="Пара слов для каталога"
                 />
             </label>
 

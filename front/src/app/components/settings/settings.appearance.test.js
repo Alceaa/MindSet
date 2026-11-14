@@ -68,3 +68,14 @@ test("пометки нет у чужой темы", async () => {
     expect(await screen.findByText("Морское стекло")).toBeTruthy();
     expect(screen.queryByText("ваша")).toBeNull();
 });
+
+test("без описания под названием ничего не выводится", async () => {
+    themeService.published.mockResolvedValue({
+        themes: [{ ...alien, description: "" }],
+    });
+
+    render(<AppearanceSettingsPanel />);
+
+    expect(await screen.findByText("Морское стекло")).toBeTruthy();
+    expect(screen.queryByText(/Тема из сообщества/)).toBeNull();
+});

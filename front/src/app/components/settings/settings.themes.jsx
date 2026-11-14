@@ -25,7 +25,7 @@ const baseThemeOf = (key) => APP_THEMES.find((item) => item.key === key) ?? APP_
  * Свои темы в каталоге. Конструктор тут не нужен: он один — блок «Своя тема» выше.
  * Здесь только состояние тем и действия над ними: применить, снять с публикации, удалить.
  */
-const ThemesSettings = ({ onApplied }) => {
+const ThemesSettings = ({ onApplied, onEdit }) => {
     const [themes, setThemes] = useState([]);
     const [limit, setLimit] = useState(10);
     const [loading, setLoading] = useState(true);
@@ -107,6 +107,12 @@ const ThemesSettings = ({ onApplied }) => {
                                         {item.moderation_note}
                                     </span>
                                 )}
+                                {item.pending && (
+                                    <span className="themeNote">
+                                        Правка ждёт модерации: в каталоге пока работает прежняя
+                                        версия темы
+                                    </span>
+                                )}
                             </div>
                             <div className="tokenRowActions">
                                 {item.status === "approved" && (
@@ -118,6 +124,17 @@ const ThemesSettings = ({ onApplied }) => {
                                         }
                                     >
                                         Применить
+                                    </button>
+                                )}
+
+                                {item.status === "approved" && onEdit && (
+                                    <button
+                                        className="btn btnGhost btnSmall"
+                                        type="button"
+                                        title="Откроет тему в конструкторе: правьте цвета и отправляйте правку на модерацию"
+                                        onClick={() => onEdit(`${CUSTOM_THEME_PREFIX}${item.key}`)}
+                                    >
+                                        Изменить
                                     </button>
                                 )}
 

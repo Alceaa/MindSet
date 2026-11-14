@@ -67,6 +67,21 @@ test("применяет опубликованную тему из списка
     expect(onApplied).toHaveBeenCalledWith("custom:northern-dusk");
 });
 
+test("опубликованную тему можно открыть в конструкторе", async () => {
+    themeService.own.mockResolvedValue({
+        themes: [{ ...draft, id: 7, status: "approved" }],
+        limit: 10,
+    });
+    const onEdit = jest.fn();
+
+    render(<ThemesSettings onApplied={() => {}} onEdit={onEdit} />);
+    await screen.findByText("Северные сумерки");
+
+    fireEvent.click(screen.getByRole("button", { name: "Изменить" }));
+
+    expect(onEdit).toHaveBeenCalledWith("custom:northern-dusk");
+});
+
 test("снимает опубликованную тему с публикации и отмечает правку на модерации", async () => {
     themeService.own.mockResolvedValue({
         themes: [

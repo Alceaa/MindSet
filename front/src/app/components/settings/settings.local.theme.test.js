@@ -144,6 +144,9 @@ test("отправляет свою тему на модерацию", async () 
 
     fireEvent.click(screen.getByRole("button", { name: "Море" }));
     fireEvent.change(screen.getByPlaceholderText("Моя тема"), { target: { value: "Морская" } });
+    fireEvent.change(screen.getByPlaceholderText("Пара слов для каталога"), {
+        target: { value: "Тёплый вечер" },
+    });
 
     await act(async () => {
         screen.getByRole("button", { name: "Отправить на модерацию" }).click();
@@ -153,6 +156,7 @@ test("отправляет свою тему на модерацию", async () 
 
     const payload = themeService.create.mock.calls[0][0];
     expect(payload.title).toBe("Морская");
+    expect(payload.description).toBe("Тёплый вечер");
     expect(payload.mode).toBe(THEME_PRESETS[1].mode);
     expect(payload.base).toBe(THEME_PRESETS[1].base);
     // В пакет уезжает белый список переменных, а не восемь ролей.

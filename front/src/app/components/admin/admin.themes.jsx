@@ -109,7 +109,10 @@ const AdminThemesPanel = () => {
                     </thead>
                     <tbody>
                         {themes.map((item) => {
-                            const theme = customThemeFromPackage(item);
+                            // Правка опубликованной темы лежит в pending: показываем в строке то,
+                            // что предлагает автор, чтобы админ видел разницу до одобрения.
+                            const proposal = item.pending ? { ...item, ...item.pending } : item;
+                            const theme = customThemeFromPackage(proposal);
 
                             return (
                                 <tr key={item.id}>
@@ -117,14 +120,17 @@ const AdminThemesPanel = () => {
                                         {formatDateTime(item.updated_at)}
                                     </td>
                                     <td>
-                                        <strong>{item.title}</strong>
+                                        <strong>{proposal.title}</strong>
+                                        {item.pending ? (
+                                            <span className="adminBadge"> правка</span>
+                                        ) : null}
                                         <div className="adminBody">
                                             <code>{item.key}</code> · автор: {item.author || "—"} ·
-                                            база: {item.base} ·{" "}
-                                            {item.mode === "light" ? "светлый" : "тёмный"} режим
+                                            база: {proposal.base} ·{" "}
+                                            {proposal.mode === "light" ? "светлый" : "тёмный"} режим
                                         </div>
-                                        {item.description && (
-                                            <div className="adminBody">{item.description}</div>
+                                        {proposal.description && (
+                                            <div className="adminBody">{proposal.description}</div>
                                         )}
                                     </td>
                                     <td>
@@ -142,22 +148,30 @@ const AdminThemesPanel = () => {
                                     </td>
                                     <td>
                                         <div className="adminVariableList">
-                                            {Object.entries(item.variables).map(([name, value]) => (
-                                                <span className="adminVariable" key={name}>
-                                                    <span
-                                                        className="adminSwatchSmall"
-                                                        style={{ backgroundColor: value }}
-                                                    />
-                                                    {themeVariableLabel(name)}
-                                                    <code>{value}</code>
-                                                </span>
-                                            ))}
+                                            {Object.entries(proposal.variables ?? {}).map(
+                                                ([name, value]) => (
+                                                    <span className="adminVariable" key={name}>
+                                                        <span
+                                                            className="adminSwatchSmall"
+                                                            style={{ backgroundColor: value }}
+                                                        />
+                                                        {themeVariableLabel(name)}
+                                                        <code>{value}</code>
+                                                    </span>
+                                                )
+                                            )}
                                         </div>
                                     </td>
                                     <td>
                                         <span className="adminBadge">
                                             {STATUS_LABELS[item.status] ?? item.status}
                                         </span>
+                                        {item.pending ? (
+                                            <div className="adminBody">
+                                                Ждёт модерации: правка опубликованной темы. Пока
+                                                её не одобрить, в каталоге работает прежняя версия.
+                                            </div>
+                                        ) : null}
                                         {item.status === "rejected" && item.moderation_note && (
                                             <div className="adminBody">{item.moderation_note}</div>
                                         )}
@@ -177,16 +191,16 @@ const AdminThemesPanel = () => {
                                                 placeholder="Причина отказа"
                                                 aria-label="Причина отказа"
                                             />
-                                            {item.status !== "approved" && (
+                                            {item.pending || item.status !== "approved" ? (
                                                 <button
                                                     className="btn btnSmall"
                                                     type="button"
                                                     disabled={busy === item.id}
                                                     onClick={() => moderate(item, "approved")}
                                                 >
-                                                    Опубликовать
+                                                    {item.pending ? "Опубликовать правку" : "Опубликовать"}
                                                 </button>
-                                            )}
+                                            ) : null}
                                             {item.status !== "rejected" && (
                                                 <button
                                                     className="btn btnGhost btnSmall"
@@ -194,7 +208,11 @@ const AdminThemesPanel = () => {
                                                     disabled={busy === item.id}
                                                     onClick={() => moderate(item, "rejected")}
                                                 >
-                                                    Отклонить
+                                                    {item.pending
+                                                        ? "Отклонить правку"
+                                                        : item.status === "approved"
+                                                          ? "Снять с публикации"
+                                                          : "Отклонить"}
                                                 </button>
                                             )}
                                         </div>

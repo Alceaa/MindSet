@@ -4,7 +4,6 @@ import {
     BlockTypeSelect,
     BoldItalicUnderlineToggles,
     CodeToggle,
-    CreateLink,
     DiffSourceToggleWrapper,
     InsertImage,
     InsertTable,
@@ -20,7 +19,6 @@ import {
     headingsPlugin,
     imagePlugin,
     lexical,
-    linkDialogPlugin,
     linkPlugin,
     listsPlugin,
     markdownShortcutPlugin,
@@ -50,6 +48,7 @@ import SetArticle from "./set.article.jsx";
 import SetSidebar from "./set.sidebar.jsx";
 import { buildPickerOptions } from "./picker.options";
 import WikilinkPicker from "./wikilink.picker.jsx";
+import LinkDialog from "./link.dialog.jsx";
 import ReaderSettings from "./reader.settings.jsx";
 import useReaderSettings from "../../../hooks/use.reader.settings";
 import useReadingPosition, { readingPositionKey } from "../../../hooks/use.reading.position";
@@ -124,7 +123,7 @@ const imageUploadHandler = async (file) => {
     }
 };
 
-const useEditorPlugins = (onOpenPicker, onInsertSnippet) =>
+const useEditorPlugins = (onOpenPicker, onInsertSnippet, onOpenLink) =>
     useMemo(
         () => [
             headingsPlugin(),
@@ -133,7 +132,6 @@ const useEditorPlugins = (onOpenPicker, onInsertSnippet) =>
             thematicBreakPlugin(),
             markdownShortcutPlugin(),
             linkPlugin(),
-            linkDialogPlugin(),
             imagePlugin({ imageUploadHandler }),
             tablePlugin(),
             codeBlockPlugin(codeBlockPluginOptions),
@@ -150,7 +148,14 @@ const useEditorPlugins = (onOpenPicker, onInsertSnippet) =>
                         <BoldItalicUnderlineToggles />
                         <CodeToggle />
                         <ListsToggle />
-                        <CreateLink />
+                        <button
+                            type="button"
+                            className="toolbarLink"
+                            title="Вставить ссылку на сайт (свой диалог вместо подсказки редактора)"
+                            onClick={onOpenLink}
+                        >
+                            ссылка
+                        </button>
                         <InsertImage />
                         <button
                             type="button"
@@ -168,7 +173,7 @@ const useEditorPlugins = (onOpenPicker, onInsertSnippet) =>
             }),
             remoteRealmPlugin({ editorId: EDITOR_ID }),
         ],
-        [onOpenPicker, onInsertSnippet]
+        [onOpenLink, onOpenPicker, onInsertSnippet]
     );
 
 const SetEditorInner = () => {
@@ -211,6 +216,7 @@ const SetEditorInner = () => {
     const [saving, setSaving] = useState(false);
     const [removing, setRemoving] = useState(false);
     const [deleteDialog, setDeleteDialog] = useState(null);
+    const [linkDialog, setLinkDialog] = useState(null);
     const [fieldErrors, setFieldErrors] = useState({});
     const [savedAt, setSavedAt] = useState("");
     const [mode, setMode] = useState("read");
@@ -608,6 +614,40 @@ const SetEditorInner = () => {
     // нам нужно снять только выделенные пункты (или тот, где стоит курсор).
     useListToggle(() => realmRef.current?.getValue(rootEditor$), mode);
 
+    // Свой диалог ссылки: подсказка MDXEditor закрывалась при прокрутке страницы, а здесь
+    // адрес и текст спрашиваем обычным окном и вставляем ссылку через insertMarkdown.
+    const openLinkDialog = useCallback(() => {
+        const selected = window.getSelection?.()?.toString() ?? "";
+
+        setLinkDialog({ text: selected.trim().replace(/\s+/g, " ") });
+    }, []);
+
+    const insertLink = useCallback(
+        ({ href, text }) => {
+            // insertMarkdown есть у экземпляра MDXEditor (editorRef), а не у realm-редактора:
+            // тем же путём вставляются сниппеты.
+            const editor = editorRef.current;
+            // Скобки в подписи экранируем: иначе ссылка развалится при следующем чтении markdown.
+            const label = (text || href).replace(/([[\]])/g, "\\$1");
+
+            setLinkDialog(null);
+
+            if (!editor?.insertMarkdown) {
+                push("Редактор ещё не готов, попробуйте ещё раз", "error");
+                return;
+            }
+
+            try {
+                // Без focus(): адрес и подпись спрашивали в окне, но Lexical помнит выделение
+                // в редакторе, поэтому ссылка встаёт туда, где стоял курсор.
+                editor.insertMarkdown(`[${label}](${href})`);
+            } catch {
+                push("Не удалось вставить ссылку, попробуйте ещё раз", "error");
+            }
+        },
+        [push]
+    );
+
     const openPicker = useCallback(() => {
         const editor = realmRef.current?.getValue(rootEditor$);
 
@@ -807,7 +847,7 @@ const SetEditorInner = () => {
         return () => window.removeEventListener("keydown", handleKeyDown, true);
     }, [picker, pickerOptions, pickerIndex, handlePick]);
 
-    const plugins = useEditorPlugins(openPicker, insertSnippet);
+    const plugins = useEditorPlugins(openPicker, insertSnippet, openLinkDialog);
 
     if (loading) {
         return <SkeletonWorkspace />;
@@ -1094,7 +1134,8 @@ const SetEditorInner = () => {
                             Ctrl+S — сохранить, Ctrl+E — вернуться к статье. Ссылка на другой сет:
                             наберите [[ — откроется подсказка со списком сетов (или кнопка
                             «[[ ]] ссылка»). Enter — вставить, Shift+Enter — с подписью, ↑↓ —
-                            выбрать.
+                            выбрать. Ссылка на сайт — кнопка «ссылка»: адрес и подпись спросит
+                            окно.
                         </div>
                         <div
                             className="mdxEditorHost"
@@ -1123,6 +1164,13 @@ const SetEditorInner = () => {
                                     onClose={() => {
                                         setPicker(null);
                                     }}
+                                />
+                            )}
+                            {linkDialog && (
+                                <LinkDialog
+                                    initial={linkDialog}
+                                    onApply={insertLink}
+                                    onClose={() => setLinkDialog(null)}
                                 />
                             )}
                         </div>

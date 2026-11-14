@@ -190,6 +190,7 @@
     display: block;
 }
 
+.toolbarLink,
 .toolbarWikilink {
     padding: 4px 8px;
     border: 1px solid var(--border);
@@ -202,6 +203,7 @@
     cursor: pointer;
 }
 
+.toolbarLink:hover,
 .toolbarWikilink:hover {
     background-color: var(--border);
 }

@@ -88,74 +88,40 @@ func TestThemeKeyCandidate(t *testing.T) {
 	}
 }
 
-func TestValidThemeColor(t *testing.T) {
-	valid := []string{
-		"#fff",
-		"#0d0f14",
-		"#0d0f14ff",
-		"rgba(226, 176, 83, 0.14)",
-		"rgba(0,0,0,1)",
-		"rgb(12, 34, 56)",
+func TestValidateThemeRoles(t *testing.T) {
+	valid := map[string]string{
+		"canvas":  "#101015",
+		"surface": "#181C22",
+		"text":    "#e8eaee",
+		"border":  "#2a2f38",
+		"accent":  "#9db4d0",
+		"danger":  "#e07a7a",
+		"warning": "#d8b06a",
+		"success": "#86c9a2",
+	}
+	if err := ValidateThemeRoles(valid); err != nil {
+		t.Fatalf("корректные роли отвергнуты: %v", err)
 	}
 
-	invalid := []string{
-		"",
-		"red",
-		"#12345",
-		"#gggggg",
-		"url(https://example.com/x.png)",
-		"var(--accent)",
-		"expression(alert(1))",
-		"rgba(1, 2, 3, 2)",
-		"#fff;} body {display:none",
-		"background: red",
+	if err := ValidateThemeRoles(map[string]string{}); err == nil {
+		t.Error("пустой набор принят")
 	}
-
-	for _, value := range valid {
-		if !ValidThemeColor(value) {
-			t.Errorf("цвет %q отвергнут, хотя допустим", value)
-		}
+	if err := ValidateThemeRoles(map[string]string{"shadow": "#ffffff"}); err == nil {
+		t.Error("неизвестная роль принята")
 	}
-	for _, value := range invalid {
-		if ValidThemeColor(value) {
-			t.Errorf("значение %q принято как цвет", value)
+	// Роли принимают только #rrggbb: сокращения и rgba остались в прошлом формате переменных.
+	for _, value := range []string{"#fff", "rgba(226, 176, 83, 0.14)", "blue", "url(x)"} {
+		if err := ValidateThemeRoles(map[string]string{"accent": value}); err == nil {
+			t.Errorf("цвет %q принят как роль темы", value)
 		}
 	}
 }
 
-func TestValidateThemeVariables(t *testing.T) {
-	if err := ValidateThemeVariables(map[string]string{
-		"--bg-canvas": "#101015",
-		"--accent":    "rgba(124, 199, 255, 0.9)",
-	}); err != nil {
-		t.Fatalf("корректный набор отвергнут: %v", err)
-	}
+func TestNormalizeThemeRoles(t *testing.T) {
+	normalized := NormalizeThemeRoles(map[string]string{"accent": "  #5FC4D8  "})
 
-	if err := ValidateThemeVariables(map[string]string{}); err == nil {
-		t.Error("пустой набор принят")
-	}
-
-	if err := ValidateThemeVariables(map[string]string{"--shadow": "0 0 4px black"}); err == nil {
-		t.Error("сложная переменная принята")
-	}
-	if err := ValidateThemeVariables(map[string]string{"--no-such-var": "#fff"}); err == nil {
-		t.Error("неизвестная переменная принята")
-	}
-	if err := ValidateThemeVariables(map[string]string{"--accent": "blue"}); err == nil {
-		t.Error("слово вместо цвета принято")
-	}
-
-	seen := map[string]bool{}
-	all := map[string]string{}
-	for _, name := range ThemeColorVariables {
-		if seen[name] {
-			t.Errorf("переменная %s повторяется в белом списке", name)
-		}
-		seen[name] = true
-		all[name] = "#ffffff"
-	}
-	if err := ValidateThemeVariables(all); err != nil {
-		t.Errorf("полный белый список отвергнут: %v", err)
+	if normalized["accent"] != "#5fc4d8" {
+		t.Errorf("роль не нормализована: %q", normalized["accent"])
 	}
 }
 

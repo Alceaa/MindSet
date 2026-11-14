@@ -188,6 +188,19 @@ const ThemesSettings = ({ onApplied }) => {
         }
     };
 
+    const withdrawTheme = async (id) => {
+        setNotice(null);
+
+        try {
+            const data = await themeService.withdraw(id);
+            setForm((current) => (current?.id === id ? null : current));
+            setNotice({ kind: "success", text: data?.message || "Тема снята с публикации" });
+            await load();
+        } catch (err) {
+            setNotice({ kind: "error", text: parseApiError(err).message });
+        }
+    };
+
     const startCreate = () => {
         setNotice(null);
         setForm(emptyForm());
@@ -235,28 +248,54 @@ const ThemesSettings = ({ onApplied }) => {
                                     <span className={STATUS_CLASSES[item.status] ?? "tokenBadge"}>
                                         {STATUS_LABELS[item.status] ?? item.status}
                                     </span>
+                                    {item.pending && (
+                                        <span className="tokenBadge">правка на модерации</span>
+                                    )}
                                 </span>
                                 <span className="tokenMeta">
                                     <code>{item.key}</code> · база: {baseThemeOf(item.base).label} ·{" "}
                                     {item.mode === "light" ? "светлый режим" : "тёмный режим"} ·
                                     переменных: {Object.keys(item.variables).length}
                                 </span>
-                                {item.status === "rejected" && item.moderation_note && (
+                                {item.moderation_note && (
                                     <span className="themeNote">
-                                        Причина отказа: {item.moderation_note}
+                                        {item.status === "rejected"
+                                            ? "Причина отказа: "
+                                            : "Замечание модератора: "}
+                                        {item.moderation_note}
                                     </span>
                                 )}
                             </div>
 
                             <div className="tokenRowActions">
                                 {item.status === "approved" && (
-                                    <button
-                                        className="btn btnGhost btnSmall"
-                                        type="button"
-                                        onClick={() => onApplied(`${CUSTOM_THEME_PREFIX}${item.key}`)}
-                                    >
-                                        Применить
-                                    </button>
+                                    <>
+                                        <button
+                                            className="btn btnGhost btnSmall"
+                                            type="button"
+                                            onClick={() =>
+                                                onApplied(`${CUSTOM_THEME_PREFIX}${item.key}`)
+                                            }
+                                        >
+                                            Применить
+                                        </button>
+                                        <button
+                                            className="btn btnGhost btnSmall"
+                                            type="button"
+                                            onClick={() => startEdit(item)}
+                                        >
+                                            Изменить
+                                        </button>
+                                        <button
+                                            className="btn btnGhost btnSmall"
+                                            type="button"
+                                            onClick={() => withdrawTheme(item.id)}
+                                            disabled={Boolean(item.pending)}
+                                            title="Тема исчезнет из каталога, правки снова станут доступны сразу"
+                                        >
+                                            {item.pending ? "Ждёт модерации" : "Снять с публикации"}
+                                        </button>
+                                    </>
                                 )}
                                 {(item.status === "draft" || item.status === "rejected") && (
                                     <>

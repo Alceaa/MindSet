@@ -104,6 +104,19 @@ type ThemePackage struct {
 	CreatedAt   string            `json:"created_at"`
 	UpdatedAt   string            `json:"updated_at"`
 	PublishedAt string            `json:"published_at"`
+
+	// Pending — правка опубликованной темы, которая ждёт модерации. Пока админ её не одобрит,
+	// в каталоге работает прежняя версия: автор правит тему сам, без «отзыва» через админа.
+	Pending *ThemePending `json:"pending,omitempty"`
+}
+
+// ThemePending — отложенная правка темы: то же, что манифест, но ещё не опубликовано.
+type ThemePending struct {
+	Title       string            `json:"title"`
+	Description string            `json:"description"`
+	Mode        string            `json:"mode"`
+	Base        string            `json:"base"`
+	Variables   map[string]string `json:"variables"`
 }
 
 type ThemePayload struct {

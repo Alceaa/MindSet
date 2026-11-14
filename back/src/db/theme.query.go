@@ -20,7 +20,8 @@ const themePackageColumns = `t.id, t.theme_key, t.title, t.description, t.mode, 
 	to_char(t.created_at AT TIME ZONE 'UTC', ` + isoUTCTimeFormat + `) AS created_at,
 	to_char(t.updated_at AT TIME ZONE 'UTC', ` + isoUTCTimeFormat + `) AS updated_at,
 	coalesce(to_char(t.published_at AT TIME ZONE 'UTC', ` + isoUTCTimeFormat + `), '') AS published_at,
-	coalesce(u.login, '') AS author`
+	coalesce(u.login, '') AS author,
+	t.pending_payload`
 
 const themePackageFrom = ` FROM theme_packages t LEFT JOIN users u ON u.id = t.author_id`
 
@@ -28,6 +29,7 @@ func scanThemePackage(row pgx.Row) (*models.ThemePackage, error) {
 	var (
 		item      models.ThemePackage
 		variables []byte
+		pending   []byte
 	)
 
 	err := row.Scan(
@@ -44,6 +46,7 @@ func scanThemePackage(row pgx.Row) (*models.ThemePackage, error) {
 		&item.UpdatedAt,
 		&item.PublishedAt,
 		&item.Author,
+		&pending,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -57,6 +60,17 @@ func scanThemePackage(row pgx.Row) (*models.ThemePackage, error) {
 		if err := json.Unmarshal(variables, &item.Variables); err != nil {
 			return nil, fmt.Errorf("parse theme variables: %w", err)
 		}
+	}
+
+	if len(pending) > 0 {
+		var staged models.ThemePending
+		if err := json.Unmarshal(pending, &staged); err != nil {
+			return nil, fmt.Errorf("parse pending theme: %w", err)
+		}
+		if staged.Variables == nil {
+			staged.Variables = map[string]string{}
+		}
+		item.Pending = &staged
 	}
 
 	return &item, nil
@@ -205,6 +219,72 @@ func UpdateThemePackage(ctx context.Context, authorID, id int, payload models.Th
 	return GetThemePackageByID(ctx, id)
 }
 
+// StageThemePackage откладывает правку опубликованной темы: пока админ её не одобрит,
+// в каталоге работает прежняя версия.
+func StageThemePackage(ctx context.Context, authorID, id int, payload models.ThemePayload) (*models.ThemePackage, error) {
+	conn, err := pool()
+	if err != nil {
+		return nil, err
+	}
+
+	encoded, err := json.Marshal(models.ThemePending{
+		Title:       payload.Title,
+		Description: payload.Description,
+		Mode:        payload.Mode,
+		Base:        payload.Base,
+		Variables:   payload.Variables,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("encode pending theme: %w", err)
+	}
+
+	tag, err := conn.Exec(ctx, `
+		UPDATE theme_packages
+		SET pending_payload = @pending::jsonb, moderation_note = '', updated_at = now()
+		WHERE id = @id AND author_id = @author_id AND status = @status`,
+		pgx.NamedArgs{
+			"id":        id,
+			"author_id": authorID,
+			"pending":   string(encoded),
+			"status":    models.ThemeStatusApproved,
+		})
+	if err != nil {
+		return nil, fmt.Errorf("stage theme package: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, ErrNotFound
+	}
+
+	return GetThemePackageByID(ctx, id)
+}
+
+// WithdrawThemePackage снимает тему с публикации: автор делает это сам, без админа.
+func WithdrawThemePackage(ctx context.Context, authorID, id int) (*models.ThemePackage, error) {
+	conn, err := pool()
+	if err != nil {
+		return nil, err
+	}
+
+	tag, err := conn.Exec(ctx, `
+		UPDATE theme_packages
+		SET status = @draft, pending_payload = NULL, moderation_note = '', updated_at = now()
+		WHERE id = @id AND author_id = @author_id AND status = @approved`,
+		pgx.NamedArgs{
+			"id":        id,
+			"author_id": authorID,
+			"draft":     models.ThemeStatusDraft,
+			"approved":  models.ThemeStatusApproved,
+		})
+	if err != nil {
+		return nil, fmt.Errorf("withdraw theme package: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, ErrNotFound
+	}
+
+	return GetThemePackageByID(ctx, id)
+}
+
 func SubmitThemePackage(ctx context.Context, authorID, id int) (*models.ThemePackage, error) {
 	conn, err := pool()
 	if err != nil {
@@ -258,9 +338,14 @@ func ListThemePackagesByStatus(ctx context.Context, status string, limit int) ([
 	}
 
 	rows, err := conn.Query(ctx, `SELECT `+themePackageColumns+themePackageFrom+`
-		WHERE (@status = '' OR t.status = @status)
+		WHERE (@status = '' OR t.status = @status
+		       OR (@status = @pending AND t.pending_payload IS NOT NULL))
 		ORDER BY t.updated_at DESC, t.id DESC
-		LIMIT @limit`, pgx.NamedArgs{"status": status, "limit": limit})
+		LIMIT @limit`, pgx.NamedArgs{
+		"status":  status,
+		"pending": models.ThemeStatusPending,
+		"limit":   limit,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list theme packages: %w", err)
 	}
@@ -294,15 +379,24 @@ func ModerateThemePackage(ctx context.Context, id int, status, note string) (*mo
 
 	tag, err := conn.Exec(ctx, `
 		UPDATE theme_packages
-		SET status = @status,
+		SET title = CASE WHEN pending_payload IS NOT NULL THEN pending_payload->>'title' ELSE title END,
+		    description = CASE WHEN pending_payload IS NOT NULL
+		        THEN coalesce(pending_payload->>'description', '') ELSE description END,
+		    mode = CASE WHEN pending_payload IS NOT NULL THEN pending_payload->>'mode' ELSE mode END,
+		    base_theme = CASE WHEN pending_payload IS NOT NULL
+		        THEN pending_payload->>'base_theme' ELSE base_theme END,
+		    variables = CASE WHEN pending_payload IS NOT NULL THEN pending_payload->'variables' ELSE variables END,
+		    -- Отклонение правки не снимает тему с публикации: в каталоге остаётся прежняя версия.
+		    status = CASE WHEN pending_payload IS NOT NULL AND @status <> @approved THEN status ELSE @status END,
+		    pending_payload = NULL,
 		    moderation_note = @note,
-		    published_at = CASE WHEN @publish::boolean THEN coalesce(published_at, now()) ELSE NULL END,
+		    published_at = CASE WHEN @status = @approved THEN coalesce(published_at, now()) ELSE published_at END,
 		    updated_at = now()
 		WHERE id = @id`, pgx.NamedArgs{
-		"id":      id,
-		"status":  status,
-		"note":    note,
-		"publish": status == models.ThemeStatusApproved,
+		"id":       id,
+		"status":   status,
+		"note":     note,
+		"approved": models.ThemeStatusApproved,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("moderate theme package: %w", err)

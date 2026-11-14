@@ -536,3 +536,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS theme_packages_key_uq ON theme_packages (theme
 CREATE INDEX IF NOT EXISTS theme_packages_status_idx ON theme_packages (status, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS theme_packages_author_idx ON theme_packages (author_id, updated_at DESC);
+
+-- Правка опубликованной темы: она ждёт модерации, а в каталоге пока работает прежняя версия.
+ALTER TABLE theme_packages ADD COLUMN IF NOT EXISTS pending_payload jsonb;

@@ -173,6 +173,7 @@ func SetupRoutes(app fiber.Router) {
 	themes.Put("/:id", middlewares.RequireJSONBody, handlers.UpdateTheme)
 	themes.Delete("/:id", handlers.DeleteTheme)
 	themes.Post("/:id/submit", handlers.SubmitTheme)
+	themes.Post("/:id/withdraw", handlers.WithdrawTheme)
 
 	apiLimiter := middlewares.RateLimiter(middlewares.RateLimitRule{
 		Name:       "api",

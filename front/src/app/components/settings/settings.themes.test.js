@@ -11,6 +11,7 @@ jest.mock("../../api/theme.service", () => ({
         update: jest.fn(),
         remove: jest.fn(),
         submit: jest.fn(),
+        withdraw: jest.fn(),
     },
 }));
 
@@ -103,6 +104,27 @@ test("не отправляет тему без переменных", async () 
     expect(await screen.findByText(/Отметьте хотя бы одну переменную/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Создать черновик" }).disabled).toBe(true);
     expect(themeService.create).not.toHaveBeenCalled();
+});
+
+test("опубликованную тему можно изменить и снять с публикации", async () => {
+    themeService.own.mockResolvedValue({
+        themes: [{ ...draft, id: 7, status: "approved", published_at: "2026-11-14T10:00:00Z" }],
+        limit: 10,
+    });
+    themeService.withdraw.mockResolvedValue({ message: "Тема снята с публикации" });
+
+    render(<ThemesSettings onApplied={() => {}} />);
+    await screen.findByText("Северные сумерки");
+
+    // Правку опубликованной темы открывает «Изменить»: она уйдёт на модерацию.
+    fireEvent.click(screen.getByRole("button", { name: "Изменить" }));
+    expect(screen.getByRole("button", { name: "Сохранить" })).toBeTruthy();
+
+    await act(async () => {
+        screen.getByRole("button", { name: "Снять с публикации" }).click();
+    });
+
+    await waitFor(() => expect(themeService.withdraw).toHaveBeenCalledWith(7));
 });
 
 test("отправляет черновик на модерацию и удаляет после подтверждения", async () => {

@@ -150,6 +150,13 @@ type apiAPIToken struct {
 	Expired    bool   `json:"expired"`
 }
 
+type apiThemePending struct {
+	Title     string            `json:"title"`
+	Mode      string            `json:"mode"`
+	Base      string            `json:"base"`
+	Variables map[string]string `json:"variables"`
+}
+
 type apiThemePackage struct {
 	ID          int               `json:"id"`
 	Key         string            `json:"key"`
@@ -164,6 +171,7 @@ type apiThemePackage struct {
 	CreatedAt   string            `json:"created_at"`
 	UpdatedAt   string            `json:"updated_at"`
 	PublishedAt string            `json:"published_at"`
+	Pending     *apiThemePending  `json:"pending"`
 }
 
 type apiResponse struct {

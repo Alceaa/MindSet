@@ -83,13 +83,27 @@ func UpdateTheme(c *fiber.Ctx) error {
 	if err != nil {
 		return writeThemeError(c, err, "Не удалось загрузить тему")
 	}
-	if existing.Status != models.ThemeStatusDraft && existing.Status != models.ThemeStatusRejected {
-		return utils.Fail(c, fiber.StatusConflict, "Тема на модерации или опубликована — правки недоступны", nil)
+	if existing.Status == models.ThemeStatusPending {
+		return utils.Fail(c, fiber.StatusConflict, "Тема на модерации — дождитесь решения", nil)
 	}
 
 	payload, ok := themePayloadFromRequest(c)
 	if !ok {
 		return nil
+	}
+
+	// Опубликованную тему правим не на месте: правка уходит на модерацию, а в каталоге
+	// продолжает работать прежняя версия. Автору не нужно просить админа «отозвать» тему.
+	if existing.Status == models.ThemeStatusApproved {
+		item, err := db.StageThemePackage(c.Context(), user.ID, id, payload)
+		if err != nil {
+			return writeThemeError(c, err, "Не удалось отправить правку на модерацию")
+		}
+
+		return utils.Success(c, fiber.StatusOK, fiber.Map{
+			"message": "Правка ушла на модерацию: в каталоге пока работает прежняя версия",
+			"theme":   item,
+		})
 	}
 
 	item, err := db.UpdateThemePackage(c.Context(), user.ID, id, payload)
@@ -99,6 +113,30 @@ func UpdateTheme(c *fiber.Ctx) error {
 
 	return utils.Success(c, fiber.StatusOK, fiber.Map{
 		"message": "Тема обновлена",
+		"theme":   item,
+	})
+}
+
+// WithdrawTheme снимает опубликованную тему с публикации: автор делает это сам, без админа,
+// и сразу может править её как черновик.
+func WithdrawTheme(c *fiber.Ctx) error {
+	user, ok := middlewares.CurrentUser(c)
+	if !ok {
+		return utils.Fail(c, fiber.StatusUnauthorized, "Требуется авторизация", nil)
+	}
+
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return utils.Fail(c, fiber.StatusBadRequest, "Некорректный идентификатор темы", nil)
+	}
+
+	item, err := db.WithdrawThemePackage(c.Context(), user.ID, id)
+	if err != nil {
+		return writeThemeError(c, err, "Не удалось снять тему с публикации")
+	}
+
+	return utils.Success(c, fiber.StatusOK, fiber.Map{
+		"message": "Тема снята с публикации — в каталоге её больше нет",
 		"theme":   item,
 	})
 }

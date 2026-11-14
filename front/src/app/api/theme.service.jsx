@@ -25,6 +25,11 @@ class ThemeService {
         return api.post(`/theme-packages/${id}/submit`).then((response) => response.data);
     }
 
+    // Снять опубликованную тему с публикации автор может сам, без админа.
+    withdraw(id) {
+        return api.post(`/theme-packages/${id}/withdraw`).then((response) => response.data);
+    }
+
     // Своя тема в профиле: живёт без модерации и переезжает между устройствами.
     profileTheme() {
         return api

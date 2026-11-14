@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import themeService from "../../api/theme.service";
-import useAppTheme, { registerLocalTheme } from "../../hooks/use.app.theme";
-import { APP_THEMES, DEFAULT_THEME, customThemeFromPackage, registeredThemes } from "../../themes/app.themes";
+import useAppTheme from "../../hooks/use.app.theme";
+import { useAuth } from "../../context/auth.context";
+import { APP_THEMES, DEFAULT_THEME, customThemeFromPackage } from "../../themes/app.themes";
 import ThemesSettings from "./settings.themes.jsx";
 import LocalThemeSettings from "./settings.local.theme.jsx";
 
 const SWATCHES = ["--bg-canvas", "--bg-surface", "--text", "--accent", "--border"];
 
-const ThemeOption = ({ item, active, onPick }) => (
+const ThemeOption = ({ item, active, badge, onPick }) => (
     <button
         type="button"
         className={`themeOption${active ? " themeOptionActive" : ""}`}
@@ -24,7 +25,10 @@ const ThemeOption = ({ item, active, onPick }) => (
             ))}
         </span>
         <span className="themeOptionText">
-            <span className="settingsRowTitle">{item.label}</span>
+            <span className="settingsRowTitle">
+                {item.label}
+                {badge ? <span className="themeOptionBadge">{badge}</span> : null}
+            </span>
             <span className="mutedText">{item.hint}</span>
         </span>
     </button>
@@ -32,9 +36,8 @@ const ThemeOption = ({ item, active, onPick }) => (
 
 const AppearanceSettingsPanel = () => {
     const { theme, setTheme, reset } = useAppTheme();
+    const { user } = useAuth();
     const [community, setCommunity] = useState([]);
-    // Своя тема из профиля: показываем её в списке тем, если она есть.
-    const [localTheme, setLocalTheme] = useState(null);
 
     useEffect(() => {
         let alive = true;
@@ -49,22 +52,15 @@ const AppearanceSettingsPanel = () => {
             })
             .catch(() => {});
 
-        themeService
-            .profileTheme()
-            .then((data) => {
-                if (!alive || !data?.theme) {
-                    return;
-                }
-
-                const key = registerLocalTheme(data.theme);
-                setLocalTheme(registeredThemes().find((item) => item.key === key) ?? null);
-            })
-            .catch(() => {});
-
         return () => {
             alive = false;
         };
     }, []);
+
+    // Своя тема живёт в том же списке, что и темы сообщества: после публикации она приходит
+    // карточкой оттуда, поэтому отдельной карточки нет — только пометка «ваша».
+    const isOwn = (item) =>
+        Boolean(user?.login) && item.author.toLowerCase() === user.login.toLowerCase();
 
     return (
         <div className="settingsPanel">
@@ -90,19 +86,6 @@ const AppearanceSettingsPanel = () => {
                 </div>
             </div>
 
-            {localTheme && (
-                <div className="settingsForm">
-                    <span className="settingsSectionLabel">Своя тема</span>
-                    <div className="themeOptions">
-                        <ThemeOption
-                            item={localTheme}
-                            active={theme === localTheme.key}
-                            onPick={() => setTheme(localTheme.key)}
-                        />
-                    </div>
-                </div>
-            )}
-
             {community.length > 0 && (
                 <div className="settingsForm">
                     <span className="settingsSectionLabel">Темы сообщества</span>
@@ -112,6 +95,7 @@ const AppearanceSettingsPanel = () => {
                                 key={item.key}
                                 item={item}
                                 active={theme === item.key}
+                                badge={isOwn(item) ? "ваша" : ""}
                                 onPick={() => setTheme(item.key)}
                             />
                         ))}

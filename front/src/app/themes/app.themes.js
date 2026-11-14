@@ -396,6 +396,8 @@ export const customThemeFromPackage = (item) => {
         variables: { ...base.variables, ...overrides },
         custom: true,
         packageKey: item.key,
+        // Автор нужен интерфейсу: свою тему помечаем в списке сообщества, чтобы не показывать её дважды.
+        author: item.author || "",
     };
 };
 

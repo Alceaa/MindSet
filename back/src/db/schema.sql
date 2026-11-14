@@ -525,6 +525,61 @@ CREATE UNIQUE INDEX IF NOT EXISTS user_themes_key_uq ON user_themes (author_id, 
 
 CREATE INDEX IF NOT EXISTS user_themes_author_idx ON user_themes (author_id, updated_at DESC);
 
+-- Переносим темы из прежнего формата, чтобы у авторов ничего не пропало: профильная тема
+-- (там уже восемь ролей) и темы каталога, где хранились 52 переменные — роли достаём из них.
+-- Блок срабатывает ровно один раз: после него старой таблицы и колонки уже нет.
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'theme_packages') THEN
+        INSERT INTO user_themes (author_id, theme_key, title, description, mode, base_theme, roles)
+        SELECT p.author_id,
+               p.theme_key,
+               p.title,
+               p.description,
+               p.mode,
+               p.base_theme,
+               jsonb_strip_nulls(jsonb_build_object(
+                   'canvas',  p.variables ->> '--bg-canvas',
+                   'surface', p.variables ->> '--bg-surface',
+                   'text',    p.variables ->> '--text',
+                   'border',  p.variables ->> '--border',
+                   'accent',  p.variables ->> '--accent',
+                   'danger',  p.variables ->> '--danger',
+                   'warning', p.variables ->> '--warning',
+                   'success', p.variables ->> '--success'))
+        FROM theme_packages p
+        WHERE p.variables ? '--bg-canvas'
+          AND NOT EXISTS (
+              SELECT 1 FROM user_themes t
+              WHERE t.author_id = p.author_id AND t.theme_key = p.theme_key
+          );
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'users' AND column_name = 'custom_theme'
+    ) THEN
+        INSERT INTO user_themes (author_id, theme_key, title, description, mode, base_theme, roles)
+        SELECT u.id,
+               'moya-tema',
+               coalesce(nullif(trim(u.custom_theme ->> 'title'), ''), 'Своя тема'),
+               '',
+               coalesce(nullif(trim(u.custom_theme ->> 'mode'), ''), 'dark'),
+               coalesce(nullif(trim(u.custom_theme ->> 'base'), ''), 'dark'),
+               u.custom_theme -> 'roles'
+        FROM users u
+        WHERE u.custom_theme IS NOT NULL
+          AND coalesce(u.custom_theme -> 'roles', '{}'::jsonb) <> '{}'::jsonb
+          AND NOT EXISTS (
+              SELECT 1 FROM user_themes t
+              WHERE t.author_id = u.id AND t.theme_key = 'moya-tema'
+          );
+    END IF;
+END $$;
+
 -- Каталог тем сообщества убран: идея не масштабируется (дубли, очередь модерации), темами
 -- делятся файлом. Старая таблица и колонка профиля больше не нужны.
 DROP TABLE IF EXISTS theme_packages;

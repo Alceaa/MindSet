@@ -1,81 +1,50 @@
 import { render, screen } from "@testing-library/react";
 import themeService from "../../api/theme.service";
+import { THEME_PRESETS } from "../../themes/theme.roles";
 import AppearanceSettingsPanel from "./settings.appearance.jsx";
 
 jest.mock("../../api/theme.service", () => ({
     __esModule: true,
     default: {
-        published: jest.fn(),
-        own: jest.fn(),
+        list: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
         remove: jest.fn(),
-        submit: jest.fn(),
-        withdraw: jest.fn(),
-        profileTheme: jest.fn(),
-        saveProfileTheme: jest.fn(),
-        clearProfileTheme: jest.fn(),
     },
 }));
 
-jest.mock("../../context/auth.context", () => ({
-    __esModule: true,
-    useAuth: () => ({ user: { login: "verifyuser" }, isAuthenticated: true }),
-}));
-
-const own = {
+const item = {
     id: 3,
-    key: "northern-dusk",
-    title: "Северные сумерки",
-    description: "Холодный вечер",
-    author: "verifyuser",
+    key: "morskaya-noch",
+    title: "Морская ночь",
+    description: "Синяя вода",
     mode: "dark",
-    base: "dark",
-    variables: { "--bg-canvas": "#0f1420", "--bg-surface": "#151a26" },
-};
-
-const alien = {
-    ...own,
-    id: 4,
-    key: "sea-glass",
-    title: "Морское стекло",
-    author: "someone",
+    base: "nord",
+    roles: THEME_PRESETS[1].roles,
 };
 
 beforeEach(() => {
     jest.clearAllMocks();
     window.localStorage.clear();
-    themeService.profileTheme.mockResolvedValue({ theme: null });
-    themeService.own.mockResolvedValue({ themes: [], limit: 10 });
-    themeService.published.mockResolvedValue({ themes: [alien, own] });
+    themeService.list.mockResolvedValue({ themes: [item], limit: 10 });
 });
 
-test("своя тема показывается один раз — в списке сообщества и с пометкой", async () => {
+test("показывает встроенные темы, конструктор и свои темы", async () => {
     render(<AppearanceSettingsPanel />);
 
-    expect(await screen.findByText("Северные сумерки")).toBeTruthy();
-    expect(screen.getByText("Морское стекло")).toBeTruthy();
-    expect(screen.getByText("ваша")).toBeTruthy();
-    // Отдельной карточки «Своя тема» больше нет.
-    expect(screen.queryByText("Своя тема")).toBeNull();
+    // «Тёмная» встречается дважды: карточка встроенной темы и вариант в селекте «тёмная или светлая».
+    expect((await screen.findAllByText("Тёмная")).length).toBeGreaterThan(0);
+    expect(screen.getByText("Конструктор темы")).toBeTruthy();
+    expect(await screen.findByText("Мои темы")).toBeTruthy();
+    expect(await screen.findByText("Морская ночь")).toBeTruthy();
+    expect(screen.getByText(/Сохранено 1 из 10/)).toBeTruthy();
 });
 
-test("пометки нет у чужой темы", async () => {
-    themeService.published.mockResolvedValue({ themes: [alien] });
-
-    render(<AppearanceSettingsPanel />);
-
-    expect(await screen.findByText("Морское стекло")).toBeTruthy();
-    expect(screen.queryByText("ваша")).toBeNull();
-});
-
-test("без описания под названием ничего не выводится", async () => {
-    themeService.published.mockResolvedValue({
-        themes: [{ ...alien, description: "" }],
-    });
+test("пустая библиотека зовёт собрать тему в конструкторе", async () => {
+    themeService.list.mockResolvedValue({ themes: [], limit: 10 });
 
     render(<AppearanceSettingsPanel />);
 
-    expect(await screen.findByText("Морское стекло")).toBeTruthy();
-    expect(screen.queryByText(/Тема из сообщества/)).toBeNull();
+    expect(await screen.findByText(/Пока ни одной темы/)).toBeTruthy();
+    expect(screen.queryByText("Морская ночь")).toBeNull();
 });

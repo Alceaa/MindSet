@@ -66,16 +66,6 @@ class AdminService {
     listActions(params = {}) {
         return api.get("/admin/actions", { params }).then((response) => response.data);
     }
-
-    listThemes(params = {}) {
-        return api.get("/admin/themes", { params }).then((response) => response.data);
-    }
-
-    moderateTheme(id, status, note) {
-        return api
-            .put(`/admin/themes/${id}/status`, { status: status, note: note || "" })
-            .then((response) => response.data);
-    }
 }
 
 const adminService = new AdminService();

@@ -1,73 +1,100 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useRef, useState } from "react";
 import themeService from "../../api/theme.service";
 import parseApiError from "../../utils/api.error";
-import { Skeleton } from "../common/skeleton.jsx";
-import { APP_THEMES } from "../../themes/app.themes";
+import { buildThemeVariables } from "../../themes/theme.roles";
 import { CUSTOM_THEME_PREFIX } from "../../themes/theme.packages";
+import { parseThemeFile, themeFileText, themeFileName } from "../../themes/theme.transfer";
+import { Skeleton } from "../common/skeleton.jsx";
 
-const STATUS_LABELS = {
-    draft: "черновик",
-    pending: "на модерации",
-    approved: "опубликована",
-    rejected: "отклонена",
+const SWATCHES = ["--bg-canvas", "--bg-surface", "--text", "--accent", "--border"];
+
+const swatchColors = (item) => {
+    const variables = buildThemeVariables(item.roles ?? {}, item.base);
+
+    return SWATCHES.map((name) => variables[name]);
 };
-
-const STATUS_CLASSES = {
-    draft: "tokenBadge",
-    pending: "tokenBadge tokenBadgePending",
-    approved: "tokenBadge tokenBadgeApproved",
-    rejected: "tokenBadge tokenBadgeRejected",
-};
-
-const baseThemeOf = (key) => APP_THEMES.find((item) => item.key === key) ?? APP_THEMES[0];
 
 /**
- * Свои темы в каталоге. Конструктор тут не нужен: он один — блок «Своя тема» выше.
- * Здесь только состояние тем и действия над ними: применить, снять с публикации, удалить.
+ * «Мои темы»: библиотека сохранённых тем и импорт чужой темы из файла или текста.
+ * Каталога и модерации нет — темами делятся напрямую, поэтому обмен идёт здесь.
  */
-const ThemesSettings = ({ onApplied, onEdit }) => {
-    const [themes, setThemes] = useState([]);
-    const [limit, setLimit] = useState(10);
-    const [loading, setLoading] = useState(true);
+const ThemesSettings = ({
+    themes,
+    limit,
+    loading,
+    selectedId,
+    onEdit,
+    onApplied,
+    onChanged,
+    onImport,
+}) => {
     const [notice, setNotice] = useState(null);
-    const [busy, setBusy] = useState(false);
+    const [text, setText] = useState("");
     const [confirming, setConfirming] = useState(0);
+    const fileRef = useRef(null);
 
-    const load = useCallback(async () => {
-        try {
-            const data = await themeService.own();
-            setThemes(data?.themes ?? []);
-            setLimit(data?.limit ?? 10);
-        } catch (err) {
-            setNotice({ kind: "error", text: parseApiError(err).message });
-        } finally {
-            setLoading(false);
+    const takeParsed = (parsed) => {
+        if (!parsed.ok) {
+            setNotice({ kind: "error", text: parsed.error });
+            return;
         }
-    }, []);
 
-    useEffect(() => {
-        load();
-    }, [load]);
+        setNotice({
+            kind: "success",
+            text: "Тема загружена — проверьте цвета и сохраните её в библиотеку",
+        });
+        setText("");
+        onImport({ ...parsed.theme, title: parsed.suggestedTitle });
+    };
 
-    const run = async (action, fallback) => {
+    const importFromText = () => takeParsed(parseThemeFile(text));
+
+    const importFromFile = (event) => {
+        const file = event.target.files?.[0];
+
+        if (!file) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => takeParsed(parseThemeFile(String(reader.result ?? "")));
+        reader.onerror = () => setNotice({ kind: "error", text: "Не удалось прочитать файл" });
+        reader.readAsText(file);
+
+        // Поле очищаем: иначе повторный выбор того же файла не сработает.
+        event.target.value = "";
+    };
+
+    const download = (item) => {
+        const blob = new Blob([themeFileText(item)], { type: "application/json" });
+        const link = document.createElement("a");
+        const href = URL.createObjectURL(blob);
+
+        link.href = href;
+        link.download = themeFileName(item.title, item.key);
+        document.body.append(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(href);
+    };
+
+    const remove = async (item) => {
         setNotice(null);
-        setBusy(true);
 
         try {
-            const data = await action();
-            setNotice({ kind: "success", text: data?.message || fallback });
+            const data = await themeService.remove(item.id);
+            setNotice({ kind: "success", text: data?.message || "Тема удалена" });
             setConfirming(0);
-            await load();
+            onChanged();
         } catch (err) {
             setNotice({ kind: "error", text: parseApiError(err).message });
-        } finally {
-            setBusy(false);
         }
     };
 
     return (
         <div className="card settingsForm">
-            <h3 className="settingsSectionLabel">Мои темы в каталоге</h3>
+            <h3 className="settingsSectionLabel">Мои темы</h3>
+
             {notice && (
                 <div
                     className={`alert${notice.kind === "error" ? " alertError" : " alertSuccess"}`}
@@ -78,111 +105,68 @@ const ThemesSettings = ({ onApplied, onEdit }) => {
             )}
 
             {loading ? (
-                <Skeleton variant="row" count={2} label="Загружаем свои темы…" />
+                <Skeleton variant="row" count={2} label="Загружаем темы…" />
             ) : themes.length === 0 ? (
-                <p className="mutedText">Своих тем в каталоге пока нет.</p>
+                <p className="mutedText">
+                    Пока ни одной темы. Соберите оформление в конструкторе выше и сохраните его.
+                </p>
             ) : (
                 <ul className="tokenList">
                     {themes.map((item) => (
-                        <li className="tokenRow" key={item.id}>
+                        <li
+                            className={`tokenRow${item.id === selectedId ? " tokenRowActive" : ""}`}
+                            key={item.id}
+                        >
+                            <span className="themeRowSwatches" aria-hidden="true">
+                                {swatchColors(item).map((color, index) => (
+                                    <span
+                                        className="themeRowSwatch"
+                                        key={SWATCHES[index]}
+                                        style={{ backgroundColor: color }}
+                                    />
+                                ))}
+                            </span>
+
                             <div className="tokenRowMain">
-                                <span className="tokenTitle">
-                                    {item.title}
-                                    <span className={STATUS_CLASSES[item.status] ?? "tokenBadge"}>
-                                        {STATUS_LABELS[item.status] ?? item.status}
-                                    </span>
-                                    {item.pending && (
-                                        <span className="tokenBadge">правка на модерации</span>
-                                    )}
-                                </span>
+                                <span className="tokenTitle">{item.title}</span>
                                 <span className="tokenMeta">
-                                    <code>{item.key}</code> · база: {baseThemeOf(item.base).label} ·{" "}
+                                    <code>{item.key}</code> · база: {item.base} ·{" "}
                                     {item.mode === "light" ? "светлый режим" : "тёмный режим"}
                                 </span>
-                                {item.moderation_note && (
-                                    <span className="themeNote">
-                                        {item.status === "rejected"
-                                            ? "Причина отказа: "
-                                            : "Замечание модератора: "}
-                                        {item.moderation_note}
-                                    </span>
-                                )}
-                                {item.pending && (
-                                    <span className="themeNote">
-                                        Правка ждёт модерации: в каталоге пока работает прежняя
-                                        версия темы
-                                    </span>
+                                {item.description && (
+                                    <span className="mutedText">{item.description}</span>
                                 )}
                             </div>
+
                             <div className="tokenRowActions">
-                                {item.status === "approved" && (
-                                    <button
-                                        className="btn btnGhost btnSmall"
-                                        type="button"
-                                        onClick={() =>
-                                            onApplied(`${CUSTOM_THEME_PREFIX}${item.key}`)
-                                        }
-                                    >
-                                        Применить
-                                    </button>
-                                )}
-
-                                {item.status === "approved" && onEdit && (
-                                    <button
-                                        className="btn btnGhost btnSmall"
-                                        type="button"
-                                        title="Откроет тему в конструкторе: правьте цвета и отправляйте правку на модерацию"
-                                        onClick={() => onEdit(`${CUSTOM_THEME_PREFIX}${item.key}`)}
-                                    >
-                                        Изменить
-                                    </button>
-                                )}
-
-                                {(item.status === "draft" || item.status === "rejected") && (
-                                    <button
-                                        className="btn btnPrimary btnSmall"
-                                        type="button"
-                                        disabled={busy}
-                                        onClick={() =>
-                                            run(
-                                                () => themeService.submit(item.id),
-                                                "Тема отправлена на модерацию"
-                                            )
-                                        }
-                                    >
-                                        На модерацию
-                                    </button>
-                                )}
-
-                                {item.status === "approved" && (
-                                    <button
-                                        className="btn btnGhost btnSmall"
-                                        type="button"
-                                        disabled={busy || Boolean(item.pending)}
-                                        title="Тема исчезнет из каталога, править её можно сразу"
-                                        onClick={() =>
-                                            run(
-                                                () => themeService.withdraw(item.id),
-                                                "Тема снята с публикации"
-                                            )
-                                        }
-                                    >
-                                        {item.pending ? "Ждёт модерации" : "Снять с публикации"}
-                                    </button>
-                                )}
-
+                                <button
+                                    className="btn btnGhost btnSmall"
+                                    type="button"
+                                    onClick={() => onApplied(`${CUSTOM_THEME_PREFIX}${item.key}`)}
+                                >
+                                    Применить
+                                </button>
+                                <button
+                                    className="btn btnGhost btnSmall"
+                                    type="button"
+                                    onClick={() => onEdit(item.id)}
+                                >
+                                    Изменить
+                                </button>
+                                <button
+                                    className="btn btnGhost btnSmall"
+                                    type="button"
+                                    title="Сохранит тему файлом — им можно поделиться"
+                                    onClick={() => download(item)}
+                                >
+                                    Скачать
+                                </button>
                                 {confirming === item.id ? (
                                     <>
                                         <button
                                             className="btn btnDanger btnSmall"
                                             type="button"
-                                            disabled={busy}
-                                            onClick={() =>
-                                                run(
-                                                    () => themeService.remove(item.id),
-                                                    "Тема удалена"
-                                                )
-                                            }
+                                            onClick={() => remove(item)}
                                         >
                                             Удалить
                                         </button>
@@ -210,8 +194,49 @@ const ThemesSettings = ({ onApplied, onEdit }) => {
             )}
 
             <span className="mutedText">
-                Использовано {themes.length} из {limit}.
+                Сохранено {themes.length} из {limit}.
             </span>
+
+            <div className="themeImport">
+                <span className="settingsFieldLabel">Загрузить тему из файла или текста</span>
+                <span className="settingsFieldHint">
+                    Файл темы MindSet или строка с ролями: тему из чата можно просто вставить
+                    текстом. Импорт ничего не применяет — сначала посмотрите её в конструкторе.
+                </span>
+                <textarea
+                    className="input themeImportText"
+                    value={text}
+                    onChange={(event) => setText(event.target.value)}
+                    rows={3}
+                    spellCheck={false}
+                    aria-label="Текст темы"
+                />
+                <div className="settingsActions">
+                    <button
+                        className="btn btnGhost"
+                        type="button"
+                        disabled={!text.trim()}
+                        onClick={importFromText}
+                    >
+                        Загрузить из текста
+                    </button>
+                    <button
+                        className="btn btnGhost"
+                        type="button"
+                        onClick={() => fileRef.current?.click()}
+                    >
+                        Выбрать файл
+                    </button>
+                    <input
+                        ref={fileRef}
+                        className="visuallyHidden"
+                        type="file"
+                        accept=".json,application/json"
+                        onChange={importFromFile}
+                        aria-label="Файл темы"
+                    />
+                </div>
+            </div>
         </div>
     );
 };

@@ -9,7 +9,8 @@
  * Задел под плагины-темы (этап 5): новая тема — это такой же объект,
  * поэтому её можно принести данными, не трогая стили.
  */
-import { CUSTOM_THEME_PREFIX, THEME_VARIABLE_NAMES, validThemeColor } from "./theme.packages";
+import { CUSTOM_THEME_PREFIX } from "./theme.packages";
+import { buildThemeVariables } from "./theme.roles";
 
 export const APP_THEMES = [
     {
@@ -340,7 +341,6 @@ export const APP_THEMES = [
 export const DEFAULT_THEME = "dark";
 
 const CACHE_KEY = "mindset:theme:cache";
-const ALLOWED_VARIABLES = new Set(THEME_VARIABLE_NAMES);
 
 const customThemes = new Map();
 let cachedThemes = null;
@@ -370,23 +370,14 @@ const cachedTheme = (key) => {
     return cachedThemes[key];
 };
 
+// Сохранённая тема (библиотека или импорт) → запись реестра тем приложения: восемь ролей
+// разворачиваем в полный набор переменных поверх базовой темы.
 export const customThemeFromPackage = (item) => {
     if (!item?.key) {
         return null;
     }
 
     const base = APP_THEMES.find((theme) => theme.key === item.base) ?? APP_THEMES[0];
-    const overrides = {};
-
-    Object.entries(item.variables ?? {}).forEach(([name, value]) => {
-        if (ALLOWED_VARIABLES.has(name) && validThemeColor(value)) {
-            overrides[name] = String(value).trim();
-        }
-    });
-
-    if (Object.keys(overrides).length === 0) {
-        return null;
-    }
 
     return {
         key: CUSTOM_THEME_PREFIX + item.key,
@@ -394,12 +385,10 @@ export const customThemeFromPackage = (item) => {
         // Описание показываем как есть: нет описания — под названием ничего не выводим.
         hint: item.description || "",
         mode: item.mode === "light" ? "light" : "dark",
-        base: item.base || "dark",
-        variables: { ...base.variables, ...overrides },
+        base: base.key,
+        variables: buildThemeVariables(item.roles ?? {}, base.key),
         custom: true,
         packageKey: item.key,
-        // Автор нужен интерфейсу: свою тему помечаем в списке сообщества, чтобы не показывать её дважды.
-        author: item.author || "",
     };
 };
 

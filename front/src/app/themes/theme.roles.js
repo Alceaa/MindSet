@@ -1,4 +1,4 @@
-import { THEME_VARIABLE_NAMES } from "./theme.packages";
+// Роли темы: восемь понятных цветов вместо десятков переменных.
 import { APP_THEMES, themeByKey } from "./app.themes";
 
 /**
@@ -68,9 +68,6 @@ export const THEME_ROLES = [
 ];
 
 export const THEME_ROLE_KEYS = THEME_ROLES.map((role) => role.key);
-
-// Ключ своей темы в реестре приложения: registerThemePackages добавляет префикс custom:.
-export const LOCAL_THEME_KEY = "custom:local";
 
 // Готовые наборы: выбираешь пресет и правишь пару цветов, а не собираешь тему с нуля.
 export const THEME_PRESETS = [
@@ -357,21 +354,6 @@ export const buildThemeVariables = (roles, baseKey) => {
     };
 };
 
-// Переменные для пакета темы сообщества: сервер принимает только белый список, поэтому
-// отдаём туда лишь его — производные значения (тени, фон-градиент) и так берутся из базовой темы.
-export const packageVariables = (roles, baseKey) => {
-    const variables = buildThemeVariables(roles, baseKey);
-    const filtered = {};
-
-    THEME_VARIABLE_NAMES.forEach((name) => {
-        if (variables[name]) {
-            filtered[name] = variables[name];
-        }
-    });
-
-    return filtered;
-};
-
 // Обратный ход: из переменных темы достаём роли — нужно, когда автор снова открывает тему.
 export const rolesFromVariables = (variables = {}) => {
     const roles = {};
@@ -383,13 +365,3 @@ export const rolesFromVariables = (variables = {}) => {
 
     return roles;
 };
-
-// Тема из профиля → запись для реестра тем приложения.
-export const localThemePackage = (theme) => ({
-    key: "local",
-    title: theme?.title?.trim() || "Своя тема",
-    description: "Своя тема: восемь цветов поверх одной из встроенных",
-    mode: theme?.mode === "light" ? "light" : "dark",
-    base: theme?.base || "dark",
-    variables: buildThemeVariables(theme?.roles, theme?.base),
-});

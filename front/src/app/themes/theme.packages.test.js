@@ -52,32 +52,28 @@ test("ключ и цвет проверяются строго", () => {
     expect(isHexColor("rgba(1, 2, 3, 0.5)")).toBe(false);
 });
 
-test("пакет темы собирается поверх базовой темы", () => {
+test("сохранённая тема превращается в запись реестра", () => {
     const theme = customThemeFromPackage({
         key: "northern-dusk",
         title: "Северные сумерки",
         description: "Холодный вечер",
         mode: "dark",
-        base: "dark",
-        author: "verifyuser",
-        variables: {
-            "--bg-canvas": "#0f1420",
-            "--accent": "url(x)",
-            "--unknown": "#ffffff",
-        },
+        base: "nord",
+        roles: { accent: "#7cc7ff" },
     });
 
     expect(theme.key).toBe(`${CUSTOM_THEME_PREFIX}northern-dusk`);
     expect(theme.label).toBe("Северные сумерки");
+    expect(theme.hint).toBe("Холодный вечер");
     expect(theme.mode).toBe("dark");
-    expect(theme.variables["--bg-canvas"]).toBe("#0f1420");
-    expect(theme.variables["--accent"]).toBe(
-        APP_THEMES[0].variables["--accent"]
+    // Ядро считаем из ролей, остальное (тени, подсветка кода) берём из базовой темы.
+    expect(theme.variables["--accent"]).toBe("#7cc7ff");
+    expect(theme.variables["--code-keyword"]).toBe(
+        themeByKey("nord").variables["--code-keyword"]
     );
-    expect(theme.variables["--unknown"]).toBeUndefined();
     expect(Object.keys(theme.variables).length).toBe(Object.keys(APP_THEMES[0].variables).length);
 
-    expect(customThemeFromPackage({ key: "empty", variables: { "--accent": "nope" } })).toBeNull();
+    expect(customThemeFromPackage({ key: "" })).toBeNull();
     expect(isCustomTheme(theme.key)).toBe(true);
     expect(isCustomTheme("dark")).toBe(false);
 });
@@ -89,7 +85,7 @@ test("зарегистрированные темы доступны по клю
             title: "Северные сумерки",
             mode: "dark",
             base: "dark",
-            variables: { "--accent": "#7cc7ff" },
+            roles: { accent: "#7cc7ff" },
         },
     ]);
 

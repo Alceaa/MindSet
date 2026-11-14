@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import themeService from "../api/theme.service";
 import { applyTheme, DEFAULT_THEME, registerThemePackages, themeByKey } from "../themes/app.themes";
-import { LOCAL_THEME_KEY, localThemePackage } from "../themes/theme.roles";
 
 const STORAGE_KEY = "mindset:theme";
 
@@ -28,39 +27,28 @@ const getTheme = () => {
 
 export const initAppTheme = () => applyTheme(readTheme());
 
+/**
+ * Подтягиваем библиотеку тем: она живёт на сервере, поэтому свои оформления видны на любом
+ * устройстве. Если сети нет или пользователь не вошёл, остаётся кеш из localStorage —
+ * применённая тема не слетает.
+ */
+export const syncUserThemes = async () => {
+    try {
+        const data = await themeService.list();
+        registerThemePackages(data?.themes ?? []);
+    } catch {
+        // Гость или сеть недоступна: работаем с тем, что уже лежит в кеше.
+    }
+};
+
 const loadThemeCatalog = async () => {
     if (catalogRequested) {
         return;
     }
     catalogRequested = true;
 
-    try {
-        const data = await themeService.published();
-        registerThemePackages(data?.themes ?? []);
-    } catch {
-        catalogRequested = false;
-    }
-
-    // Своя тема из профиля: она не в каталоге, поэтому грузится отдельно.
-    try {
-        const local = await themeService.profileTheme();
-        if (local?.theme) {
-            registerThemePackages([localThemePackage(local.theme)]);
-        }
-    } catch {
-        // Или гость, или темы нет — оба случая нормальные.
-    }
-
+    await syncUserThemes();
     applyTheme(getTheme());
-};
-
-/**
- * Своя тема пользователя: конструктор в настройках сохраняет роли в профиль,
- * а здесь они подставляются в реестр тем под ключом local.
- */
-export const registerLocalTheme = (theme) => {
-    registerThemePackages([localThemePackage(theme)]);
-    return LOCAL_THEME_KEY;
 };
 
 const setTheme = (key) => {

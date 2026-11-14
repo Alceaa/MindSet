@@ -8,9 +8,7 @@ import {
     contrastText,
     contrastWarnings,
     isRoleColor,
-    localThemePackage,
     mix,
-    packageVariables,
     rolesFromVariables,
 } from "./theme.roles";
 
@@ -39,7 +37,7 @@ test("тема из восьми цветов даёт все переменны
 
 test("роли попадают в свои переменные", () => {
     const roles = THEME_PRESETS[1].roles;
-    const variables = buildThemeVariables(roles, "dark");
+    const variables = buildThemeVariables(roles, THEME_PRESETS[1].base);
 
     THEME_ROLES.forEach((role) => {
         expect(variables[ROLE_VARIABLES[role.key]]).toBe(roles[role.key]);
@@ -49,6 +47,17 @@ test("роли попадают в свои переменные", () => {
     expect(variables["--text-muted"]).toMatch(/^#[0-9a-f]{6}$/);
     expect(variables["--accent-soft"]).toMatch(/^rgba\(/);
     expect(isRoleColor(variables["--accent-hover"])).toBe(true);
+});
+
+test("роли разворачиваются в переменные и возвращаются обратно", () => {
+    const preset = THEME_PRESETS[2];
+    const variables = buildThemeVariables(preset.roles, preset.base);
+
+    // Переменные считаем из восьми ролей, а тени и подсветку кода берём из базовой темы.
+    expect(variables["--bg-canvas"]).toBe(preset.roles.canvas);
+    expect(variables["--shadow"]).toBe(themeByKey(preset.base).variables["--shadow"]);
+
+    expect(rolesFromVariables(variables)).toEqual(preset.roles);
 });
 
 test("пресеты не повторяют базовые темы и не дублируются", () => {
@@ -95,7 +104,7 @@ test("пресеты не дают предупреждений о контра�
     });
 });
 
-test("чёрная тема предупреждает про нечитаемый текст", () => {
+test("контраст ловит нечитаемую пару", () => {
     const warnings = contrastWarnings({
         canvas: "#000000",
         surface: "#000000",
@@ -109,27 +118,4 @@ test("чёрная тема предупреждает про нечитаемы
 
     expect(warnings.length).toBeGreaterThan(0);
     expect(warnings.some((item) => /Текст на фоне/.test(item.label))).toBe(true);
-});
-
-test("пакет темы собирается из ролей и возвращается обратно", () => {
-    const preset = THEME_PRESETS[2];
-    const variables = packageVariables(preset.roles, preset.base);
-
-    // В пакет уезжает только белый список сервера: 52 переменные без теней и градиента.
-    expect(Object.keys(variables).length).toBe(52);
-    expect(variables["--bg-canvas"]).toBe(preset.roles.canvas);
-    expect(variables["--shadow"]).toBeUndefined();
-
-    const roles = rolesFromVariables(variables);
-    expect(roles).toEqual(preset.roles);
-});
-
-test("тема профиля превращается в запись реестра", () => {
-    const preset = THEME_PRESETS[0];
-    const pkg = localThemePackage({ title: "  Моя тема  ", mode: preset.mode, base: preset.base, roles: preset.roles });
-
-    expect(pkg.key).toBe("local");
-    expect(pkg.title).toBe("Моя тема");
-    expect(pkg.mode).toBe("dark");
-    expect(Object.keys(pkg.variables).length).toBe(55);
 });

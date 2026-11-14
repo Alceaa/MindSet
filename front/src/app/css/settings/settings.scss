@@ -158,6 +158,87 @@
     color: var(--danger);
 }
 
+/* Своя тема: пресеты, предпросмотр, восемь цветов и предупреждения о контрасте. */
+.themePresets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+}
+
+.localThemePreview {
+    display: flex;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.localThemeSwatch {
+    flex: 1;
+    height: 28px;
+}
+
+.localThemeRoles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--gap-sm);
+}
+
+.localThemeRole {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+    padding: var(--gap-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+}
+
+.localThemeRoleText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.localThemeColor {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 32px;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: none;
+    cursor: pointer;
+}
+
+.localThemeRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap);
+}
+
+.localThemeRow .settingsField {
+    flex: 1 1 200px;
+}
+
+.localThemeWarnings {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: var(--gap-sm) var(--gap);
+    border: 1px solid var(--warning-line);
+    border-radius: var(--radius);
+    background-color: var(--warning-soft);
+}
+
+.localThemeWarnings ul {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
 .settingsActions {
     display: flex;
     justify-content: flex-start;

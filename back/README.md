@@ -144,6 +144,9 @@ go run ./cmd/mailcheck you@example.com  # письмо на свой адрес
 | POST | `/auth/forgot` | публичный | Запрос ссылки на сброс пароля (`{email}`); ответ не выдаёт, зарегистрирован адрес или нет |
 | POST | `/auth/reset` | публичный | Новый пароль по токену из письма (`{token, password, password_confirm}`); сбрасывает все сессии |
 | PUT | `/users/me/2fa` | по access-токену | Включение/выключение входа по коду (`{enabled, password}`), по умолчанию выключено |
+| GET | `/users/me/theme` | по access-токену | Своя тема оформления из профиля (`null`, если не задана) |
+| PUT | `/users/me/theme` | по access-токену | Сохранить свою тему: `{title, mode, base, roles}` — восемь ролей (`canvas`, `surface`, `text`, `border`, `accent`, `danger`, `warning`, `success`) с цветами `#rrggbb`; модерации нет |
+| DELETE | `/users/me/theme` | по access-токену | Сбросить свою тему (вернуться к базовому оформлению) |
 | POST | `/reports` | публичный | Баг-репорт (`{topic, message, page, attachments}`) → уходит в Telegram, для вошедших приложен логин; `attachments` — до трёх ссылок на изображения из нашего хранилища |
 | GET | `/auth/config` | публичный | Настройки для фронтенда: `invite_only`, `registration_open` |
 | POST | `/admin/invites` | по `ADMIN_TOKEN` или роли `admin` | Выдать одноразовое приглашение (`{note, days}`) → `{invite, url}` |

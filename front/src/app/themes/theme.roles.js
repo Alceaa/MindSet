@@ -68,6 +68,9 @@ export const THEME_ROLES = [
 
 export const THEME_ROLE_KEYS = THEME_ROLES.map((role) => role.key);
 
+// Ключ своей темы в реестре приложения: registerThemePackages добавляет префикс custom:.
+export const LOCAL_THEME_KEY = "custom:local";
+
 // Готовые наборы: выбираешь пресет и правишь пару цветов, а не собираешь тему с нуля.
 export const THEME_PRESETS = [
     {

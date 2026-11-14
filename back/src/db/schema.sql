@@ -383,6 +383,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS notifications_unread_unique
 -- Настройки уведомлений: храним только выключенные категории, пустой объект = включено всё.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_prefs jsonb NOT NULL DEFAULT '{}'::jsonb;
 
+-- Своя тема оформления: восемь ролей (canvas, surface, text, border, accent, danger,
+-- warning, success) и базовая тема. Модерации нет — тема живёт только у владельца.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_theme jsonb;
+
 -- Поиск по своим сетам: подстроку ищем в названии, описании и тексте заметки.
 -- Обычный btree под ILIKE '%...%' не подходит, а pg_trgm + GIN — подходит.
 -- pg_trgm помечен как доверенное расширение, поэтому владелец базы ставит его сам.

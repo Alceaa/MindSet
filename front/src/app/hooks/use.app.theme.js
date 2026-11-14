@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import themeService from "../api/theme.service";
 import { applyTheme, DEFAULT_THEME, registerThemePackages, themeByKey } from "../themes/app.themes";
+import { LOCAL_THEME_KEY, localThemePackage } from "../themes/theme.roles";
 
 const STORAGE_KEY = "mindset:theme";
 
@@ -36,10 +37,30 @@ const loadThemeCatalog = async () => {
     try {
         const data = await themeService.published();
         registerThemePackages(data?.themes ?? []);
-        applyTheme(getTheme());
     } catch {
         catalogRequested = false;
     }
+
+    // Своя тема из профиля: она не в каталоге, поэтому грузится отдельно.
+    try {
+        const local = await themeService.profileTheme();
+        if (local?.theme) {
+            registerThemePackages([localThemePackage(local.theme)]);
+        }
+    } catch {
+        // Или гость, или темы нет — оба случая нормальные.
+    }
+
+    applyTheme(getTheme());
+};
+
+/**
+ * Своя тема пользователя: конструктор в настройках сохраняет роли в профиль,
+ * а здесь они подставляются в реестр тем под ключом local.
+ */
+export const registerLocalTheme = (theme) => {
+    registerThemePackages([localThemePackage(theme)]);
+    return LOCAL_THEME_KEY;
 };
 
 const setTheme = (key) => {
@@ -69,6 +90,22 @@ export const useAppTheme = () => {
         return () => {
             listeners.delete(setLocalTheme);
         };
+    }, []);
+
+    useEffect(() => {
+        // Аварийный выход: своя тема может получиться нечитаемой, и тогда из интерфейса
+        // до кнопки не добраться — сочетание клавиш возвращает базовую тему.
+        const handleKey = (event) => {
+            if (!event.ctrlKey || !event.altKey || event.code !== "KeyD") {
+                return;
+            }
+
+            event.preventDefault();
+            setTheme(DEFAULT_THEME);
+        };
+
+        window.addEventListener("keydown", handleKey);
+        return () => window.removeEventListener("keydown", handleKey);
     }, []);
 
     const reset = useCallback(() => setTheme(DEFAULT_THEME), []);

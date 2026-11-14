@@ -24,6 +24,21 @@ class ThemeService {
     submit(id) {
         return api.post(`/theme-packages/${id}/submit`).then((response) => response.data);
     }
+
+    // Своя тема в профиле: живёт без модерации и переезжает между устройствами.
+    profileTheme() {
+        return api
+            .get("/users/me/theme", { skipAuthRefresh: true })
+            .then((response) => response.data);
+    }
+
+    saveProfileTheme(payload) {
+        return api.put("/users/me/theme", payload).then((response) => response.data);
+    }
+
+    clearProfileTheme() {
+        return api.delete("/users/me/theme").then((response) => response.data);
+    }
 }
 
 const themeService = new ThemeService();

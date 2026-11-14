@@ -94,7 +94,7 @@ export const THEME_PRESETS = [
         key: "sea",
         title: "Море",
         mode: "dark",
-        base: "dark",
+        base: "nord",
         roles: {
             canvas: "#0a1a24",
             surface: "#10293a",
@@ -110,7 +110,7 @@ export const THEME_PRESETS = [
         key: "forest",
         title: "Лес",
         mode: "dark",
-        base: "dark",
+        base: "sepia",
         roles: {
             canvas: "#111713",
             surface: "#1a231c",

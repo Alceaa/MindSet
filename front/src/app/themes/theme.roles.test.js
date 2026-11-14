@@ -1,4 +1,4 @@
-import { APP_THEMES } from "./app.themes";
+import { APP_THEMES, themeByKey } from "./app.themes";
 import {
     ROLE_VARIABLES,
     THEME_PRESETS,
@@ -60,11 +60,30 @@ test("пресеты не повторяют базовые темы и не д�
     expect(keys.length).toBe(new Set(keys).size);
     expect(titles.length).toBe(new Set(titles).size);
     expect(keys.length).toBeGreaterThanOrEqual(5);
+    // Пресеты не сбиваются в одну базовую тему: часть строится поверх nord и sepia.
+    expect(new Set(THEME_PRESETS.map((preset) => preset.base)).size).toBeGreaterThanOrEqual(3);
 
     THEME_PRESETS.forEach((preset) => {
         expect(THEME_ROLES.every((role) => isRoleColor(preset.roles[role.key]))).toBe(true);
         expect(APP_THEMES.some((theme) => theme.key === preset.base)).toBe(true);
     });
+});
+
+test("базовая тема задаёт производные значения, цвета берём из ролей", () => {
+    const preset = THEME_PRESETS.find((item) => item.key === "sea");
+    const nord = themeByKey("nord").variables;
+    const onNord = buildThemeVariables(preset.roles, "nord");
+    const onDark = buildThemeVariables(preset.roles, "dark");
+
+    // Тени, подсветка кода и цвета графа приходят из базовой темы.
+    expect(onNord["--shadow"]).toBe(nord["--shadow"]);
+    expect(onNord["--graph-edge"]).toBe(nord["--graph-edge"]);
+    expect(onNord["--code-string"]).toBe(nord["--code-string"]);
+    expect(onNord["--code-keyword"]).not.toBe(onDark["--code-keyword"]);
+
+    // А ядро остаётся тем же: его считаем из восьми ролей.
+    expect(onNord["--bg-canvas"]).toBe(onDark["--bg-canvas"]);
+    expect(onNord["--accent"]).toBe(onDark["--accent"]);
 });
 
 test("пресеты не дают предупреждений о контрасте", () => {

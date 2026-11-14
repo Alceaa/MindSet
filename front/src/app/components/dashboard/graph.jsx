@@ -589,8 +589,8 @@ const Graph = () => {
     };
 
     const nodePointerDown = (event, key) => {
-        event.preventDefault();
-
+        // preventDefault здесь не нужен: он может погасить click, а выделение текста
+        // при перетаскивании отключено стилями.
         const point = toGraphPoint(event);
         const pressed = toCanvasPoint(event);
         dragged.current = false;
@@ -605,6 +605,12 @@ const Graph = () => {
     };
 
     const canvasPointerDown = (event) => {
+        // Нажатие на узле обрабатывает сам узел. Захват указателя на холсте «съедал» клик:
+        // браузер отправляет click элементу с захватом, и сет не открывался.
+        if (event.target?.closest?.(".graphNode")) {
+            return;
+        }
+
         pointers.current.set(event.pointerId, toCanvasPoint(event));
         capturePointer(event.currentTarget, event.pointerId);
 

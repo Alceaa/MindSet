@@ -57,6 +57,7 @@
 
 .graphNode {
     cursor: pointer;
+    user-select: none;
 }
 
 .graphNodeSet circle {

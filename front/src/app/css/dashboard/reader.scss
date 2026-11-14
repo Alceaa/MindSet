@@ -18,41 +18,8 @@
     background-color: var(--reader-bg);
 }
 
-.articleCard[data-reader-theme="sepia"] {
-    --reader-bg: #f6efe1;
-    --reader-text: #3a352c;
-    --reader-muted: #6d6454;
-    --reader-faint: #948b78;
-    --reader-border: #ded2b8;
-    --reader-strong: #cdbf9f;
-    --reader-code-bg: #ece1cb;
-    --reader-code-block-bg: #efe6d3;
-    --reader-accent: #8a5a12;
-}
-
-.articleCard[data-reader-theme="nord"] {
-    --reader-bg: #2e3440;
-    --reader-text: #d8dee9;
-    --reader-muted: #a6b0c1;
-    --reader-faint: #7c8699;
-    --reader-border: #3b4252;
-    --reader-strong: #4c566a;
-    --reader-code-bg: #3b4252;
-    --reader-code-block-bg: #272c36;
-    --reader-accent: #88c0d0;
-}
-
-.articleCard[data-reader-theme="contrast"] {
-    --reader-bg: #000000;
-    --reader-text: #ffffff;
-    --reader-muted: #cfd6dd;
-    --reader-faint: #97a1ab;
-    --reader-border: #3d444d;
-    --reader-strong: #565f69;
-    --reader-code-bg: #1b2129;
-    --reader-code-block-bg: #0d1117;
-    --reader-accent: #58a6ff;
-}
+/* Отдельные темы читалки (сепия, nord, контраст) убраны: оформление теперь
+   общее для приложения, а карточка статьи берёт цвета из темы через переменные. */
 
 .articleCard[data-reader-width="narrow"] {
     --reader-width: 54ch;
@@ -98,6 +65,7 @@
     width: min(264px, calc(100vw - 24px));
     max-height: min(70vh, 420px);
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: var(--gap-sm);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
@@ -155,7 +123,7 @@
 }
 
 .readerChoice:hover {
-    background-color: #30363d;
+    background-color: var(--border);
     color: var(--text);
 }
 

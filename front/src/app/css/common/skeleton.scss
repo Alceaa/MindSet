@@ -1,0 +1,97 @@
+.skeleton {
+    display: block;
+}
+
+.skeletonBody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+}
+
+.skeletonItem {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+}
+
+.skeleton-card .skeletonItem {
+    padding: var(--gap);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.skeleton-row .skeletonItem {
+    padding: 12px var(--gap);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.skeleton-article .skeletonItem {
+    gap: 12px;
+}
+
+.skeletonLine {
+    display: block;
+    width: 100%;
+    height: 10px;
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+.skeletonLine-title {
+    width: 45%;
+    height: 16px;
+}
+
+.skeletonLine-full {
+    width: 100%;
+}
+
+.skeletonLine-short {
+    width: 62%;
+}
+
+@keyframes skeletonPulse {
+    0%,
+    100% {
+        opacity: 0.5;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+.skeletonWorkspace {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    align-items: start;
+    gap: var(--gap);
+}
+
+.skeletonSidebar,
+.skeletonMain {
+    padding: var(--gap);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface);
+}
+
+.skeletonSidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.skeletonMain {
+    min-width: 0;
+}
+
+@media (max-width: 900px) {
+    .skeletonWorkspace {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

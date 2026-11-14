@@ -5,12 +5,16 @@ import SecuritySettingsPanel from "./settings.security.jsx";
 import BugReportPanel from "./settings.bug.jsx";
 import NotificationsSettingsPanel from "./settings.notifications.jsx";
 import DataSettingsPanel from "./settings.data.jsx";
+import AppearanceSettingsPanel from "./settings.appearance.jsx";
+import IntegrationsSettingsPanel from "./settings.integrations.jsx";
 import "../../css/settings/settings.scss";
 
 const NAV = [
     { key: "profile", label: "Настройки профиля" },
+    { key: "appearance", label: "Оформление" },
     { key: "security", label: "Безопасность" },
     { key: "notifications", label: "Уведомления" },
+    { key: "integrations", label: "Интеграции" },
     { key: "data", label: "Данные" },
     { key: "bug", label: "Сообщить о проблеме" },
 ];
@@ -20,11 +24,17 @@ const Settings = () => {
     const tab = searchParams.get("tab") || "profile";
 
     const renderPanel = () => {
+        if (tab === "appearance") {
+            return <AppearanceSettingsPanel />;
+        }
         if (tab === "security") {
             return <SecuritySettingsPanel />;
         }
         if (tab === "notifications") {
             return <NotificationsSettingsPanel />;
+        }
+        if (tab === "integrations") {
+            return <IntegrationsSettingsPanel />;
         }
         if (tab === "bug") {
             return <BugReportPanel />;

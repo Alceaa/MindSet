@@ -4,6 +4,8 @@ import Avatar from "@mui/material/Avatar";
 import socialService from "../../api/social.service";
 import parseApiError from "../../utils/api.error";
 import { useAuth } from "../../context/auth.context";
+import { Skeleton } from "./skeleton.jsx";
+import EmptyState from "./empty.state.jsx";
 
 const initialOf = (login) => (login ? login.trim().charAt(0).toUpperCase() : "?");
 
@@ -102,7 +104,7 @@ const SetComments = ({ slug }) => {
             {error && <p className="errorText">{error}</p>}
 
             {loading ? (
-                <p className="mutedText">Загружаем комментарии…</p>
+                <Skeleton variant="row" count={3} label="Загружаем комментарии…" />
             ) : (
                 <div className="commentList">
                     {comments.map((comment) => (
@@ -132,7 +134,9 @@ const SetComments = ({ slug }) => {
                             )}
                         </div>
                     ))}
-                    {comments.length === 0 && <p className="mutedText">Комментариев пока нет.</p>}
+                    {comments.length === 0 && (
+                        <EmptyState variant="inline" title="Комментариев пока нет." />
+                    )}
                 </div>
             )}
         </section>

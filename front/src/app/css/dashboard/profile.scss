@@ -106,14 +106,6 @@
     color: var(--text);
 }
 
-.profileEmpty {
-    padding: var(--gap-xl) var(--gap);
-    border: 1px dashed var(--border-muted);
-    border-radius: var(--radius-lg);
-    color: var(--text-muted);
-    text-align: center;
-}
-
 .profileSettings {
     display: flex;
     flex-direction: column;

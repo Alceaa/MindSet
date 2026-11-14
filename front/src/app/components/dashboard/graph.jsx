@@ -2,33 +2,111 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom";
 import setService from "../../api/set.service";
 import parseApiError from "../../utils/api.error";
+import EmptyState from "../common/empty.state.jsx";
 import "../../css/dashboard/graph.scss";
 
-const WIDTH = 960;
-const HEIGHT = 600;
 const REPULSION = 5200;
 const SPRING = 0.025;
 const SPRING_LENGTH = 140;
 const CENTER_PULL = 0.014;
 const DAMPING = 0.85;
 const ITERATIONS = 340;
+const DENSE_ITERATIONS = 220;
 
 const NODE_PADDING = 12;
-const HOVER_GROWTH = 1.18;
 const DRAG_GROWTH = 1.3;
-const HOVER_PASSES = 26;
 const DRAG_PASSES = 4;
+// Порог перетаскивания узла в пикселях экрана: меньше — это клик, а не сдвиг.
+const DRAG_THRESHOLD = 4;
 const SETTLE_PASSES = 12;
+const DENSE_SETTLE_PASSES = 24;
 const LERP = 0.28;
 
 const MIN_SCALE = 0.35;
 const MAX_SCALE = 3;
 
+const CANVAS_RATIO = 1.6;
+const CANVAS_MIN_AREA = 960 * 600;
+const CANVAS_AREA_PER_NODE = 2600;
+const CANVAS_MAX_WIDTH = 6000;
+const CANVAS_MARGIN = 30;
+
+const DENSE_NODES = 80;
+const GRID_MIN_CELL = 56;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
 const setKey = (id) => `s${id}`;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+const canvasFor = (count) => {
+    const area = Math.max(CANVAS_MIN_AREA, count * CANVAS_AREA_PER_NODE);
+    const width = Math.min(CANVAS_MAX_WIDTH, Math.round(Math.sqrt(area * CANVAS_RATIO)));
+    return { width, height: Math.round(width / CANVAS_RATIO) };
+};
+
+const isDense = (count) => count > DENSE_NODES;
+
+const densityScale = (count) => clamp(Math.sqrt(DENSE_NODES / Math.max(count, 1)), 0.34, 1);
+
+const nodeSpacing = (count, canvas) =>
+    isDense(count)
+        ? clamp(Math.sqrt((canvas.width * canvas.height * 0.6) / Math.max(count, 1)) / 2, 8, 26)
+        : 0;
+
+const gridCellSize = (count, canvas) =>
+    Math.max(GRID_MIN_CELL, Math.sqrt((canvas.width * canvas.height) / Math.max(count, 1)));
+
+const settlePasses = (count) => (isDense(count) ? DENSE_SETTLE_PASSES : SETTLE_PASSES);
+
+const gridKey = (cx, cy) => cx * 100000 + cy;
+
+function forEachNeighborPair(nodes, positions, canvas, visit) {
+    const cell = gridCellSize(nodes.length, canvas);
+    const buckets = new Map();
+
+    nodes.forEach((node, index) => {
+        const point = positions.get(node.key);
+        if (!point) {
+            return;
+        }
+        const key = gridKey(Math.floor(point.x / cell), Math.floor(point.y / cell));
+        const entry = { index, point };
+        const bucket = buckets.get(key);
+        if (bucket) {
+            bucket.push(entry);
+        } else {
+            buckets.set(key, [entry]);
+        }
+    });
+
+    nodes.forEach((node, index) => {
+        const point = positions.get(node.key);
+        if (!point) {
+            return;
+        }
+        const cx = Math.floor(point.x / cell);
+        const cy = Math.floor(point.y / cell);
+
+        for (let dx = -1; dx <= 1; dx += 1) {
+            for (let dy = -1; dy <= 1; dy += 1) {
+                const bucket = buckets.get(gridKey(cx + dx, cy + dy));
+                if (!bucket) {
+                    continue;
+                }
+                bucket.forEach((entry) => {
+                    if (entry.index > index) {
+                        visit(index, entry.index, point, entry.point);
+                    }
+                });
+            }
+        }
+    });
+}
+
 function buildNodes(graph) {
+    const scale = densityScale(graph.nodes.length);
+
     return graph.nodes.map((node) => {
         const own = node.own !== false;
         const frozen = Boolean(node.frozen);
@@ -58,7 +136,7 @@ function buildNodes(graph) {
             slug: node.slug ?? "",
             login: node.login ?? "",
             snapshotId: node.snapshot_id ?? 0,
-            radius: 10 + Math.min(node.links + node.backlinks, 8) * 1.8,
+            radius: (10 + Math.min(node.links + node.backlinks, 8) * 1.8) * scale,
             hint,
         };
     });
@@ -77,52 +155,78 @@ function buildEdges(graph, nodes) {
         }));
 }
 
-function collisionRadius(node, growth = 1) {
-    const labelWidth = Math.min(node.title.length, 22) * 6.6;
-    return (node.radius + Math.max(labelWidth / 2, 16) + NODE_PADDING) * growth;
+function collisionRadius(node, growth = 1, reserveLabel = true) {
+    const label = reserveLabel
+        ? Math.max((Math.min(node.title.length, 22) * 6.6) / 2, 16) + NODE_PADDING
+        : 3;
+    return (node.radius + label) * growth;
 }
 
-function layout(nodes, edges) {
+function radiusFor(count, canvas) {
+    const spacing = nodeSpacing(count, canvas);
+
+    return (node, growth = 1) =>
+        spacing ? Math.max(spacing, node.radius + 3) * growth : collisionRadius(node, growth);
+}
+
+function initialPositions(nodes, canvas) {
     const positions = new Map();
-    const velocity = new Map();
-    const orbit = Math.min(WIDTH, HEIGHT) * 0.36;
+    const { width, height } = canvas;
 
     nodes.forEach((node, index) => {
-        const angle = (index / Math.max(nodes.length, 1)) * Math.PI * 2;
+        const angle = index * GOLDEN_ANGLE;
+        const radius = Math.sqrt((index + 0.5) / Math.max(nodes.length, 1));
+
         positions.set(node.key, {
-            x: WIDTH / 2 + Math.cos(angle) * orbit,
-            y: HEIGHT / 2 + Math.sin(angle) * orbit,
+            x: clamp(width / 2 + Math.cos(angle) * radius * width * 0.42, CANVAS_MARGIN, width - CANVAS_MARGIN),
+            y: clamp(height / 2 + Math.sin(angle) * radius * height * 0.42, CANVAS_MARGIN, height - CANVAS_MARGIN),
         });
-        velocity.set(node.key, { x: 0, y: 0 });
     });
 
-    for (let step = 0; step < ITERATIONS; step += 1) {
+    return positions;
+}
+
+function layout(nodes, edges, canvas) {
+    const positions = initialPositions(nodes, canvas);
+    const velocity = new Map();
+    const dense = isDense(nodes.length);
+    const steps = dense ? DENSE_ITERATIONS : ITERATIONS;
+    const centerPull = dense ? CENTER_PULL * 0.2 : CENTER_PULL;
+
+    nodes.forEach((node) => velocity.set(node.key, { x: 0, y: 0 }));
+
+    for (let step = 0; step < steps; step += 1) {
         const forces = new Map();
         nodes.forEach((node) => forces.set(node.key, { x: 0, y: 0 }));
 
-        for (let i = 0; i < nodes.length; i += 1) {
-            for (let j = i + 1; j < nodes.length; j += 1) {
-                const first = positions.get(nodes[i].key);
-                const second = positions.get(nodes[j].key);
+        const repel = (i, j, first, second) => {
+            let dx = first.x - second.x;
+            let dy = first.y - second.y;
+            let distance = Math.hypot(dx, dy);
 
-                let dx = first.x - second.x;
-                let dy = first.y - second.y;
-                let distance = Math.hypot(dx, dy);
+            if (distance < 0.01) {
+                dx = (i - j) * 0.5 + 0.5;
+                dy = 0.5;
+                distance = Math.hypot(dx, dy);
+            }
 
-                if (distance < 0.01) {
-                    dx = (i - j) * 0.5 + 0.5;
-                    dy = 0.5;
-                    distance = Math.hypot(dx, dy);
+            const force = REPULSION / (distance * distance);
+            const fx = (dx / distance) * force;
+            const fy = (dy / distance) * force;
+
+            forces.get(nodes[i].key).x += fx;
+            forces.get(nodes[i].key).y += fy;
+            forces.get(nodes[j].key).x -= fx;
+            forces.get(nodes[j].key).y -= fy;
+        };
+
+        if (dense) {
+            forEachNeighborPair(nodes, positions, canvas, repel);
+        } else {
+            for (let i = 0; i < nodes.length; i += 1) {
+                for (let j = i + 1; j < nodes.length; j += 1) {
+                    repel(i, j, positions.get(nodes[i].key), positions.get(nodes[j].key));
                 }
-
-                const force = REPULSION / (distance * distance);
-                const fx = (dx / distance) * force;
-                const fy = (dy / distance) * force;
-
-                forces.get(nodes[i].key).x += fx;
-                forces.get(nodes[i].key).y += fy;
-                forces.get(nodes[j].key).x -= fx;
-                forces.get(nodes[j].key).y -= fy;
             }
         }
 
@@ -151,14 +255,14 @@ function layout(nodes, edges) {
             const force = forces.get(node.key);
             const speed = velocity.get(node.key);
 
-            force.x += (WIDTH / 2 - position.x) * CENTER_PULL;
-            force.y += (HEIGHT / 2 - position.y) * CENTER_PULL;
+            force.x += (canvas.width / 2 - position.x) * centerPull;
+            force.y += (canvas.height / 2 - position.y) * centerPull;
 
             speed.x = (speed.x + force.x) * DAMPING;
             speed.y = (speed.y + force.y) * DAMPING;
 
-            position.x = clamp(position.x + speed.x, 60, WIDTH - 60);
-            position.y = clamp(position.y + speed.y, 50, HEIGHT - 50);
+            position.x = clamp(position.x + speed.x, CANVAS_MARGIN, canvas.width - CANVAS_MARGIN);
+            position.y = clamp(position.y + speed.y, CANVAS_MARGIN, canvas.height - CANVAS_MARGIN);
         });
     }
 
@@ -176,37 +280,44 @@ function resolveCollisions(positions, nodes, options) {
         working.set(node.key, { x: position.x, y: position.y });
     });
 
+    const dense = isDense(nodes.length);
+    const pull = options.anchorPull ?? 0.05;
+    const { width, height } = options.canvas;
+
     for (let pass = 0; pass < options.passes; pass += 1) {
-        for (let i = 0; i < nodes.length; i += 1) {
-            for (let j = i + 1; j < nodes.length; j += 1) {
-                const firstNode = nodes[i];
-                const secondNode = nodes[j];
-                const first = working.get(firstNode.key);
-                const second = working.get(secondNode.key);
+        const separate = (i, j, first, second) => {
+            let dx = second.x - first.x;
+            let dy = second.y - first.y;
+            let distance = Math.hypot(dx, dy);
 
-                let dx = second.x - first.x;
-                let dy = second.y - first.y;
-                let distance = Math.hypot(dx, dy);
+            if (distance < 0.01) {
+                dx = 0.5;
+                dy = 0.5;
+                distance = Math.hypot(dx, dy);
+            }
 
-                if (distance < 0.01) {
-                    dx = 0.5;
-                    dy = 0.5;
-                    distance = Math.hypot(dx, dy);
+            const minDistance = options.radius(nodes[i]) + options.radius(nodes[j]);
+            if (distance >= minDistance) {
+                return;
+            }
+
+            const shift = (minDistance - distance) / 2;
+            const ux = dx / distance;
+            const uy = dy / distance;
+
+            first.x -= ux * shift;
+            first.y -= uy * shift;
+            second.x += ux * shift;
+            second.y += uy * shift;
+        };
+
+        if (dense) {
+            forEachNeighborPair(nodes, working, options.canvas, separate);
+        } else {
+            for (let i = 0; i < nodes.length; i += 1) {
+                for (let j = i + 1; j < nodes.length; j += 1) {
+                    separate(i, j, working.get(nodes[i].key), working.get(nodes[j].key));
                 }
-
-                const minDistance = options.radius(firstNode) + options.radius(secondNode);
-                if (distance >= minDistance) {
-                    continue;
-                }
-
-                const shift = (minDistance - distance) / 2;
-                const ux = dx / distance;
-                const uy = dy / distance;
-
-                first.x -= ux * shift;
-                first.y -= uy * shift;
-                second.x += ux * shift;
-                second.y += uy * shift;
             }
         }
 
@@ -214,10 +325,10 @@ function resolveCollisions(positions, nodes, options) {
             const position = working.get(node.key);
             const anchor = options.anchor[node.key] ?? position;
 
-            position.x += (anchor.x - position.x) * 0.05;
-            position.y += (anchor.y - position.y) * 0.05;
-            position.x = clamp(position.x, 60, WIDTH - 60);
-            position.y = clamp(position.y, 50, HEIGHT - 50);
+            position.x += (anchor.x - position.x) * pull;
+            position.y += (anchor.y - position.y) * pull;
+            position.x = clamp(position.x, CANVAS_MARGIN, width - CANVAS_MARGIN);
+            position.y = clamp(position.y, CANVAS_MARGIN, height - CANVAS_MARGIN);
         });
     }
 
@@ -262,6 +373,23 @@ const Graph = () => {
         return map;
     }, [edges]);
 
+    const dense = isDense(nodes.length);
+    const canvas = useMemo(() => canvasFor(nodes.length), [nodes.length]);
+
+    const radiusOf = useMemo(() => radiusFor(nodes.length, canvas), [nodes.length, canvas]);
+
+    const labeled = useMemo(() => {
+        if (!dense) {
+            return null;
+        }
+        const keys = new Set();
+        if (activeKey) {
+            keys.add(activeKey);
+            neighbors.get(activeKey)?.forEach((key) => keys.add(key));
+        }
+        return keys;
+    }, [dense, activeKey, neighbors]);
+
     const settle = useCallback((next) => {
         displayRef.current = next;
         setPositions(next);
@@ -302,33 +430,19 @@ const Graph = () => {
 
     useEffect(() => () => cancelAnimationFrame(frameRef.current), []);
 
-    const relax = useCallback(
-        (pinnedKey) => {
-            const targets = resolveCollisions(restRef.current, nodes, {
-                passes: pinnedKey ? HOVER_PASSES : SETTLE_PASSES,
-                anchor: restRef.current,
-                radius: (node) => collisionRadius(node, node.key === pinnedKey ? HOVER_GROWTH : 1),
-            });
-
-            if (pinnedKey && targets.has(pinnedKey)) {
-                targets.set(pinnedKey, { ...restRef.current[pinnedKey] });
-            }
-
-            animateTo(targets);
-        },
-        [nodes, animateTo]
-    );
-
     const applyData = useCallback(
         (data) => {
             const loadedNodes = buildNodes(data);
             const loadedEdges = buildEdges(data, loadedNodes);
+            const loadedCanvas = canvasFor(loadedNodes.length);
 
-            const base = layout(loadedNodes, loadedEdges);
+            const base = layout(loadedNodes, loadedEdges, loadedCanvas);
             const settled = resolveCollisions(base, loadedNodes, {
-                passes: SETTLE_PASSES,
+                passes: settlePasses(loadedNodes.length),
                 anchor: base,
-                radius: (node) => collisionRadius(node),
+                anchorPull: isDense(loadedNodes.length) ? 0.02 : undefined,
+                canvas: loadedCanvas,
+                radius: radiusFor(loadedNodes.length, loadedCanvas),
             });
 
             const snapshot = {};
@@ -365,18 +479,11 @@ const Graph = () => {
         load();
     }, [load]);
 
-    useEffect(() => {
-        if (nodes.length === 0 || draggingRef.current) {
-            return;
-        }
-        relax(activeKey);
-    }, [activeKey, nodes, relax]);
-
     const toCanvasPoint = (event) => {
         const rect = svgRef.current.getBoundingClientRect();
         return {
-            px: ((event.clientX - rect.left) / rect.width) * WIDTH,
-            py: ((event.clientY - rect.top) / rect.height) * HEIGHT,
+            px: ((event.clientX - rect.left) / rect.width) * canvas.width,
+            py: ((event.clientY - rect.top) / rect.height) * canvas.height,
         };
     };
 
@@ -397,8 +504,8 @@ const Graph = () => {
         const handleWheel = (event) => {
             event.preventDefault();
             const rect = element.getBoundingClientRect();
-            const px = ((event.clientX - rect.left) / rect.width) * WIDTH;
-            const py = ((event.clientY - rect.top) / rect.height) * HEIGHT;
+            const px = ((event.clientX - rect.left) / rect.width) * canvas.width;
+            const py = ((event.clientY - rect.top) / rect.height) * canvas.height;
 
             setView((current) => {
                 const nextScale = clamp(current.scale * (1 - event.deltaY * 0.0015), MIN_SCALE, MAX_SCALE);
@@ -413,14 +520,14 @@ const Graph = () => {
 
         element.addEventListener("wheel", handleWheel, { passive: false });
         return () => element.removeEventListener("wheel", handleWheel);
-    }, []);
+    }, [canvas]);
 
     const zoomBy = (factor) => {
         setView((current) => {
             const nextScale = clamp(current.scale * factor, MIN_SCALE, MAX_SCALE);
             const ratio = nextScale / current.scale;
-            const px = WIDTH / 2;
-            const py = HEIGHT / 2;
+            const px = canvas.width / 2;
+            const py = canvas.height / 2;
             return {
                 scale: nextScale,
                 x: px - (px - current.x) * ratio,
@@ -482,19 +589,28 @@ const Graph = () => {
     };
 
     const nodePointerDown = (event, key) => {
-        event.preventDefault();
-
+        // preventDefault здесь не нужен: он может погасить click, а выделение текста
+        // при перетаскивании отключено стилями.
         const point = toGraphPoint(event);
+        const pressed = toCanvasPoint(event);
         dragged.current = false;
         draggingRef.current = true;
         setDragging({
             key,
             offsetX: (positions[key]?.x ?? point.x) - point.x,
             offsetY: (positions[key]?.y ?? point.y) - point.y,
+            pressPx: pressed.px,
+            pressPy: pressed.py,
         });
     };
 
     const canvasPointerDown = (event) => {
+        // Нажатие на узле обрабатывает сам узел. Захват указателя на холсте «съедал» клик:
+        // браузер отправляет click элементу с захватом, и сет не открывался.
+        if (event.target?.closest?.(".graphNode")) {
+            return;
+        }
+
         pointers.current.set(event.pointerId, toCanvasPoint(event));
         capturePointer(event.currentTarget, event.pointerId);
 
@@ -515,9 +631,21 @@ const Graph = () => {
         if (dragging) {
             const point = toGraphPoint(event);
             const nextPoint = {
-                x: clamp(point.x + dragging.offsetX, 40, WIDTH - 40),
-                y: clamp(point.y + dragging.offsetY, 40, HEIGHT - 40),
+                x: clamp(point.x + dragging.offsetX, CANVAS_MARGIN, canvas.width - CANVAS_MARGIN),
+                y: clamp(point.y + dragging.offsetY, CANVAS_MARGIN, canvas.height - CANVAS_MARGIN),
             };
+
+            // Перетаскивание включается только после порога в пикселях: иначе клик
+            // по узлу считался перетаскиванием и сет не открывался.
+            if (!dragged.current) {
+                const moved = toCanvasPoint(event);
+                if (
+                    Math.hypot(moved.px - dragging.pressPx, moved.py - dragging.pressPy) <
+                    DRAG_THRESHOLD
+                ) {
+                    return;
+                }
+            }
 
             dragged.current = true;
 
@@ -527,8 +655,8 @@ const Graph = () => {
             const targets = resolveCollisions(base, nodes, {
                 passes: DRAG_PASSES,
                 anchor: base,
-                radius: (node) =>
-                    collisionRadius(node, node.key === dragging.key ? DRAG_GROWTH : 1),
+                canvas,
+                radius: (node) => radiusOf(node, node.key === dragging.key ? DRAG_GROWTH : 1),
             });
             targets.set(dragging.key, nextPoint);
 
@@ -635,7 +763,7 @@ const Graph = () => {
         value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
 
     if (loading) {
-        return <p className="mutedText">Строим граф связей...</p>;
+        return <p className="mutedText">Строим граф связей…</p>;
     }
 
     if (error) {
@@ -651,16 +779,16 @@ const Graph = () => {
 
     if (graph.nodes.length === 0) {
         return (
-            <div className="emptyState">
-                <h2>Граф пока пуст</h2>
-                <p className="mutedText">
-                    Создайте сет и добавьте в него ссылку вида [[Название сета]] — на графе
-                    появится связь.
-                </p>
-                <button className="btn btnPrimary" onClick={() => navigate("/sets/new")}>
-                    Создать сет
-                </button>
-            </div>
+            <EmptyState
+                icon="🕸️"
+                title="Граф пока пуст"
+                hint="Создайте сет и добавьте в него ссылку вида [[Название сета]] — на графе появится связь."
+                action={
+                    <button className="btn btnPrimary" onClick={() => navigate("/sets/new")}>
+                        Создать сет
+                    </button>
+                }
+            />
         );
     }
 
@@ -715,7 +843,7 @@ const Graph = () => {
             <svg
                 ref={svgRef}
                 className="graphCanvas"
-                viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+                viewBox={`0 0 ${canvas.width} ${canvas.height}`}
                 onPointerDown={canvasPointerDown}
                 onPointerMove={canvasPointerMove}
                 onPointerUp={canvasPointerUp}
@@ -739,8 +867,8 @@ const Graph = () => {
                     className="graphBackground"
                     x="0"
                     y="0"
-                    width={WIDTH}
-                    height={HEIGHT}
+                    width={canvas.width}
+                    height={canvas.height}
                     onPointerDown={backgroundPointerDown}
                 />
 
@@ -794,10 +922,14 @@ const Graph = () => {
                                 onMouseLeave={() => setActiveKey(null)}
                             >
                                 <title>{node.hint}</title>
-                                <circle r={node.radius} />
-                                <text y={node.radius + 15} textAnchor="middle">
-                                    {shorten(node.title)}
-                                </text>
+                                <g className="graphNodeShape">
+                                    <circle r={node.radius} />
+                                </g>
+                                {!labeled || labeled.has(node.key) ? (
+                                    <text y={node.radius + 15} textAnchor="middle">
+                                        {shorten(node.title)}
+                                    </text>
+                                ) : null}
                             </g>
                         );
                     })}
@@ -811,6 +943,13 @@ const Graph = () => {
                 односторонняя: сет ссылается на соседа, но на него не ссылаются. Золотой пунктирный
                 круг — чужой публичный сет; бирюзовый — замороженный снимок; серый пунктир — сет
                 удалён, сохранённая копия ещё хранится (наведите, чтобы узнать срок).
+                {dense && (
+                    <>
+                        {" "}
+                        Сетов много, поэтому подписи видны только у наведённого узла и его соседей —
+                        наведите на круг или приблизьте граф.
+                    </>
+                )}
             </p>
         </div>
     );

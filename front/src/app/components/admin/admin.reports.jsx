@@ -93,6 +93,26 @@ const AdminReportsPanel = () => {
                                 <td>
                                     <strong>{item.topic}</strong>
                                     <div className="adminBody">{item.message}</div>
+                                    {(item.attachments ?? []).length > 0 && (
+                                        <div className="adminAttachments">
+                                            {item.attachments.map((url) => (
+                                                <a
+                                                    className="adminAttachment"
+                                                    key={url}
+                                                    href={url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
+                                                    <img
+                                                        className="adminAttachmentThumb"
+                                                        src={url}
+                                                        alt=""
+                                                        loading="lazy"
+                                                    />
+                                                </a>
+                                            ))}
+                                        </div>
+                                    )}
                                 </td>
                                 <td>
                                     <span className="adminBadge">{STATUS_LABELS[item.status] || item.status}</span>

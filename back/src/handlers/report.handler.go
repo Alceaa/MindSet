@@ -1,10 +1,13 @@
 package handlers
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"strings"
 
 	"mindset/db"
+	"mindset/media"
 	"mindset/middlewares"
 	"mindset/models"
 	"mindset/notify"
@@ -23,6 +26,11 @@ func CreateBugReport(c *fiber.Ctx) error {
 		return utils.FailValidation(c, validationErrors)
 	}
 
+	attachments, err := bugReportAttachments(req.Attachments)
+	if err != nil {
+		return utils.Fail(c, fiber.StatusBadRequest, err.Error(), nil)
+	}
+
 	author := ""
 	authorID := 0
 	if user, ok := middlewares.CurrentUser(c); ok {
@@ -30,14 +38,13 @@ func CreateBugReport(c *fiber.Ctx) error {
 		authorID = user.ID
 	}
 
-	text := notify.BugReportText(author,
-		strings.TrimSpace(req.Page),
-		strings.TrimSpace(req.Topic),
-		strings.TrimSpace(req.Message),
-	)
+	page := strings.TrimSpace(req.Page)
+	topic := strings.TrimSpace(req.Topic)
+	message := strings.TrimSpace(req.Message)
 
-	if err := db.CreateBugReport(c.Context(), authorID, author,
-		strings.TrimSpace(req.Page), strings.TrimSpace(req.Topic), strings.TrimSpace(req.Message)); err != nil {
+	text := notify.BugReportText(author, page, topic, message, attachments)
+
+	if err := db.CreateBugReport(c.Context(), authorID, author, page, topic, message, attachments); err != nil {
 		log.Printf("[reports] репорт не сохранён в БД: %v", err)
 	}
 
@@ -46,4 +53,31 @@ func CreateBugReport(c *fiber.Ctx) error {
 	}
 
 	return utils.Success(c, fiber.StatusCreated, fiber.Map{"message": "Спасибо! Отчёт отправлен"})
+}
+
+// Вложения отчёта: только ссылки из нашего хранилища, не больше BugReportMaxAttachments
+// штук и без повторов. Проверяем адрес, потому что он приходит от клиента, а уведомление
+// получают живые люди.
+func bugReportAttachments(raw []string) ([]string, error) {
+	attachments := make([]string, 0, len(raw))
+	seen := make(map[string]bool, len(raw))
+
+	for _, item := range raw {
+		link := strings.TrimSpace(item)
+		if link == "" || seen[link] {
+			continue
+		}
+		if len(attachments) >= models.BugReportMaxAttachments {
+			return nil, fmt.Errorf("к отчёту можно приложить не больше %d изображений",
+				models.BugReportMaxAttachments)
+		}
+		if !media.IsPublicURL(link) {
+			return nil, errors.New("изображение не из нашего хранилища — загрузите его заново")
+		}
+
+		seen[link] = true
+		attachments = append(attachments, link)
+	}
+
+	return attachments, nil
 }

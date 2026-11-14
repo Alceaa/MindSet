@@ -4,7 +4,9 @@ import Avatar from "@mui/material/Avatar";
 import userService from "../../api/user.service";
 import parseApiError from "../../utils/api.error";
 import { useAuth } from "../../context/auth.context";
-import LoadingScreen from "../common/loading.screen.jsx";
+import { Skeleton } from "../common/skeleton.jsx";
+import EmptyState from "../common/empty.state.jsx";
+import { useToast } from "../common/toast.jsx";
 import SetCard from "../common/set.card.jsx";
 import SetArticle from "../dashboard/sets/set.article.jsx";
 import "../../css/dashboard/dashboard.scss";
@@ -19,13 +21,13 @@ const UserProfile = () => {
     const { login } = useParams();
     const navigate = useNavigate();
     const { user, isAuthenticated } = useAuth();
+    const { push } = useToast();
 
     const [profile, setProfile] = useState(null);
     const [bioLinks, setBioLinks] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [busy, setBusy] = useState(false);
-    const [notice, setNotice] = useState(null);
 
     const [sort, setSort] = useState("popular");
     const [sets, setSets] = useState([]);
@@ -86,7 +88,7 @@ const UserProfile = () => {
             })
             .catch((err) => {
                 if (!cancelled) {
-                    setNotice({ kind: "error", text: parseApiError(err).message });
+                    push(parseApiError(err).message, "error");
                 }
             })
             .finally(() => {
@@ -98,7 +100,7 @@ const UserProfile = () => {
         return () => {
             cancelled = true;
         };
-    }, [loadSets, sort]);
+    }, [loadSets, sort, push]);
 
     const handleLoadMore = async () => {
         setSetsLoading(true);
@@ -108,7 +110,7 @@ const UserProfile = () => {
             setTotal(data.total ?? 0);
             setHasMore(Boolean(data.has_more));
         } catch (err) {
-            setNotice({ kind: "error", text: parseApiError(err).message });
+            push(parseApiError(err).message, "error");
         } finally {
             setSetsLoading(false);
         }
@@ -120,7 +122,6 @@ const UserProfile = () => {
             return;
         }
         setBusy(true);
-        setNotice(null);
         try {
             const data = profile.is_following
                 ? await userService.unfollow(profile.id)
@@ -131,14 +132,18 @@ const UserProfile = () => {
                 followers_count: data.followers_count,
             }));
         } catch (err) {
-            setNotice({ kind: "error", text: parseApiError(err).message });
+            push(parseApiError(err).message, "error");
         } finally {
             setBusy(false);
         }
     };
 
     if (loading) {
-        return <LoadingScreen label="Загружаем профиль..." />;
+        return (
+            <section className="profilePage">
+                <Skeleton variant="article" label="Загружаем профиль…" />
+            </section>
+        );
     }
 
     if (error || !profile) {
@@ -209,15 +214,6 @@ const UserProfile = () => {
                 </aside>
 
                 <div className="profileMain">
-                    {notice && (
-                        <div
-                            className={`alert${notice.kind === "error" ? " alertError" : ""}`}
-                            role="status"
-                        >
-                            {notice.text}
-                        </div>
-                    )}
-
                     <section className="profileBioCard">
                         <h2 className="profileSectionLabel">О себе</h2>
                         {profile.bio ? (
@@ -254,13 +250,16 @@ const UserProfile = () => {
                         </div>
 
                         {setsLoading && sets.length === 0 ? (
-                            <LoadingScreen label="Загружаем сеты..." />
+                            <Skeleton variant="card" count={3} label="Загружаем сеты…" />
                         ) : sets.length === 0 ? (
-                            <div className="profileEmpty">
-                                {profile.public_set_count > 0
-                                    ? "Публичные сеты скрыты."
-                                    : "У автора пока нет публичных сетов."}
-                            </div>
+                            <EmptyState
+                                variant="inline"
+                                title={
+                                    profile.public_set_count > 0
+                                        ? "Публичные сеты скрыты."
+                                        : "У автора пока нет публичных сетов."
+                                }
+                            />
                         ) : (
                             <>
                                 <p className="listMeta mutedText">
@@ -285,7 +284,7 @@ const UserProfile = () => {
                                             onClick={handleLoadMore}
                                             disabled={setsLoading}
                                         >
-                                            {setsLoading ? "Загружаем..." : "Показать ещё"}
+                                            {setsLoading ? "Загружаем…" : "Показать ещё"}
                                         </button>
                                     </div>
                                 )}

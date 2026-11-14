@@ -3,6 +3,9 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import authService from "../../../api/auth.service";
 import { useAuth } from "../../../context/auth.context";
 import parseApiError from "../../../utils/api.error";
+import { desktopAutofocus } from "../../../utils/autofocus";
+
+const AUTOFOCUS = desktopAutofocus();
 
 const Login = () => {
     const navigate = useNavigate();
@@ -102,7 +105,9 @@ const Login = () => {
                             maxLength={6}
                             value={code}
                             onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
-                            autoFocus
+                            autoFocus={AUTOFOCUS}
+                            spellCheck={false}
+                            autoCorrect="off"
                             required
                         />
                         <span className="fieldHint">Шесть цифр, код действует 10 минут.</span>
@@ -175,7 +180,9 @@ const Login = () => {
                         value={form.login}
                         onChange={updateField("login")}
                         autoComplete="username"
-                        autoFocus
+                        autoFocus={AUTOFOCUS}
+                        spellCheck={false}
+                        autoCorrect="off"
                         required
                     />
                     {fieldErrors.login && <span className="fieldError">{fieldErrors.login}</span>}
@@ -198,7 +205,7 @@ const Login = () => {
                 </label>
 
                 <button className="btn btnPrimary btnBlock" type="submit" disabled={pending}>
-                    {pending ? "Входим..." : "Войти"}
+                    {pending ? "Входим…" : "Войти"}
                 </button>
             </form>
 

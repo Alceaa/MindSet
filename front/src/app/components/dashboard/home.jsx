@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import setService from "../../api/set.service";
 import parseApiError from "../../utils/api.error";
 import { useAuth } from "../../context/auth.context";
+import { Skeleton } from "../common/skeleton.jsx";
+import EmptyState from "../common/empty.state.jsx";
 import { stripMarkdown } from "../../utils/markdown.preview";
 
 const Home = () => {
@@ -52,12 +54,13 @@ const Home = () => {
             <div className="cardGrid">
                 <section className="card">
                     <h2 className="cardTitle">Недавние сеты</h2>
-                    {loading && <p className="mutedText">Загружаем сеты…</p>}
+                    {loading && <Skeleton variant="row" count={4} label="Загружаем сеты…" />}
                     {error && <p className="errorText">{error}</p>}
                     {!loading && !error && recent.length === 0 && (
-                        <p className="mutedText">
-                            Пока пусто. Создайте первый сет — он появится здесь.
-                        </p>
+                        <EmptyState
+                            variant="inline"
+                            title="Пока пусто. Создайте первый сет — он появится здесь."
+                        />
                     )}
                     {!loading &&
                         !error &&

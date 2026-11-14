@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -164,7 +165,14 @@ func GetSavedSets(ctx context.Context, ownerID int) ([]*models.SavedSet, error) 
 	query := `SELECT ` + savedSetColumns + `,
 		coalesce(live.title, '') AS live_title,
 		coalesce(live.slug, '') AS live_slug,
-		coalesce(to_char(live.last_activity, 'YYYY-MM-DD'), '') AS live_last_activity
+		coalesce(to_char(live.last_activity, 'YYYY-MM-DD'), '') AS live_last_activity,
+		coalesce((
+			SELECT jsonb_agg(jsonb_build_object('id', c.id, 'title', c.title, 'color', c.color)
+			                 ORDER BY c.position, c.id)
+			FROM saved_set_collections ssc
+			JOIN collections c ON c.id = ssc.collection_id
+			WHERE ssc.saved_set_id = ss.id
+		), '[]'::jsonb) AS collections
 	` + savedSetJoin + `
 	WHERE ss.owner_user_id = @owner_id
 	ORDER BY ss.last_update DESC, ss.id DESC`
@@ -177,7 +185,11 @@ func GetSavedSets(ctx context.Context, ownerID int) ([]*models.SavedSet, error) 
 
 	result := make([]*models.SavedSet, 0)
 	for rows.Next() {
-		var saved models.SavedSet
+		var (
+			saved       models.SavedSet
+			collections []byte
+		)
+
 		if err := rows.Scan(
 			&saved.ID,
 			&saved.OwnerUserID,
@@ -197,9 +209,17 @@ func GetSavedSets(ctx context.Context, ownerID int) ([]*models.SavedSet, error) 
 			&saved.LiveTitle,
 			&saved.LiveSlug,
 			&saved.LiveActivity,
+			&collections,
 		); err != nil {
 			return nil, fmt.Errorf("scan saved set: %w", err)
 		}
+
+		if len(collections) > 0 {
+			if err := json.Unmarshal(collections, &saved.Collections); err != nil {
+				return nil, fmt.Errorf("scan saved set collections: %w", err)
+			}
+		}
+
 		result = append(result, &saved)
 	}
 	if err := rows.Err(); err != nil {

@@ -24,10 +24,13 @@ import userService from "../../api/user.service";
 import setService from "../../api/set.service";
 import parseApiError from "../../utils/api.error";
 import { useAuth } from "../../context/auth.context";
+import { desktopAutofocus } from "../../utils/autofocus";
+import useListToggle from "../../hooks/use.list.toggle";
 import "../../css/dashboard/dashboard.scss";
 import "../../css/dashboard/profile.scss";
 
 const BIO_MAX = 500;
+const AUTOFOCUS = desktopAutofocus();
 
 const initialOf = (login) => (login ? login.trim().charAt(0).toUpperCase() : "?");
 
@@ -44,6 +47,10 @@ const ProfileSettingsPanel = () => {
     const [linkQuery, setLinkQuery] = useState("");
     const fileInputRef = useRef(null);
     const editorRef = useRef(null);
+
+    // Снятие списка и чек-листа: Lexical убирает список целиком, нам нужны только
+    // выделенные пункты (или тот, где стоит курсор).
+    useListToggle(() => editorRef.current);
 
     useEffect(() => {
         setBio(user?.bio ?? "");
@@ -234,7 +241,7 @@ const ProfileSettingsPanel = () => {
                                 value={linkQuery}
                                 onChange={(event) => setLinkQuery(event.target.value)}
                                 placeholder="Найти сет по названию…"
-                                autoFocus
+                                autoFocus={AUTOFOCUS}
                             />
                             {filteredSets.length === 0 ? (
                                 <span className="mutedText">Ничего не найдено</span>
@@ -275,7 +282,7 @@ const ProfileSettingsPanel = () => {
 
                 <div className="profileActions" style={{ marginTop: "var(--gap)", marginLeft: 0 }}>
                     <button className="btn btnPrimary" type="submit" disabled={saving}>
-                        {saving ? "Сохраняем..." : "Сохранить"}
+                        {saving ? "Сохраняем…" : "Сохранить"}
                     </button>
                 </div>
             </form>

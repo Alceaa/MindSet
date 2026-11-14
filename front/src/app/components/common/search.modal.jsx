@@ -4,6 +4,9 @@ import setService from "../../api/set.service";
 import parseApiError from "../../utils/api.error";
 import { useAuth } from "../../context/auth.context";
 import SetCard from "./set.card.jsx";
+import { Skeleton } from "./skeleton.jsx";
+import EmptyState from "./empty.state.jsx";
+import { useToast } from "./toast.jsx";
 import "../../css/dashboard/feed.scss";
 
 const PAGE_SIZE = 24;
@@ -11,15 +14,19 @@ const PAGE_SIZE = 24;
 const SearchModal = ({ open, onClose }) => {
     const navigate = useNavigate();
     const { isAuthenticated, user } = useAuth();
+    const { push } = useToast();
     const [query, setQuery] = useState("");
     const [debounced, setDebounced] = useState("");
     const [sets, setSets] = useState([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const [notice, setNotice] = useState(null);
     const [savingId, setSavingId] = useState(null);
+    // Сеты, для которых снимок уже сделан в этой сессии: кнопка показывает «Сохранено».
+    const [savedIds, setSavedIds] = useState(() => new Set());
     const inputRef = useRef(null);
+    const modalRef = useRef(null);
+    const previousFocus = useRef(null);
 
     const close = useCallback(() => {
         onClose?.();
@@ -34,16 +41,47 @@ const SearchModal = ({ open, onClose }) => {
             return undefined;
         }
 
+        previousFocus.current = document.activeElement;
         const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 10);
+
         const handleKey = (event) => {
             if (event.key === "Escape") {
                 close();
+                return;
+            }
+            if (event.key !== "Tab") {
+                return;
+            }
+
+            const node = modalRef.current;
+            if (!node) {
+                return;
+            }
+            const focusable = node.querySelectorAll(
+                'a[href], button:not([disabled]), input:not([disabled]), textarea, select, [tabindex]:not([tabindex="-1"])'
+            );
+            if (focusable.length === 0) {
+                return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
             }
         };
+
         window.addEventListener("keydown", handleKey);
         return () => {
             window.clearTimeout(focusTimer);
             window.removeEventListener("keydown", handleKey);
+            if (previousFocus.current instanceof HTMLElement) {
+                previousFocus.current.focus();
+            }
         };
     }, [open, close]);
 
@@ -88,12 +126,13 @@ const SearchModal = ({ open, onClose }) => {
             return;
         }
         setSavingId(set.id);
-        setNotice(null);
         try {
             await setService.saveExternalSet(set.slug);
-            setNotice({ kind: "success", text: `Сет «${set.title}» сохранён в вашу библиотеку` });
+            // Снимок сделан: кнопка становится «Сохранено», чтобы не жать её дважды.
+            setSavedIds((current) => new Set(current).add(set.id));
+            push(`Сет «${set.title}» сохранён в вашу библиотеку`, "success");
         } catch (err) {
-            setNotice({ kind: "error", text: parseApiError(err).message });
+            push(parseApiError(err).message, "error");
         } finally {
             setSavingId(null);
         }
@@ -102,13 +141,22 @@ const SearchModal = ({ open, onClose }) => {
     const isOwn = (set) =>
         Boolean(set.author) && Boolean(user) && set.author.login === user.login;
 
+    // Снимок мог быть сделан раньше (серверный is_saved) или только что в этой сессии.
+    const isSaved = (set) => Boolean(set.is_saved) || savedIds.has(set.id);
+
     if (!open) {
         return null;
     }
 
     return (
-        <div className="searchOverlay" role="dialog" aria-modal="true" onClick={close}>
-            <div className="searchModal" onClick={(event) => event.stopPropagation()}>
+        <div
+            className="searchOverlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Поиск сетов"
+            onClick={close}
+        >
+            <div className="searchModal" ref={modalRef} onClick={(event) => event.stopPropagation()}>
                 <header className="searchModalHead">
                     <input
                         ref={inputRef}
@@ -130,23 +178,16 @@ const SearchModal = ({ open, onClose }) => {
                 </header>
 
                 <div className="searchModalBody" onClick={close}>
-                    {notice && (
-                        <div
-                            className={`alert${notice.kind === "error" ? " alertError" : " alertSuccess"}`}
-                            role="status"
-                        >
-                            {notice.text}
-                        </div>
-                    )}
-                    {loading && <p className="mutedText">Ищем…</p>}
                     {error && <p className="errorText">{error}</p>}
+                    {loading && <Skeleton variant="card" count={4} label="Ищем…" />}
                     {!loading && !error && debounced && (
                         <p className="listMeta searchCount">Найдено: {total}</p>
                     )}
                     {!loading && !error && sets.length === 0 && (
-                        <p className="mutedText">
-                            {debounced ? "Ничего не найдено" : "Начните вводить запрос"}
-                        </p>
+                        <EmptyState
+                            variant="inline"
+                            title={debounced ? "Ничего не найдено" : "Начните вводить запрос"}
+                        />
                     )}
                     <div className="setGrid">
                         {sets.map((set) => (
@@ -157,6 +198,8 @@ const SearchModal = ({ open, onClose }) => {
                                 own={isOwn(set)}
                                 onSave={isOwn(set) ? undefined : handleSave}
                                 saving={savingId === set.id}
+                                saved={isSaved(set)}
+                                saveLabel={isSaved(set) ? "Сохранено" : "Сохранить"}
                             />
                         ))}
                     </div>

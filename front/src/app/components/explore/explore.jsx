@@ -6,6 +6,9 @@ import parseApiError from "../../utils/api.error";
 import { useAuth } from "../../context/auth.context";
 import SetCard from "../common/set.card.jsx";
 import MarkdownContent from "../common/markdown.content.jsx";
+import { Skeleton } from "../common/skeleton.jsx";
+import EmptyState from "../common/empty.state.jsx";
+import { useToast } from "../common/toast.jsx";
 import { formatNewsDate } from "../../utils/news.date";
 import "../../css/dashboard/dashboard.scss";
 import "../../css/dashboard/feed.scss";
@@ -22,11 +25,13 @@ const renderAnnouncement = (item) => (
 const Explore = () => {
     const navigate = useNavigate();
     const { isAuthenticated, user } = useAuth();
+    const { push } = useToast();
     const [feed, setFeed] = useState({ announcements: [], following: [], popular: [] });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
-    const [notice, setNotice] = useState(null);
     const [savingId, setSavingId] = useState(null);
+    // Сеты, для которых снимок уже сделан в этой сессии: кнопка показывает «Сохранено».
+    const [savedIds, setSavedIds] = useState(() => new Set());
     const [newsScrollable, setNewsScrollable] = useState(false);
     const newsListRef = useRef(null);
 
@@ -80,21 +85,25 @@ const Explore = () => {
                 return;
             }
             setSavingId(set.id);
-            setNotice(null);
             try {
                 await setService.saveExternalSet(set.slug);
-                setNotice({ kind: "success", text: `Сет «${set.title}» сохранён в вашу библиотеку` });
+                // Снимок сделан: кнопка становится «Сохранено», чтобы не жать её дважды.
+                setSavedIds((current) => new Set(current).add(set.id));
+                push(`Сет «${set.title}» сохранён в вашу библиотеку`, "success");
             } catch (err) {
-                setNotice({ kind: "error", text: parseApiError(err).message });
+                push(parseApiError(err).message, "error");
             } finally {
                 setSavingId(null);
             }
         },
-        [isAuthenticated, navigate]
+        [isAuthenticated, navigate, push]
     );
 
     const isOwn = (set) =>
         Boolean(set.author) && Boolean(user) && set.author.login === user.login;
+
+    // Снимок мог быть сделан раньше (серверный is_saved) или только что в этой сессии.
+    const isSaved = (set) => Boolean(set.is_saved) || savedIds.has(set.id);
 
     const renderCard = (set) => (
         <SetCard
@@ -103,6 +112,8 @@ const Explore = () => {
             own={isOwn(set)}
             onSave={isOwn(set) ? undefined : handleSave}
             saving={savingId === set.id}
+            saved={isSaved(set)}
+            saveLabel={isSaved(set) ? "Сохранено" : "Сохранить"}
         />
     );
 
@@ -115,20 +126,17 @@ const Explore = () => {
                 </p>
             </header>
 
-            {notice && (
-                <div
-                    className={`alert${notice.kind === "error" ? " alertError" : " alertSuccess"}`}
-                    role="status"
-                >
-                    {notice.text}
-                </div>
-            )}
             {error && (
                 <div className="alert alertError" role="alert">
                     {error}
                 </div>
             )}
-            {loading && <p className="mutedText">Загружаем ленту…</p>}
+            {loading && (
+                <div className="feedSkeleton">
+                    <Skeleton variant="row" count={3} label="Загружаем новости…" />
+                    <Skeleton variant="card" count={3} label="Загружаем ленту…" />
+                </div>
+            )}
 
             {!loading && !error && (
                 <>
@@ -159,11 +167,14 @@ const Explore = () => {
                         {feed.following.length > 0 ? (
                             <div className="setGrid">{feed.following.map(renderCard)}</div>
                         ) : (
-                            <p className="feedEmpty">
-                                {isAuthenticated
-                                    ? "Подпишитесь на авторов — их новые сеты появятся здесь."
-                                    : "Войдите и подпишитесь на авторов, чтобы следить за их новыми сетами."}
-                            </p>
+                            <EmptyState
+                                variant="inline"
+                                title={
+                                    isAuthenticated
+                                        ? "Подпишитесь на авторов — их новые сеты появятся здесь."
+                                        : "Войдите и подпишитесь на авторов, чтобы следить за их новыми сетами."
+                                }
+                            />
                         )}
                     </section>
 
@@ -172,7 +183,10 @@ const Explore = () => {
                         {feed.popular.length > 0 ? (
                             <div className="setGrid">{feed.popular.map(renderCard)}</div>
                         ) : (
-                            <p className="feedEmpty">Пока нет популярных сетов за последнюю неделю.</p>
+                            <EmptyState
+                                variant="inline"
+                                title="Пока нет популярных сетов за последнюю неделю."
+                            />
                         )}
                     </section>
                 </>

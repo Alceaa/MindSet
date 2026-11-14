@@ -1,15 +1,24 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import setService from "../../api/set.service";
+import collectionService from "../../api/collection.service";
 import parseApiError from "../../utils/api.error";
 import SetCard from "../common/set.card.jsx";
 import SavedSets from "./saved.sets.jsx";
+import CollectionPicker from "../collections/collection.picker.jsx";
+import CollectionsPanel from "../collections/collections.panel.jsx";
+import Pagination from "../common/pagination.jsx";
+import { Skeleton } from "../common/skeleton.jsx";
+import EmptyState from "../common/empty.state.jsx";
+import useCollections from "../../hooks/use.collections";
 import { stripMarkdown } from "../../utils/markdown.preview";
 import "../../css/dashboard/dashboard.scss";
 import "../../css/dashboard/feed.scss";
+import "../../css/collections/collections.scss";
 
 const VIEW_KEY = "mindset:sets:view";
-const PAGE_SIZE = 24;
+const GROUP_KEY = "mindset:sets:group";
+const PAGE_SIZE = 50;
 
 const VISIBILITY_FILTERS = [
     { value: "all", label: "Все" },
@@ -21,16 +30,41 @@ const VISIBILITY_FILTERS = [
 const Sets = () => {
     const [sets, setSets] = useState([]);
     const [total, setTotal] = useState(0);
-    const [hasMore, setHasMore] = useState(false);
     const [tombstones, setTombstones] = useState([]);
     const [busyId, setBusyId] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [loadingMore, setLoadingMore] = useState(false);
     const [loadedOnce, setLoadedOnce] = useState(false);
+    const [page, setPage] = useState(1);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
     const [debounced, setDebounced] = useState("");
     const [visibility, setVisibility] = useState("all");
+    const [grouped, setGrouped] = useState(() => {
+        try {
+            const stored = window.localStorage.getItem(GROUP_KEY);
+            return stored === null ? null : stored === "1";
+        } catch {
+            return null;
+        }
+    });
+    const { collections, loading: collectionsLoading, reload: reloadCollections } = useCollections();
+
+    // Пока пользователь не выбрал сам, группируем только когда коллекции есть:
+    // иначе список без коллекций показывался бы одной большой группой.
+    useEffect(() => {
+        if (grouped !== null || collectionsLoading) {
+            return;
+        }
+        setGrouped(collections.length > 0);
+    }, [grouped, collections, collectionsLoading]);
+
+    // Явный выбор в этой сессии важнее сохранённой настройки: если коллекции удалили,
+    // старый режим «по коллекциям» не должен прятать все сеты.
+    const [explicitChoice, setExplicitChoice] = useState(false);
+    const groupMode =
+        explicitChoice && grouped !== null
+            ? grouped === true
+            : grouped === true && collections.length > 0;
     const [view, setView] = useState(() => {
         try {
             return window.localStorage.getItem(VIEW_KEY) === "grid" ? "grid" : "list";
@@ -45,6 +79,17 @@ const Sets = () => {
         } catch {
         }
     }, [view]);
+
+    useEffect(() => {
+        if (grouped === null) {
+            return;
+        }
+        try {
+            window.localStorage.setItem(GROUP_KEY, grouped ? "1" : "0");
+        } catch {
+            return;
+        }
+    }, [grouped]);
 
     // Ввод в поиске ждём 300 мс: поиск серверный, лишние запросы ни к чему.
     useEffect(() => {
@@ -68,13 +113,7 @@ const Sets = () => {
     // остаток добирается кнопкой «Показать ещё».
     const loadSets = useCallback(
         async (offset = 0) => {
-            const append = offset > 0;
-
-            if (append) {
-                setLoadingMore(true);
-            } else {
-                setLoading(true);
-            }
+            setLoading(true);
             setError("");
 
             try {
@@ -86,14 +125,12 @@ const Sets = () => {
                 });
                 const list = data.sets ?? [];
 
-                setSets((current) => (append ? [...current, ...list] : list));
+                setSets(list);
                 setTotal(data.total ?? list.length);
-                setHasMore(Boolean(data.has_more));
             } catch (err) {
                 setError(parseApiError(err).message);
             } finally {
                 setLoading(false);
-                setLoadingMore(false);
                 setLoadedOnce(true);
             }
         },
@@ -101,6 +138,7 @@ const Sets = () => {
     );
 
     useEffect(() => {
+        setPage(1);
         loadSets(0);
     }, [loadSets]);
 
@@ -121,8 +159,54 @@ const Sets = () => {
 
     // Полностраничная заглушка только на первой загрузке: иначе при вводе в поиске
     // список подменялся бы надписью и поле теряло фокус.
+    // Отмечаем и снимаем коллекции у сета: сет может лежать сразу в нескольких.
+    const toggleCollection = async (setId, collectionId, inCollection) => {
+        try {
+            if (inCollection) {
+                await collectionService.addSet(setId, collectionId);
+            } else {
+                await collectionService.removeSet(setId, collectionId);
+            }
+
+            const collection = collections.find((item) => item.id === collectionId);
+            const applyCollections = (list) => {
+                if (!collection) {
+                    return list;
+                }
+
+                const exists = list.some((item) => item.id === collectionId);
+                if (inCollection && !exists) {
+                    return [
+                        ...list,
+                        { id: collection.id, title: collection.title, color: collection.color },
+                    ];
+                }
+                if (!inCollection && exists) {
+                    return list.filter((item) => item.id !== collectionId);
+                }
+                return list;
+            };
+
+            setSets((current) =>
+                current.map((item) =>
+                    item.id === setId
+                        ? { ...item, collections: applyCollections(item.collections ?? []) }
+                        : item
+                )
+            );
+
+            await reloadCollections();
+        } catch (err) {
+            setError(parseApiError(err).message);
+        }
+    };
+
     if (loading && !loadedOnce) {
-        return <p className="mutedText">Загружаем сеты…</p>;
+        return (
+            <div className="page">
+                <Skeleton variant="row" count={6} label="Загружаем сеты…" />
+            </div>
+        );
     }
 
     if (error && sets.length === 0) {
@@ -157,7 +241,9 @@ const Sets = () => {
                     placeholder="Поиск по названию, описанию или содержимому"
                     aria-label="Поиск по сетам"
                 />
-                <div className="filterChips" role="group" aria-label="Фильтр по доступу">
+                <div className="filterBlock">
+                    <span className="filterBlockTitle">Доступ</span>
+                    <div className="filterChips" role="group" aria-label="Фильтр по доступу">
                     {VISIBILITY_FILTERS.map((item) => (
                         <button
                             key={item.value}
@@ -170,8 +256,44 @@ const Sets = () => {
                             {item.label}
                         </button>
                     ))}
+                    </div>
+                </div>
+
+                <div className="filterBlock">
+                    <span className="filterBlockTitle">Группировка</span>
+                    <div className="filterChips" role="group" aria-label="Группировка сетов">
+                        <button
+                            type="button"
+                            className={`filterChip${!groupMode ? " filterChipActive" : ""}`}
+                            onClick={() => {
+                                setExplicitChoice(true);
+                                setGrouped(false);
+                            }}
+                        >
+                            Без групп
+                        </button>
+                        <button
+                            type="button"
+                            className={`filterChip${groupMode ? " filterChipActive" : ""}`}
+                            onClick={() => {
+                                setExplicitChoice(true);
+                                setGrouped(true);
+                            }}
+                        >
+                            По коллекциям
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            {groupMode && (
+                <CollectionsPanel
+                    collections={collections}
+                    onChanged={reloadCollections}
+                    query={debounced}
+                    onToggleCollection={toggleCollection}
+                />
+            )}
 
             {error && (
                 <div className="alert alertError" role="alert">
@@ -213,7 +335,8 @@ const Sets = () => {
                 </section>
             )}
 
-            <section className="stack">
+            {!groupMode && (
+                <section className="stack">
                 <div className="setSectionHead">
                     <h2 className="feedSectionTitle">
                         Авторские <span className="listMeta">{total}</span>
@@ -238,23 +361,26 @@ const Sets = () => {
                     </div>
                 </div>
                 {sets.length === 0 ? (
-                    <div className="emptyState">
-                        <h2>Сетов не найдено</h2>
-                        <p className="mutedText">
-                            {noSetsAtAll
+                    <EmptyState
+                        icon={noSetsAtAll ? "🗂️" : "🔍"}
+                        title={noSetsAtAll ? "Сетов пока нет" : "Сетов не найдено"}
+                        hint={
+                            noSetsAtAll
                                 ? "Создайте первый сет — это заметка, внутри которой можно связывать слова с другими сетами."
-                                : "Попробуйте изменить запрос или фильтр."}
-                        </p>
-                        {noSetsAtAll && (
-                            <Link className="btn btnPrimary" to="/sets/new">
-                                Создать сет
-                            </Link>
-                        )}
-                    </div>
+                                : "Попробуйте изменить запрос или фильтр."
+                        }
+                        action={
+                            noSetsAtAll ? (
+                                <Link className="btn btnPrimary" to="/sets/new">
+                                    Создать сет
+                                </Link>
+                            ) : null
+                        }
+                    />
                 ) : view === "list" ? (
                     <ul className="setList">
                         {sets.map((set) => (
-                            <li key={set.id}>
+                            <li key={set.id} className="setListRowWrap">
                                 <Link className="setListRow" to={`/sets/${set.id}`}>
                                     <span className="setListMain">
                                         <span className="setListTitle">{set.title}</span>
@@ -266,6 +392,25 @@ const Sets = () => {
                                         изменён {set.last_activity}
                                     </span>
                                 </Link>
+                                <CollectionPicker
+                                    collections={collections}
+                                    selected={(set.collections ?? []).map((item) => item.id)}
+                                    onToggle={(collectionId, inCollection) =>
+                                        toggleCollection(set.id, collectionId, inCollection)
+                                    }
+                                    onCreate={async (collectionTitle) => {
+                                        const data = await collectionService.create({
+                                            title: collectionTitle,
+                                            color: "",
+                                        });
+                                        await reloadCollections();
+                                        await toggleCollection(
+                                            set.id,
+                                            data.collection?.id ?? 0,
+                                            true
+                                        );
+                                    }}
+                                />
                             </li>
                         ))}
                     </ul>
@@ -278,26 +423,42 @@ const Sets = () => {
                                 to={`/sets/${set.id}`}
                                 likeable={false}
                                 showAuthor={false}
+                                collections={collections}
+                                selected={(set.collections ?? []).map((item) => item.id)}
+                                onToggleCollection={(collectionId, inCollection) =>
+                                    toggleCollection(set.id, collectionId, inCollection)
+                                }
+                                onCreateCollection={async (collectionTitle) => {
+                                    const data = await collectionService.create({
+                                        title: collectionTitle,
+                                        color: "",
+                                    });
+                                    await reloadCollections();
+                                    await toggleCollection(set.id, data.collection?.id ?? 0, true);
+                                }}
                             />
                         ))}
                     </div>
                 )}
 
-                {hasMore && (
-                    <div className="loadMoreRow">
-                        <button
-                            className="btn btnGhost"
-                            type="button"
-                            disabled={loadingMore}
-                            onClick={() => loadSets(sets.length)}
-                        >
-                            {loadingMore ? "Загружаем…" : `Показать ещё (осталось ${total - sets.length})`}
-                        </button>
-                    </div>
-                )}
-            </section>
+                <Pagination
+                    page={page}
+                    pageSize={PAGE_SIZE}
+                    total={total}
+                    onChange={(next) => {
+                        setPage(next);
+                        loadSets((next - 1) * PAGE_SIZE);
+                    }}
+                />
+                </section>
+            )}
 
-            <SavedSets query={search} />
+            <SavedSets
+                query={search}
+                collections={collections}
+                onCollectionsChanged={reloadCollections}
+                hidden={groupMode}
+            />
         </div>
     );
 };

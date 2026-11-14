@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -68,6 +69,56 @@ func scanSetSummary(row pgx.Row) (*models.Set, error) {
 		}
 		return nil, fmt.Errorf("scan set summary: %w", err)
 	}
+	return &set, nil
+}
+
+// userSetColumns — то же, что setSummaryColumns, но с префиксами и коллекциями:
+// в своих списках к сетам подтягиваются личные полки автора (их может быть несколько).
+const userSetColumns = `s.id, s.user_id, s.title, s.slug, s.visibility, s.forbid_copies,
+	coalesce(s.description, '') AS description,
+	to_char(s.date_created, 'YYYY-MM-DD') AS date_created,
+	to_char(s.last_activity, 'YYYY-MM-DD') AS last_activity,
+	left(coalesce(s.content, ''), 280) AS preview,
+	coalesce((
+		SELECT jsonb_agg(jsonb_build_object('id', c.id, 'title', c.title, 'color', c.color)
+		                 ORDER BY c.position, c.id)
+		FROM set_collections sc
+		JOIN collections c ON c.id = sc.collection_id
+		WHERE sc.set_id = s.id
+	), '[]'::jsonb) AS collections`
+
+func scanUserSet(row pgx.Row) (*models.Set, error) {
+	var (
+		set         models.Set
+		collections []byte
+	)
+
+	err := row.Scan(
+		&set.ID,
+		&set.UserID,
+		&set.Title,
+		&set.Slug,
+		&set.Visibility,
+		&set.ForbidCopies,
+		&set.Description,
+		&set.DateCreated,
+		&set.LastActivity,
+		&set.Preview,
+		&collections,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("scan user set: %w", err)
+	}
+
+	if len(collections) > 0 {
+		if err := json.Unmarshal(collections, &set.Collections); err != nil {
+			return nil, fmt.Errorf("scan user set collections: %w", err)
+		}
+	}
+
 	return &set, nil
 }
 
@@ -290,48 +341,56 @@ func TombstoneSet(ctx context.Context, tx pgx.Tx, set *models.Set, authorLogin s
 
 // GetSetsByUser — полный список своих сетов (сайдбар редактора, главная, профиль).
 func GetSetsByUser(ctx context.Context, userID int) ([]*models.Set, error) {
-	sets, _, err := SearchUserSets(ctx, userID, "", "", 0, 0)
+	sets, _, err := SearchUserSets(ctx, userID, "", "", -1, 0, 0)
 	return sets, err
 }
 
 // SearchUserSets — свои сеты с поиском по названию, описанию и тексту заметки.
 // Пустые search и visibility означают «без фильтра», limit <= 0 — «отдать всё».
+// collectionID: -1 — все сеты, 0 — только без коллекции, иначе конкретная коллекция.
 // Возвращает срез сетов и общее число найденных (для постраничного вывода).
-func SearchUserSets(ctx context.Context, userID int, search, visibility string, limit, offset int) ([]*models.Set, int, error) {
+func SearchUserSets(ctx context.Context, userID int, search, visibility string, collectionID, limit, offset int) ([]*models.Set, int, error) {
 	conn, err := pool()
 	if err != nil {
 		return nil, 0, err
 	}
 
-	filter := `user_id = @user_id
-	  AND (@visibility = '' OR visibility = @visibility)
-	  AND (@search = '' OR title ILIKE '%' || @search || '%'
-	       OR coalesce(description, '') ILIKE '%' || @search || '%'
-	       OR coalesce(content, '') ILIKE '%' || @search || '%')`
+	filter := `s.user_id = @user_id
+	  AND (@visibility = '' OR s.visibility = @visibility)
+	  AND (@search = '' OR s.title ILIKE '%' || @search || '%'
+	       OR coalesce(s.description, '') ILIKE '%' || @search || '%'
+	       OR coalesce(s.content, '') ILIKE '%' || @search || '%')
+	  AND (@collection_id < 0
+	       OR (@collection_id = 0
+	           AND NOT EXISTS (SELECT 1 FROM set_collections sc0 WHERE sc0.set_id = s.id))
+	       OR EXISTS (SELECT 1 FROM set_collections sc1
+	                  WHERE sc1.set_id = s.id AND sc1.collection_id = @collection_id))`
 
 	filterArgs := pgx.NamedArgs{
-		"user_id":    userID,
-		"search":     search,
-		"visibility": visibility,
+		"user_id":       userID,
+		"search":        search,
+		"visibility":    visibility,
+		"collection_id": collectionID,
 	}
 
 	var total int
-	if err := conn.QueryRow(ctx, `SELECT count(*) FROM sets WHERE `+filter, filterArgs).Scan(&total); err != nil {
+	if err := conn.QueryRow(ctx, `SELECT count(*) FROM sets s WHERE `+filter, filterArgs).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count sets: %w", err)
 	}
 
-	query := `SELECT ` + setSummaryColumns + ` FROM sets WHERE ` + filter +
-		` ORDER BY last_activity DESC, id DESC`
+	query := `SELECT ` + userSetColumns + ` FROM sets s WHERE ` + filter +
+		` ORDER BY s.last_activity DESC, s.id DESC`
 	args := filterArgs
 
 	if limit > 0 {
 		query += ` LIMIT @limit OFFSET @offset`
 		args = pgx.NamedArgs{
-			"user_id":    userID,
-			"search":     search,
-			"visibility": visibility,
-			"limit":      limit,
-			"offset":     offset,
+			"user_id":       userID,
+			"search":        search,
+			"visibility":    visibility,
+			"collection_id": collectionID,
+			"limit":         limit,
+			"offset":        offset,
 		}
 	}
 
@@ -343,7 +402,7 @@ func SearchUserSets(ctx context.Context, userID int, search, visibility string, 
 
 	sets := make([]*models.Set, 0)
 	for rows.Next() {
-		set, err := scanSetSummary(rows)
+		set, err := scanUserSet(rows)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -448,7 +507,8 @@ const publicSetColumns = `s.id, s.user_id, s.title, s.slug, s.visibility, s.forb
 	left(coalesce(s.content, ''), 280) AS preview,
 	(SELECT count(*) FROM set_likes l WHERE l.set_id = s.id) AS likes_count,
 	(SELECT count(*) FROM set_comments cm WHERE cm.set_id = s.id) AS comments_count,
-	(@viewer > 0 AND EXISTS(SELECT 1 FROM set_likes l2 WHERE l2.set_id = s.id AND l2.user_id = @viewer)) AS is_liked`
+	(@viewer > 0 AND EXISTS(SELECT 1 FROM set_likes l2 WHERE l2.set_id = s.id AND l2.user_id = @viewer)) AS is_liked,
+	(@viewer > 0 AND EXISTS(SELECT 1 FROM saved_sets sv WHERE sv.set_id = s.id AND sv.owner_user_id = @viewer)) AS is_saved`
 
 const publicSetsFilter = `s.visibility = 'public'
 	  AND (@search = '' OR s.title ILIKE '%' || @search || '%' OR coalesce(s.description, '') ILIKE '%' || @search || '%')`
@@ -475,6 +535,7 @@ func scanPublicSet(row pgx.Row) (*models.Set, error) {
 		&set.LikesCount,
 		&set.CommentsCount,
 		&set.IsLiked,
+		&set.IsSaved,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

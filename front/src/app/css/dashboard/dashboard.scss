@@ -35,8 +35,8 @@
 }
 
 .setCard:hover {
-    border-color: rgba(226, 176, 83, 0.5);
-    background-color: rgba(226, 176, 83, 0.08);
+    border-color: var(--accent-line);
+    background-color: var(--accent-tint);
     box-shadow: var(--shadow-sm);
     transform: translateY(-1px);
     text-decoration: none;
@@ -101,8 +101,8 @@
 }
 
 .savedItem:hover {
-    border-color: rgba(226, 176, 83, 0.5);
-    background-color: rgba(226, 176, 83, 0.08);
+    border-color: var(--accent-line);
+    background-color: var(--accent-tint);
 }
 
 .savedItemMain {
@@ -203,7 +203,7 @@
 }
 
 .toolbarWikilink:hover {
-    background-color: #30363d;
+    background-color: var(--border);
 }
 
 .mdxEditorHost .mdxEditorTheme,
@@ -213,27 +213,27 @@
     --baseBgSubtle: var(--bg-surface-muted);
     --baseBg: var(--bg-surface);
     --baseBgHover: var(--bg-surface-muted);
-    --baseBgActive: #30363d;
+    --baseBgActive: var(--border);
     --baseLine: var(--border);
     --baseBorder: var(--border);
-    --baseBorderHover: #484f58;
+    --baseBorderHover: var(--border);
     --baseSolid: var(--bg-surface-muted);
-    --baseSolidHover: #30363d;
+    --baseSolidHover: var(--border);
     --baseText: var(--text);
     --baseTextContrast: var(--text);
 
     --accentBase: var(--bg-inset);
-    --accentBgSubtle: rgba(56, 139, 253, 0.15);
-    --accentBg: rgba(56, 139, 253, 0.15);
-    --accentBgHover: rgba(56, 139, 253, 0.25);
-    --accentBgActive: rgba(56, 139, 253, 0.3);
+    --accentBgSubtle: var(--accent-soft);
+    --accentBg: var(--accent-soft);
+    --accentBgHover: var(--accent-tint-strong);
+    --accentBgActive: var(--accent-soft);
     --accentLine: var(--border);
     --accentBorder: var(--accent);
     --accentBorderHover: var(--accent-hover);
     --accentSolid: var(--accent);
     --accentSolidHover: var(--accent-hover);
     --accentText: var(--accent);
-    --accentTextContrast: #ffffff;
+    --accentTextContrast: var(--on-accent);
 
     --error-color: var(--danger);
 
@@ -338,6 +338,20 @@
    вместе со страницей, а сам список оказывается за экраном. Блокировка нужна модальным окнам,
    но не выпадающим спискам редактора. Специфичность повышена через html, потому что правило
    Radix тоже с !important и подключается позже нашего. */
+/* Окна редактора (ссылка, таблица, вставка картинки) Radix позиционирует по координатам,
+   посчитанным в момент открытия: при прокрутке длинной заметки они уезжают за экран.
+   Держим их модальным окном по центру — так они всегда на виду. */
+/* Окна редактора (ссылка, таблица, вставка картинки) — обычные поповеры MDXEditor.
+   Позицию не переопределяем: подмена position ломала поведение Radix и окно пропадало
+   при прокрутке. Оставляем подъём по z-index и ограничение высоты. */
+.mdxeditor-popup-container [class*="_linkDialogPopoverContent_"],
+.mdxeditor-popup-container [class*="_tableColumnEditorPopoverContent_"],
+.mdxeditor-popup-container [class*="_dialogContent_"] {
+    z-index: 1300;
+    max-height: min(80vh, 640px);
+    overflow-y: auto;
+}
+
 html body[data-scroll-locked] {
     overflow: visible !important;
 }
@@ -414,8 +428,8 @@ html body[data-scroll-locked] {
 }
 
 .homeSetRow:hover {
-    border-color: rgba(226, 176, 83, 0.5);
-    background-color: rgba(226, 176, 83, 0.08);
+    border-color: var(--accent-line);
+    background-color: var(--accent-tint);
     text-decoration: none;
 }
 

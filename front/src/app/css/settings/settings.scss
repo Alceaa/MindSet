@@ -94,6 +94,167 @@
     font-weight: 600;
 }
 
+.settingsFieldHint {
+    color: var(--text-faint);
+    font-size: 12px;
+}
+
+/* Скриншоты в отчёте: файл выбирается кнопкой, поле оставляем скрытым — иначе
+   кнопка браузера не попадает в оформление. */
+.settingsFileInput {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    clip-path: inset(50%);
+}
+
+.settingsAttachments {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-sm);
+}
+
+.settingsAttachment {
+    position: relative;
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.settingsAttachmentThumb {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+}
+
+.settingsAttachmentRemove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background-color: var(--bg-surface);
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.settingsAttachmentRemove:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+/* Своя тема: пресеты, предпросмотр, восемь цветов и предупреждения о контрасте. */
+.themePresets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap-sm);
+}
+
+.localThemePreview {
+    display: flex;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.localThemeSwatch {
+    flex: 1;
+    height: 28px;
+}
+
+.localThemeRoles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--gap-sm);
+}
+
+.localThemeRole {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+    padding: var(--gap-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+}
+
+.localThemeRoleText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.localThemeColor {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 32px;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: none;
+    cursor: pointer;
+}
+
+.localThemeColorField {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+}
+
+.localThemeColorHex {
+    width: 100px;
+}
+
+.input.localThemeColorHex {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    text-transform: lowercase;
+}
+
+.localThemeRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--gap);
+}
+
+.localThemeRow .settingsField {
+    flex: 1 1 200px;
+}
+
+.localThemeWarnings {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: var(--gap-sm) var(--gap);
+    border: 1px solid var(--warning-line);
+    border-radius: var(--radius);
+    background-color: var(--warning-soft);
+}
+
+.localThemeWarnings ul {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
 .settingsActions {
     display: flex;
     justify-content: flex-start;
@@ -179,5 +340,307 @@
     .settingsContent {
         padding-left: 0;
         padding-top: var(--gap-lg);
+    }
+}
+
+/* Выбор темы: карточка с образцами цветов из самой темы. */
+.themeOptions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    align-items: stretch;
+    gap: var(--gap-sm);
+}
+
+/* Пометка «ваша» у своей темы в списке сообщества: тема одна, а не две карточки. */
+.themeOptionBadge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border: 1px solid var(--accent-line);
+    border-radius: 999px;
+    background-color: var(--accent-soft);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    vertical-align: 1px;
+}
+
+.themeOption {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--gap-sm);
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-surface-muted);
+    color: var(--text);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.themeOption:hover {
+    border-color: var(--accent);
+}
+
+.themeOptionActive {
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.themeOptionSwatches {
+    display: flex;
+    flex: 0 0 auto;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.themeOptionSwatch {
+    width: 18px;
+    height: 36px;
+}
+
+.themeOptionText {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.themeOptionText .mutedText {
+    font-size: 12px;
+}
+
+.tokenValueRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-sm);
+}
+
+.tokenValue {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px dashed var(--accent);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+    user-select: all;
+}
+
+.tokenList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tokenRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--gap-sm);
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background-color: var(--bg-surface-muted);
+}
+
+.tokenRowMain {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.tokenTitle {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-xs);
+    font-weight: 600;
+}
+
+.tokenBadge {
+    padding: 1px 6px;
+    border: 1px solid var(--warning-line);
+    border-radius: var(--radius);
+    color: var(--warning);
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* Строка своей темы: образцы цветов слева, действия справа. */
+.themeRowSwatches {
+    display: flex;
+    flex: 0 0 auto;
+    width: 96px;
+    height: 28px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.themeRowSwatch {
+    flex: 1;
+}
+
+.tokenRowActive {
+    border-color: var(--accent);
+}
+
+.themeImport {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xs);
+    margin-top: var(--gap-sm);
+    padding-top: var(--gap-sm);
+    border-top: 1px solid var(--border);
+}
+
+.input.themeImportText {
+    min-height: 74px;
+    padding: 8px 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    resize: vertical;
+}
+
+.tokenMeta {
+    color: var(--text-faint);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.tokenMeta code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.tokenRowActions {
+    display: flex;
+    gap: var(--gap-sm);
+}
+
+.tokenSample {
+    margin: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+    color: var(--text-muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.tokenBadgePending {
+    border-color: var(--accent-line);
+    color: var(--accent);
+}
+
+.tokenBadgeApproved {
+    border-color: var(--success-line);
+    color: var(--success);
+}
+
+.tokenBadgeRejected {
+    border-color: var(--danger-line);
+    color: var(--danger);
+}
+
+.themeGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--gap-sm);
+}
+
+.themePreview {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+}
+
+.themePreviewSwatch {
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+}
+
+.themeVariableList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-sm);
+    max-height: 420px;
+    overflow-y: auto;
+    padding: var(--gap-sm);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background-color: var(--bg-inset);
+}
+
+.themeVariableGroup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-xs);
+}
+
+.themeVariableGroupTitle {
+    color: var(--text-faint);
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.themeVariableRow {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) 36px minmax(120px, 1fr);
+    align-items: center;
+    gap: var(--gap-sm);
+}
+
+.themeVariableCheck {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-xs);
+    min-width: 0;
+    font-size: 13px;
+}
+
+.themeVariableColor {
+    width: 36px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: none;
+    cursor: pointer;
+}
+
+.themeVariableValue {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+}
+
+.themeNote {
+    color: var(--warning);
+    font-size: 12px;
+}
+
+@media (max-width: 640px) {
+    .themeVariableRow {
+        grid-template-columns: minmax(0, 1fr) 36px;
+    }
+
+    .themeVariableValue {
+        grid-column: 1 / -1;
     }
 }

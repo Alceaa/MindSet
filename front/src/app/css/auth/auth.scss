@@ -8,7 +8,7 @@
     min-height: 100vh;
     padding: var(--gap-lg);
     background:
-        radial-gradient(1000px 380px at 50% -10%, rgba(47, 129, 247, 0.14), transparent 70%),
+        radial-gradient(1000px 380px at 50% -10%, var(--auth-glow), transparent 70%),
         var(--bg-canvas);
 }
 

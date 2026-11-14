@@ -65,14 +65,27 @@ func TestAlertDeduplicatesByKey(t *testing.T) {
 }
 
 func TestTextsContainKeyFields(t *testing.T) {
-	report := BugReportText("octocat", "/settings?tab=bug", "падает сохранение", "шаги: 1, 2, 3")
+	report := BugReportText("octocat", "/settings?tab=bug", "падает сохранение", "шаги: 1, 2, 3", nil)
 	for _, want := range []string{"octocat", "/settings?tab=bug", "падает сохранение", "шаги: 1, 2, 3"} {
 		if !strings.Contains(report, want) {
 			t.Errorf("в отчёте нет %q:\n%s", want, report)
 		}
 	}
+	if strings.Contains(report, "Вложения") {
+		t.Errorf("без вложений блок не нужен:\n%s", report)
+	}
 
-	anonymous := BugReportText("", "", "", "текст")
+	withFiles := BugReportText("octocat", "/sets/4", "скриншот", "смотри вложение", []string{
+		"https://s3.twcstorage.ru/mindset-media/reports/1.png",
+		"https://s3.twcstorage.ru/mindset-media/reports/2.png",
+	})
+	for _, want := range []string{"📎 Вложения", "reports/1.png", "reports/2.png"} {
+		if !strings.Contains(withFiles, want) {
+			t.Errorf("во вложениях нет %q:\n%s", want, withFiles)
+		}
+	}
+
+	anonymous := BugReportText("", "", "", "текст", nil)
 	if !strings.Contains(anonymous, "аноним") {
 		t.Errorf("без автора должно быть «аноним»: %s", anonymous)
 	}

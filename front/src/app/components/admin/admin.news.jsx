@@ -30,6 +30,7 @@ import parseApiError from "../../utils/api.error";
 import { uploadImage } from "../../utils/image.upload";
 import MarkdownTools from "../common/markdown.tools.jsx";
 import { applyMarkdownPaste } from "../../markdown/paste";
+import useListToggle from "../../hooks/use.list.toggle";
 import { CODE_LANGUAGES, codeBlockPluginOptions } from "../../markdown/code.languages.js";
 import "../../css/dashboard/dashboard.scss";
 
@@ -53,6 +54,10 @@ const AdminNewsPanel = () => {
     const [pending, setPending] = useState(false);
     const hostRef = useRef(null);
     const editorRef = useRef(null);
+
+    // Снятие списка и чек-листа: Lexical убирает список целиком, нам нужны только
+    // выделенные пункты (или тот, где стоит курсор).
+    useListToggle(() => editorRef.current, editingId);
 
     // Тот же набор инструментов, что и в настройках профиля, плюс вставка картинок.
     const newsPlugins = useMemo(

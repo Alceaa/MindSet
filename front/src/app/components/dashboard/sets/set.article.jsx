@@ -2,17 +2,24 @@ import React, { useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import { normalizeTitle, prepareMarkdown, stripEscapes } from "../../../markdown/wikilink";
+import { BOARD_PROTOCOL } from "../../../markdown/wikilink";
 import { rehypePlugins, remarkPlugins } from "../../../markdown/render";
+import { codeComponents } from "../../../markdown/code.block.jsx";
 import { useAnchorLinks } from "../../../markdown/heading.id.js";
+import useBoards from "../../../hooks/use.boards.js";
 import "../../../css/dashboard/article.scss";
 
 const WIKILINK_PREFIX = "wikilink:";
+const BOARD_PREFIX = `${BOARD_PROTOCOL}:`;
 
-const SetArticle = ({ content, links, emptyText }) => {
+const SetArticle = ({ content, links, emptyText, boards: boardsAllowed = true }) => {
     const markdown = useMemo(() => prepareMarkdown(content), [content]);
     const articleRef = useRef(null);
 
     useAnchorLinks(articleRef, markdown);
+    // Доски подставляем только в своих сетах: в чужом публичном сете это был бы
+    // список досок читателя, а не автора.
+    const { byKey: boardsByKey } = useBoards(boardsAllowed && markdown.includes(`](${BOARD_PREFIX}`));
     const targets = useMemo(
         () => new Map(links.map((link) => [normalizeTitle(stripEscapes(link.label)), link])),
         [links]
@@ -20,7 +27,35 @@ const SetArticle = ({ content, links, emptyText }) => {
 
     const components = useMemo(
         () => ({
+            ...codeComponents,
             a({ node, href, children, ...rest }) {
+                if (typeof href === "string" && href.startsWith(BOARD_PREFIX)) {
+                    const key = decodeURIComponent(href.slice(BOARD_PREFIX.length));
+                    const board = boardsByKey.get(key);
+
+                    if (!board) {
+                        return (
+                            <span
+                                className="articleLinkMissing"
+                                title={`Доски «${String(children)}» нет — создайте её в разделе «Доски»`}
+                            >
+                                {children}
+                            </span>
+                        );
+                    }
+
+                    return (
+                        <Link
+                            className="articleLink articleLinkBoard"
+                            to={`/boards/${board.id}`}
+                            title={`Доска «${board.title}»`}
+                        >
+                            {children}
+                            <span className="boardMark">▦</span>
+                        </Link>
+                    );
+                }
+
                 if (typeof href === "string" && href.startsWith(WIKILINK_PREFIX)) {
                     const key = decodeURIComponent(href.slice(WIKILINK_PREFIX.length));
                     const target = targets.get(key);
@@ -107,7 +142,7 @@ const SetArticle = ({ content, links, emptyText }) => {
                 );
             },
         }),
-        [targets]
+        [boardsByKey, targets]
     );
 
     if (!markdown.trim()) {

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
     BlockTypeSelect,
@@ -36,11 +37,15 @@ import "@mdxeditor/editor/style.css";
 import setService from "../../../api/set.service";
 import parseApiError from "../../../utils/api.error";
 import { uploadImage } from "../../../utils/image.upload";
-import LoadingScreen from "../../common/loading.screen.jsx";
+import { SkeletonWorkspace } from "../../common/skeleton.jsx";
+import EmptyState from "../../common/empty.state.jsx";
+import { useToast } from "../../common/toast.jsx";
 import MarkdownTools from "../../common/markdown.tools.jsx";
+import MarkdownSnippets from "../../common/markdown.snippets.jsx";
 import { applyMarkdownPaste } from "../../../markdown/paste";
-import { registerListSplit } from "../../../markdown/list.split";
+import useListToggle from "../../../hooks/use.list.toggle";
 import { MARKDOWN_EXPORT_OPTIONS } from "../../../markdown/export.options";
+import { normalizeCodeFences } from "../../../markdown/code.fence";
 import { CODE_LANGUAGES, codeBlockPluginOptions } from "../../../markdown/code.languages.js";
 import SetArticle from "./set.article.jsx";
 import SetSidebar from "./set.sidebar.jsx";
@@ -49,6 +54,12 @@ import WikilinkPicker from "./wikilink.picker.jsx";
 import ReaderSettings from "./reader.settings.jsx";
 import useReaderSettings from "../../../hooks/use.reader.settings";
 import useReadingPosition, { readingPositionKey } from "../../../hooks/use.reading.position";
+import useSourceModeBridge from "../../../hooks/use.source.mode.bridge";
+import collectionService from "../../../api/collection.service";
+import useCollections from "../../../hooks/use.collections";
+import useBoards from "../../../hooks/use.boards";
+import CollectionPicker from "../../collections/collection.picker.jsx";
+import "../../../css/collections/collections.scss";
 import "../../../css/dashboard/dashboard.scss";
 import "../../../css/dashboard/workspace.scss";
 import "../../../css/dashboard/reader.scss";
@@ -66,7 +77,10 @@ export const VISIBILITY_OPTIONS = [
 export const visibilityLabel = (value) =>
     VISIBILITY_OPTIONS.find((option) => option.value === value)?.label ?? "";
 
-export const shareUrl = (slug) => `${window.location.origin}/s/${slug}`;
+// Публичная ссылка строится от базового пути приложения: в проде он /mindset,
+// иначе скопированный адрес вёл бы в корень домена и открывал 404.
+export const shareUrl = (slug) =>
+    `${window.location.origin}${process.env.PUBLIC_URL || ""}/s/${slug}`;
 
 export const copyShareLink = async (slug, current, setCopied) => {
     const url = shareUrl(slug);
@@ -102,6 +116,36 @@ const findWikilinkRange = (text, caret) => {
     };
 };
 
+// Окно выбора сета привязываем к кнопке в тулбаре — как «Шаблоны»: оно открывается под панелью
+// инструментов и не прыгает за курсором по экрану. Панель инструментов липкая, поэтому
+// при прокрутке координаты пересчитываем, и окно остаётся под ней.
+const PICKER_WIDTH = 320;
+const PICKER_EDGE = 8;
+const PICKER_GAP = 6;
+const PICKER_MIN_HEIGHT = 180;
+
+const pickerSpot = () => {
+    const button = document.querySelector(".toolbarWikilink");
+    const rect = button?.getBoundingClientRect();
+
+    if (!rect || (rect.top === 0 && rect.left === 0)) {
+        return { left: PICKER_EDGE + 8, top: 96 };
+    }
+
+    const panel = document.querySelector(".wikilinkPicker");
+    const width = panel?.getBoundingClientRect().width || PICKER_WIDTH;
+
+    return {
+        left: Math.min(
+            Math.max(rect.left, PICKER_EDGE),
+            Math.max(window.innerWidth - width - PICKER_EDGE, PICKER_EDGE)
+        ),
+        top: Math.max(rect.bottom + PICKER_GAP, PICKER_EDGE),
+        // Как у «Шаблонов»: если снизу мало места, окно поджимается и прокручивается внутри.
+        maxHeight: Math.max(PICKER_MIN_HEIGHT, window.innerHeight - rect.bottom - 18),
+    };
+};
+
 const imageUploadHandler = async (file) => {
     try {
         return await uploadImage(file);
@@ -111,7 +155,7 @@ const imageUploadHandler = async (file) => {
     }
 };
 
-const useEditorPlugins = (onOpenPicker) =>
+const useEditorPlugins = (onOpenPicker, onInsertSnippet) =>
     useMemo(
         () => [
             headingsPlugin(),
@@ -128,7 +172,9 @@ const useEditorPlugins = (onOpenPicker) =>
             diffSourcePlugin({ viewMode: "rich-text" }),
             toolbarPlugin({
                 toolbarContents: () => (
-                    <DiffSourceToggleWrapper>
+                    // diff-режим MindSet не использует: сравнивать markdown не с чем,
+                    // а через него открывался тот же рассинхрон, что и в source.
+                    <DiffSourceToggleWrapper options={["rich-text", "source"]}>
                         <UndoRedo />
                         <Separator />
                         <BlockTypeSelect />
@@ -147,12 +193,13 @@ const useEditorPlugins = (onOpenPicker) =>
                         </button>
                         <InsertTable />
                         <InsertThematicBreak />
+                        <MarkdownSnippets onInsert={onInsertSnippet} />
                     </DiffSourceToggleWrapper>
                 ),
             }),
             remoteRealmPlugin({ editorId: EDITOR_ID }),
         ],
-        [onOpenPicker]
+        [onOpenPicker, onInsertSnippet]
     );
 
 const SetEditorInner = () => {
@@ -160,6 +207,7 @@ const SetEditorInner = () => {
     const navigate = useNavigate();
     const realm = useRemoteMDXEditorRealm(EDITOR_ID);
 
+    const { push } = useToast();
     const hostRef = useRef(null);
     const editorRef = useRef(null);
     const suppressTrigger = useRef(0);
@@ -177,22 +225,34 @@ const SetEditorInner = () => {
     const [content, setContent] = useState("");
     const [snapshot, setSnapshot] = useState(null);
 
+    // Текст из редактора приводим к виду, который понимает статья: сериализатор markdown
+    // экранирует бэктики, поэтому блок кода, набранный руками, доезжает как \`\`\`.
+    const handleContentChange = useCallback(
+        (next) => setContent(normalizeCodeFences(next)),
+        []
+    );
+
     const [links, setLinks] = useState([]);
     const [backlinks, setBacklinks] = useState([]);
     const [allSets, setAllSets] = useState([]);
     const [savedSets, setSavedSets] = useState([]);
+    const { collections, reload: reloadCollections } = useCollections();
+    const { boards } = useBoards();
 
     const [saving, setSaving] = useState(false);
     const [removing, setRemoving] = useState(false);
     const [deleteDialog, setDeleteDialog] = useState(null);
-    const [actionError, setActionError] = useState("");
     const [fieldErrors, setFieldErrors] = useState({});
     const [savedAt, setSavedAt] = useState("");
     const [mode, setMode] = useState("read");
     const [searchParams, setSearchParams] = useSearchParams();
     const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
         try {
-            return window.localStorage.getItem("mindset:sidebar:collapsed") === "1";
+            const stored = window.localStorage.getItem("mindset:sidebar:collapsed");
+            if (stored !== null) {
+                return stored === "1";
+            }
+            return window.matchMedia("(max-width: 900px)").matches;
         } catch {
             return false;
         }
@@ -255,7 +315,9 @@ const SetEditorInner = () => {
             title: data.title ?? "",
             description: data.description ?? "",
             visibility: data.visibility ?? VISIBILITY_OPTIONS[0].value,
-            content: data.content ?? "",
+            // Фенс, набранный в обычном режиме, лежит в базе текстом с экранированными
+            // бэктиками — собираем его в блок кода, чтобы статья показывала код.
+            content: normalizeCodeFences(data.content ?? ""),
         };
         setSet(data);
         setTitle(normalized.title);
@@ -302,7 +364,14 @@ const SetEditorInner = () => {
             .getSets()
             .then((items) => {
                 if (active) {
-                    setAllSets(items.map((item) => ({ id: item.id, title: item.title })));
+                    // В сайдбаре нужны и коллекции: по ним сеты раскладываются по группам.
+                    setAllSets(
+                        items.map((item) => ({
+                            id: item.id,
+                            title: item.title,
+                            collections: item.collections ?? [],
+                        }))
+                    );
                 }
             })
             .catch(() => {
@@ -347,7 +416,6 @@ const SetEditorInner = () => {
         }
 
         setSaving(true);
-        setActionError("");
         setFieldErrors({});
 
         try {
@@ -365,12 +433,12 @@ const SetEditorInner = () => {
             switchMode("read");
         } catch (error) {
             const parsed = parseApiError(error);
-            setActionError(parsed.message);
+            push(parsed.message, "error");
             setFieldErrors(parsed.fieldErrors);
         } finally {
             setSaving(false);
         }
-    }, [set, saving, dirty, title, description, visibility, content, applySet, switchMode]);
+    }, [set, saving, dirty, title, description, visibility, content, applySet, switchMode, push]);
 
     const handleLeave = useCallback(() => {
         if (dirty) {
@@ -381,7 +449,6 @@ const SetEditorInner = () => {
                 return;
             }
         }
-        setActionError("");
         switchMode("read");
     }, [dirty, switchMode]);
 
@@ -406,17 +473,16 @@ const SetEditorInner = () => {
 
             setDeleteDialog(null);
             setRemoving(true);
-            setActionError("");
 
             try {
                 await setService.deleteSet(set.id, { forbid_copies: forbidCopies });
                 navigate("/dashboard?tab=sets", { replace: true });
             } catch (error) {
-                setActionError(parseApiError(error).message);
+                push(parseApiError(error).message, "error");
                 setRemoving(false);
             }
         },
-        [set, navigate]
+        [set, navigate, push]
     );
 
     useEffect(() => {
@@ -431,7 +497,6 @@ const SetEditorInner = () => {
                 if (mode === "edit") {
                     handleLeave();
                 } else {
-                    setActionError("");
                     switchMode("edit");
                 }
             }
@@ -454,6 +519,21 @@ const SetEditorInner = () => {
         window.addEventListener("beforeunload", handleBeforeUnload);
         return () => window.removeEventListener("beforeunload", handleBeforeUnload);
     }, [dirty]);
+
+    useEffect(() => {
+        if (!deleteDialog) {
+            return undefined;
+        }
+
+        const handleKey = (event) => {
+            if (event.key === "Escape") {
+                setDeleteDialog(null);
+            }
+        };
+
+        document.addEventListener("keydown", handleKey);
+        return () => document.removeEventListener("keydown", handleKey);
+    }, [deleteDialog]);
 
     const insertWikilink = useCallback(
         (value, withAlias, alias) => {
@@ -529,37 +609,35 @@ const SetEditorInner = () => {
         realmRef.current = realm;
     }, [realm]);
 
-    // Снятие списка: Lexical по умолчанию убирает весь список, нам нужен только текущий пункт.
-    useEffect(() => {
-        if (mode !== "edit") {
-            return undefined;
+    // Source-режим не проходит через onChange: без этой связи правки в нём не попадают
+    // ни в статью, ни в сохранение, а rich-text остаётся с прежним текстом.
+    useSourceModeBridge({
+        realm,
+        editorRef,
+        onSourceChange: handleContentChange,
+        prepare: normalizeCodeFences,
+    });
+
+    const insertSnippet = useCallback((markdown) => {
+        const editor = editorRef.current;
+        const append = (current) => `${current.trimEnd()}${current.trim() ? "\n\n" : ""}${markdown}`;
+
+        if (!editor?.insertMarkdown) {
+            setContent(append);
+            return;
         }
 
-        let unregister = null;
-        let attempts = 0;
-        let timer = null;
+        try {
+            editor.focus(undefined, { defaultSelection: "rootEnd" });
+            editor.insertMarkdown(markdown);
+        } catch {
+            setContent(append);
+        }
+    }, []);
 
-        const attach = () => {
-            const editor = realmRef.current?.getValue(rootEditor$);
-
-            if (editor) {
-                unregister = registerListSplit(editor);
-                return;
-            }
-
-            attempts += 1;
-            if (attempts < 20) {
-                timer = window.setTimeout(attach, 150);
-            }
-        };
-
-        attach();
-
-        return () => {
-            window.clearTimeout(timer);
-            unregister?.();
-        };
-    }, [mode, loading]);
+    // Снятие списка и чек-листа: Lexical по умолчанию убирает список целиком,
+    // нам нужно снять только выделенные пункты (или тот, где стоит курсор).
+    useListToggle(() => realmRef.current?.getValue(rootEditor$), mode);
 
     const openPicker = useCallback(() => {
         const editor = realmRef.current?.getValue(rootEditor$);
@@ -583,7 +661,7 @@ const SetEditorInner = () => {
             editor.focus();
         }
 
-        setPicker({ query: "", left: 16, top: 64 });
+        setPicker({ query: "", ...pickerSpot() });
     }, []);
 
     const pickerOptions = useMemo(
@@ -591,14 +669,20 @@ const SetEditorInner = () => {
             buildPickerOptions({
                 allSets,
                 savedSets,
+                boards,
                 currentSetId: set?.id,
                 query: picker?.query ?? "",
             }),
-        [picker, allSets, savedSets, set]
+        [picker, allSets, savedSets, boards, set]
     );
 
     const handlePick = useCallback(
         (option, withAlias) => {
+            if (option.board) {
+                insertWikilink(`board:${option.title}`, withAlias);
+                return;
+            }
+
             if (option.ref) {
                 insertWikilink(option.ref, withAlias, option.title);
                 return;
@@ -636,14 +720,9 @@ const SetEditorInner = () => {
             return;
         }
 
-        const rect = selection.getRangeAt(0).getBoundingClientRect();
-        const hostRect = host.getBoundingClientRect();
-        const hasCaret = rect.top !== 0 || rect.left !== 0;
-
         setPicker({
             query: range.label,
-            left: Math.min(Math.max(rect.left - hostRect.left, 8), Math.max(hostRect.width - 330, 8)),
-            top: (hasCaret ? rect.bottom - hostRect.top : 64) + 6,
+            ...pickerSpot(),
         });
     }, []);
 
@@ -714,6 +793,23 @@ const SetEditorInner = () => {
     }, [picker]);
 
     useEffect(() => {
+        if (!picker) {
+            return undefined;
+        }
+
+        const place = () =>
+            setPicker((current) => (current ? { ...current, ...pickerSpot() } : current));
+
+        window.addEventListener("scroll", place, true);
+        window.addEventListener("resize", place);
+
+        return () => {
+            window.removeEventListener("scroll", place, true);
+            window.removeEventListener("resize", place);
+        };
+    }, [picker]);
+
+    useEffect(() => {
         setPickerIndex(0);
     }, [picker?.query]);
 
@@ -754,23 +850,24 @@ const SetEditorInner = () => {
         return () => window.removeEventListener("keydown", handleKeyDown, true);
     }, [picker, pickerOptions, pickerIndex, handlePick]);
 
-    const plugins = useEditorPlugins(openPicker);
+    const plugins = useEditorPlugins(openPicker, insertSnippet);
 
     if (loading) {
-        return <LoadingScreen label="Загружаем сет..." />;
+        return <SkeletonWorkspace />;
     }
 
     if (notFound) {
         return (
-            <div className="emptyState">
-                <h2>Сет не найден</h2>
-                <p className="mutedText">
-                    Возможно, он удалён или принадлежит другому пользователю.
-                </p>
-                <Link className="btn btnPrimary" to="/dashboard?tab=sets">
-                    К списку сетов
-                </Link>
-            </div>
+            <EmptyState
+                icon="🔍"
+                title="Сет не найден"
+                hint="Возможно, он удалён или принадлежит другому пользователю."
+                action={
+                    <Link className="btn btnPrimary" to="/dashboard?tab=sets">
+                        К списку сетов
+                    </Link>
+                }
+            />
         );
     }
 
@@ -785,10 +882,58 @@ const SetEditorInner = () => {
         );
     }
 
+    // Метка коллекций в статье: отмечаем и снимаем полки без перезагрузки страницы.
+    const handleToggleCollection = async (collectionId, inCollection) => {
+        try {
+            if (inCollection) {
+                await collectionService.addSet(id, collectionId);
+            } else {
+                await collectionService.removeSet(id, collectionId);
+            }
+
+            const collection = collections.find((item) => item.id === collectionId);
+            const applyCollections = (list) => {
+                if (!collection) {
+                    return list;
+                }
+
+                const exists = list.some((item) => item.id === collectionId);
+                if (inCollection && !exists) {
+                    return [
+                        ...list,
+                        { id: collection.id, title: collection.title, color: collection.color },
+                    ];
+                }
+                if (!inCollection && exists) {
+                    return list.filter((item) => item.id !== collectionId);
+                }
+                return list;
+            };
+
+            setSet((current) =>
+                current
+                    ? { ...current, collections: applyCollections(current.collections ?? []) }
+                    : current
+            );
+            setAllSets((current) =>
+                current.map((item) =>
+                    String(item.id) === String(id)
+                        ? { ...item, collections: applyCollections(item.collections ?? []) }
+                        : item
+                )
+            );
+
+            await reloadCollections();
+        } catch (err) {
+            push(parseApiError(err).message, "error");
+        }
+    };
+
     return (
         <div className="setWorkspace">
             <SetSidebar
                 sets={allSets}
+                collections={collections}
                 currentId={id}
                 collapsed={sidebarCollapsed}
                 onToggle={toggleSidebar}
@@ -829,7 +974,7 @@ const SetEditorInner = () => {
                                 onClick={handleDelete}
                                 disabled={removing}
                             >
-                                {removing ? "Удаляем..." : "Удалить"}
+                                {removing ? "Удаляем…" : "Удалить"}
                             </button>
                         </>
                     ) : (
@@ -839,7 +984,7 @@ const SetEditorInner = () => {
                                 onClick={handleSave}
                                 disabled={!dirty || saving}
                             >
-                                {saving ? "Сохраняем..." : "Сохранить"}
+                                {saving ? "Сохраняем…" : "Сохранить"}
                             </button>
                             <button className="btn btnGhost" onClick={handleLeave} title="Ctrl+E">
                                 К статье
@@ -848,29 +993,22 @@ const SetEditorInner = () => {
                                 editorRef={editorRef}
                                 content={content}
                                 title={title}
-                                onImport={(text) => setContent(text)}
+                                onImport={handleContentChange}
                             />
                             <button
                                 className="btn btnDanger"
                                 onClick={handleDelete}
                                 disabled={removing}
                             >
-                                {removing ? "Удаляем..." : "Удалить"}
+                                {removing ? "Удаляем…" : "Удалить"}
                             </button>
                         </>
                     )}
                 </div>
 
-                {actionError && (
-                    <div className="alert alertError" role="alert">
-                        {actionError}
-                    </div>
-                )}
-
                 {mode === "read" ? (
                     <div
                         className="articleCard"
-                        data-reader-theme={readerView.theme}
                         data-reader-width={effectiveReaderWidth}
                         data-reader-font={readerView.font}
                         data-reader-scale={readerView.scale}
@@ -886,6 +1024,26 @@ const SetEditorInner = () => {
                                 {links.length > 0 && (
                                     <span className="badge">Связей: {links.length}</span>
                                 )}
+                                <CollectionPicker
+                                    collections={collections}
+                                    selected={(set.collections ?? []).map((item) => item.id)}
+                                    onToggle={handleToggleCollection}
+                                    onCreate={async (collectionTitle) => {
+                                        try {
+                                            const data = await collectionService.create({
+                                                title: collectionTitle,
+                                                color: "",
+                                            });
+                                            await reloadCollections();
+                                            await handleToggleCollection(
+                                                data.collection?.id ?? 0,
+                                                true
+                                            );
+                                        } catch (err) {
+                                            push(parseApiError(err).message, "error");
+                                        }
+                                    }}
+                                />
                                 {dirty && <span className="badge badgeWarning">не сохранено</span>}
                                 {!dirty && savedAt && (
                                     <span className="badge badgeSuccess">сохранено в {savedAt}</span>
@@ -962,7 +1120,7 @@ const SetEditorInner = () => {
                                     <div className="visibilityShare">
                                         <span className="mutedText">Адрес страницы:</span>
                                         <code className="visibilitySlug">
-                                            {`${window.location.origin}/s/${set.slug}`}
+                                            {shareUrl(set.slug)}
                                         </code>
                                         <button
                                             type="button"
@@ -992,24 +1150,26 @@ const SetEditorInner = () => {
                                 className="mdxEditorTheme"
                                 contentEditableClassName="mdxContent"
                                 markdown={content}
-                                onChange={setContent}
+                                onChange={handleContentChange}
                                 placeholder=""
                                 plugins={plugins}
                                 toMarkdownOptions={MARKDOWN_EXPORT_OPTIONS}
                             />
-                            {picker && (
-                                <WikilinkPicker
-                                    query={picker.query}
-                                    options={pickerOptions}
-                                    activeIndex={pickerIndex}
-                                    position={picker}
-                                    error={pickerError}
-                                    onPick={handlePick}
-                                    onClose={() => {
-                                        setPicker(null);
-                                    }}
-                                />
-                            )}
+                            {picker &&
+                                createPortal(
+                                    <WikilinkPicker
+                                        query={picker.query}
+                                        options={pickerOptions}
+                                        activeIndex={pickerIndex}
+                                        position={picker}
+                                        error={pickerError}
+                                        onPick={handlePick}
+                                        onClose={() => {
+                                            setPicker(null);
+                                        }}
+                                    />,
+                                    document.body
+                                )}
                         </div>
                     </div>
                 )}
@@ -1067,12 +1227,14 @@ const SetEditorInner = () => {
                         </p>
                         <div className="confirmActions">
                             <button
+                                type="button"
                                 className="btn btnDanger"
                                 onClick={() => performDelete(visibility === "private")}
                             >
                                 Удалить вместе с копиями
                             </button>
                             <button
+                                type="button"
                                 className="btn btnGhost"
                                 onClick={() => performDelete(false)}
                                 disabled={visibility === "private" || deleteDialog.copyCount === 0}
@@ -1080,8 +1242,10 @@ const SetEditorInner = () => {
                                 Оставить копии (заморозить на 30 дней)
                             </button>
                             <button
+                                type="button"
                                 className="btn btnGhost"
                                 onClick={() => setDeleteDialog(null)}
+                                autoFocus
                             >
                                 Отмена
                             </button>

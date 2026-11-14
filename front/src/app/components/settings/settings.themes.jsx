@@ -1,19 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import themeService from "../../api/theme.service";
 import parseApiError from "../../utils/api.error";
-import useAppTheme from "../../hooks/use.app.theme";
 import { Skeleton } from "../common/skeleton.jsx";
-import { APP_THEMES, DEFAULT_THEME, themeByKey } from "../../themes/app.themes";
-import {
-    CUSTOM_THEME_PREFIX,
-    THEME_VARIABLE_GROUPS,
-    THEME_VARIABLE_NAMES,
-    isHexColor,
-    themeVariableLabel,
-    validThemeColor,
-} from "../../themes/theme.packages";
-
-const SWATCH_PREVIEW = ["--bg-canvas", "--bg-surface", "--text", "--accent", "--border"];
+import { APP_THEMES } from "../../themes/app.themes";
+import { CUSTOM_THEME_PREFIX } from "../../themes/theme.packages";
+import { THEME_PRESETS, packageVariables, rolesFromVariables } from "../../themes/theme.roles";
+import ThemeRolesFields from "./theme.roles.fields.jsx";
 
 const STATUS_LABELS = {
     draft: "черновик",
@@ -29,20 +21,19 @@ const STATUS_CLASSES = {
     rejected: "tokenBadge tokenBadgeRejected",
 };
 
+// Новая тема начинается с пресета: автор правит пару цветов, а не собирает всё с нуля.
 const emptyForm = () => ({
     id: 0,
     title: "",
     description: "",
-    mode: "dark",
-    base: DEFAULT_THEME,
-    overrides: {},
+    mode: THEME_PRESETS[0].mode,
+    base: THEME_PRESETS[0].base,
+    roles: { ...THEME_PRESETS[0].roles },
 });
 
 const baseThemeOf = (key) => APP_THEMES.find((item) => item.key === key) ?? APP_THEMES[0];
 
 const ThemesSettings = ({ onApplied }) => {
-    const { theme } = useAppTheme();
-
     const [themes, setThemes] = useState([]);
     const [limit, setLimit] = useState(10);
     const [loading, setLoading] = useState(true);
@@ -68,13 +59,6 @@ const ThemesSettings = ({ onApplied }) => {
         load();
     }, [load]);
 
-    const preview = useMemo(() => {
-        if (!form) {
-            return null;
-        }
-        return { ...baseThemeOf(form.base).variables, ...form.overrides };
-    }, [form]);
-
     const validation = useMemo(() => {
         if (!form) {
             return "";
@@ -83,52 +67,21 @@ const ThemesSettings = ({ onApplied }) => {
             return "Название темы: минимум 3 символа";
         }
 
-        const names = Object.keys(form.overrides);
-        if (names.length === 0) {
-            return "Отметьте хотя бы одну переменную — остальное возьмётся из базовой темы";
-        }
-
-        for (const name of names) {
-            if (!validThemeColor(form.overrides[name])) {
-                return `${themeVariableLabel(name)}: нужен цвет вида #rrggbb или rgba(r, g, b, a)`;
-            }
-        }
-
+        // Цвета приходят из color-input, поэтому больше проверять нечего: переменные
+        // для пакета собираются из восьми ролей (packageVariables).
         return "";
     }, [form]);
 
-    const toggleVariable = (name) => {
-        setForm((current) => {
-            const overrides = { ...current.overrides };
-            if (name in overrides) {
-                delete overrides[name];
-                return { ...current, overrides };
-            }
+    const setRole = (key, value) =>
+        setForm((current) => ({ ...current, roles: { ...current.roles, [key]: value } }));
 
-            const source =
-                themeByKey(theme).variables[name] ??
-                baseThemeOf(current.base).variables[name] ??
-                "#ffffff";
-            overrides[name] = source;
-            return { ...current, overrides };
-        });
-    };
-
-    const setVariableValue = (name, value) => {
-        setForm((current) => ({ ...current, overrides: { ...current.overrides, [name]: value } }));
-    };
-
-    const fillVariables = (source) => {
-        setForm((current) => {
-            const overrides = {};
-            THEME_VARIABLE_NAMES.forEach((name) => {
-                if (source[name]) {
-                    overrides[name] = source[name];
-                }
-            });
-            return { ...current, overrides };
-        });
-    };
+    const applyPreset = (preset) =>
+        setForm((current) => ({
+            ...current,
+            mode: preset.mode,
+            base: preset.base,
+            roles: { ...preset.roles },
+        }));
 
     const save = async (event) => {
         event.preventDefault();
@@ -144,7 +97,8 @@ const ThemesSettings = ({ onApplied }) => {
             description: form.description.trim(),
             mode: form.mode,
             base: form.base,
-            variables: form.overrides,
+            // В пакет уезжают переменные из восьми ролей: сервер принимает только белый список.
+            variables: packageVariables(form.roles, form.base),
         };
 
         setBusy(true);
@@ -209,20 +163,21 @@ const ThemesSettings = ({ onApplied }) => {
     const startEdit = (item) =>
         setForm({
             id: item.id,
-            key: item.key,
             title: item.title,
             description: item.description,
             mode: item.mode,
             base: item.base,
-            overrides: { ...item.variables },
+            // Роли достаём из переменных темы: пакет хранит их, а не восемь исходных цветов.
+            roles: rolesFromVariables(item.variables),
         });
 
     return (
         <div className="card settingsForm">
             <h3 className="settingsSectionLabel">Свои темы</h3>
             <p className="mutedText">
-                Тема — это набор цветов поверх одной из встроенных. Соберите свою, отправьте на
-                модерацию, и после одобрения она появится в списке тем у всех пользователей.
+                Тема для каталога собирается так же, как своя: восемь понятных цветов, остальное
+                подберётся само. Отправьте её на модерацию — после одобрения она появится в списке
+                тем у всех, а правки можно будет вносить без админа (они тоже проходят проверку).
             </p>
 
             {notice && (
@@ -418,90 +373,14 @@ const ThemesSettings = ({ onApplied }) => {
                         />
                     </label>
 
-                    <div className="themePreview">
-                        {SWATCH_PREVIEW.map((name) => (
-                            <span
-                                key={name}
-                                className="themePreviewSwatch"
-                                style={{ backgroundColor: preview?.[name] }}
-                            />
-                        ))}
-                        <span className="mutedText">
-                            Предпросмотр · переменных: {Object.keys(form.overrides).length}
-                        </span>
-                    </div>
+                    <ThemeRolesFields
+                        roles={form.roles}
+                        base={form.base}
+                        onRole={setRole}
+                        onPreset={applyPreset}
+                    />
 
-                    <div className="settingsActions">
-                        <button
-                            className="btn btnGhost btnSmall"
-                            type="button"
-                            onClick={() => fillVariables(baseThemeOf(form.base).variables)}
-                        >
-                            Взять из базы
-                        </button>
-                        <button
-                            className="btn btnGhost btnSmall"
-                            type="button"
-                            onClick={() => fillVariables(themeByKey(theme).variables)}
-                        >
-                            Взять из текущей темы
-                        </button>
-                        <button
-                            className="btn btnGhost btnSmall"
-                            type="button"
-                            onClick={() => fillVariables({})}
-                        >
-                            Снять все
-                        </button>
-                    </div>
-
-                    <div className="themeVariableList">
-                        {THEME_VARIABLE_GROUPS.map((group) => (
-                            <div className="themeVariableGroup" key={group.key}>
-                                <span className="themeVariableGroupTitle">{group.title}</span>
-                                {group.variables.map((item) => {
-                                    const included = item.name in form.overrides;
-                                    const value = included
-                                        ? form.overrides[item.name]
-                                        : baseThemeOf(form.base).variables[item.name] ?? "";
-
-                                    return (
-                                        <div className="themeVariableRow" key={item.name}>
-                                            <label className="themeVariableCheck">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={included}
-                                                    onChange={() => toggleVariable(item.name)}
-                                                />
-                                                <span>{item.label}</span>
-                                            </label>
-                                            <input
-                                                type="color"
-                                                className="themeVariableColor"
-                                                value={isHexColor(value) ? value : "#000000"}
-                                                onChange={(event) =>
-                                                    setVariableValue(item.name, event.target.value)
-                                                }
-                                                disabled={!included}
-                                                aria-label={`${item.label}: цвет`}
-                                            />
-                                            <input
-                                                className="input themeVariableValue"
-                                                value={included ? form.overrides[item.name] : ""}
-                                                placeholder={value}
-                                                onChange={(event) =>
-                                                    setVariableValue(item.name, event.target.value)
-                                                }
-                                                disabled={!included}
-                                            />
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ))}
-                    </div>
-
-                    {validation && <p className="fieldHint">{validation}</p>}
+                {validation && <p className="fieldHint">{validation}</p>}
 
                     <div className="settingsActions">
                         <button

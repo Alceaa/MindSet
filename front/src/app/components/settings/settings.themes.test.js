@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import themeService from "../../api/theme.service";
+import { THEME_PRESETS } from "../../themes/theme.roles";
 import ThemesSettings from "./settings.themes.jsx";
 
 jest.mock("../../api/theme.service", () => ({
@@ -52,7 +53,7 @@ test("показывает свои темы со статусом и причи
     expect(screen.getByText(/Использовано 1 из 10/)).toBeTruthy();
 });
 
-test("создаёт черновик с выбранными переменными", async () => {
+test("собирает пакет из восьми ролей пресета", async () => {
     themeService.create.mockResolvedValue({
         message: "Черновик сохранён",
         theme: { ...draft, id: 9 },
@@ -66,30 +67,27 @@ test("создаёт черновик с выбранными переменны
     });
 
     fireEvent.change(screen.getByPlaceholderText("Северные сумерки"), {
-        target: { value: "Ледяная ночь" },
+        target: { value: "Морская ночь" },
     });
-
-    fireEvent.click(screen.getByRole("checkbox", { name: "Фон страницы" }));
-    fireEvent.change(screen.getByLabelText("Фон страницы: цвет"), {
-        target: { value: "#101828" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Море" }));
 
     await act(async () => {
         screen.getByRole("button", { name: "Создать черновик" }).click();
     });
 
-    await waitFor(() => expect(themeService.create).toHaveBeenCalled());
-    // Ключ не отправляем: сервер соберёт его из названия.
-    expect(themeService.create).toHaveBeenCalledWith({
-        title: "Ледяная ночь",
-        description: "",
-        mode: "dark",
-        base: "dark",
-        variables: { "--bg-canvas": "#101828" },
-    });
+    await waitFor(() => expect(themeService.create).toHaveBeenCalledTimes(1));
+
+    const payload = themeService.create.mock.calls[0][0];
+    expect(payload.title).toBe("Морская ночь");
+    expect(payload.mode).toBe(THEME_PRESETS[1].mode);
+    expect(payload.base).toBe(THEME_PRESETS[1].base);
+    // В пакет уезжают производные переменные, а не восемь ролей.
+    expect(payload.variables["--bg-canvas"]).toBe(THEME_PRESETS[1].roles.canvas);
+    expect(payload.variables["--accent"]).toBe(THEME_PRESETS[1].roles.accent);
+    expect(Object.keys(payload.variables).length).toBe(52);
 });
 
-test("не отправляет тему без переменных", async () => {
+test("не отправляет тему без названия", async () => {
     render(<ThemesSettings onApplied={() => {}} />);
     await screen.findByText("Северные сумерки");
 
@@ -97,11 +95,7 @@ test("не отправляет тему без переменных", async () 
         screen.getByRole("button", { name: "Создать тему" }).click();
     });
 
-    fireEvent.change(screen.getByPlaceholderText("Северные сумерки"), {
-        target: { value: "Проверка" },
-    });
-
-    expect(await screen.findByText(/Отметьте хотя бы одну переменную/)).toBeTruthy();
+    expect(await screen.findByText("Название темы: минимум 3 символа")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Создать черновик" }).disabled).toBe(true);
     expect(themeService.create).not.toHaveBeenCalled();
 });

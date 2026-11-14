@@ -10,6 +10,8 @@ import {
     isRoleColor,
     localThemePackage,
     mix,
+    packageVariables,
+    rolesFromVariables,
 } from "./theme.roles";
 
 test("смешивание и контраст считаются как в WCAG", () => {
@@ -72,6 +74,19 @@ test("чёрная тема предупреждает про нечитаемы
 
     expect(warnings.length).toBeGreaterThan(0);
     expect(warnings.some((item) => /Текст на фоне/.test(item.label))).toBe(true);
+});
+
+test("пакет темы собирается из ролей и возвращается обратно", () => {
+    const preset = THEME_PRESETS[2];
+    const variables = packageVariables(preset.roles, preset.base);
+
+    // В пакет уезжает только белый список сервера: 52 переменные без теней и градиента.
+    expect(Object.keys(variables).length).toBe(52);
+    expect(variables["--bg-canvas"]).toBe(preset.roles.canvas);
+    expect(variables["--shadow"]).toBeUndefined();
+
+    const roles = rolesFromVariables(variables);
+    expect(roles).toEqual(preset.roles);
 });
 
 test("тема профиля превращается в запись реестра", () => {

@@ -1,3 +1,4 @@
+import { THEME_VARIABLE_NAMES } from "./theme.packages";
 import { APP_THEMES, themeByKey } from "./app.themes";
 
 /**
@@ -338,6 +339,33 @@ export const buildThemeVariables = (roles, baseKey) => {
         "--auth-glow": withAlpha(accent, 0.12),
         "--fade-shadow": withAlpha(mix(canvas, "#000000", 0.9), 0.55),
     };
+};
+
+// Переменные для пакета темы сообщества: сервер принимает только белый список, поэтому
+// отдаём туда лишь его — производные значения (тени, фон-градиент) и так берутся из базовой темы.
+export const packageVariables = (roles, baseKey) => {
+    const variables = buildThemeVariables(roles, baseKey);
+    const filtered = {};
+
+    THEME_VARIABLE_NAMES.forEach((name) => {
+        if (variables[name]) {
+            filtered[name] = variables[name];
+        }
+    });
+
+    return filtered;
+};
+
+// Обратный ход: из переменных темы достаём роли — нужно, когда автор снова открывает тему.
+export const rolesFromVariables = (variables = {}) => {
+    const roles = {};
+
+    THEME_ROLES.forEach((role) => {
+        const value = variables[ROLE_VARIABLES[role.key]];
+        roles[role.key] = isRoleColor(value) ? String(value).trim().toLowerCase() : role.fallback;
+    });
+
+    return roles;
 };
 
 // Тема из профиля → запись для реестра тем приложения.

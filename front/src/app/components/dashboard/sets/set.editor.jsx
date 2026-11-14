@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
     BlockTypeSelect,
@@ -112,6 +113,36 @@ const findWikilinkRange = (text, caret) => {
         start,
         end: caret + body.length + closing.length,
         label: before.slice(start + 2) + body,
+    };
+};
+
+// Окно выбора сета привязываем к кнопке в тулбаре — как «Шаблоны»: оно открывается под панелью
+// инструментов и не прыгает за курсором по экрану. Панель инструментов липкая, поэтому
+// при прокрутке координаты пересчитываем, и окно остаётся под ней.
+const PICKER_WIDTH = 320;
+const PICKER_EDGE = 8;
+const PICKER_GAP = 6;
+const PICKER_MIN_HEIGHT = 180;
+
+const pickerSpot = () => {
+    const button = document.querySelector(".toolbarWikilink");
+    const rect = button?.getBoundingClientRect();
+
+    if (!rect || (rect.top === 0 && rect.left === 0)) {
+        return { left: PICKER_EDGE + 8, top: 96 };
+    }
+
+    const panel = document.querySelector(".wikilinkPicker");
+    const width = panel?.getBoundingClientRect().width || PICKER_WIDTH;
+
+    return {
+        left: Math.min(
+            Math.max(rect.left, PICKER_EDGE),
+            Math.max(window.innerWidth - width - PICKER_EDGE, PICKER_EDGE)
+        ),
+        top: Math.max(rect.bottom + PICKER_GAP, PICKER_EDGE),
+        // Как у «Шаблонов»: если снизу мало места, окно поджимается и прокручивается внутри.
+        maxHeight: Math.max(PICKER_MIN_HEIGHT, window.innerHeight - rect.bottom - 18),
     };
 };
 
@@ -630,7 +661,7 @@ const SetEditorInner = () => {
             editor.focus();
         }
 
-        setPicker({ query: "", left: 16, top: 64 });
+        setPicker({ query: "", ...pickerSpot() });
     }, []);
 
     const pickerOptions = useMemo(
@@ -689,14 +720,9 @@ const SetEditorInner = () => {
             return;
         }
 
-        const rect = selection.getRangeAt(0).getBoundingClientRect();
-        const hostRect = host.getBoundingClientRect();
-        const hasCaret = rect.top !== 0 || rect.left !== 0;
-
         setPicker({
             query: range.label,
-            left: Math.min(Math.max(rect.left - hostRect.left, 8), Math.max(hostRect.width - 330, 8)),
-            top: (hasCaret ? rect.bottom - hostRect.top : 64) + 6,
+            ...pickerSpot(),
         });
     }, []);
 
@@ -764,6 +790,23 @@ const SetEditorInner = () => {
 
         document.addEventListener("mousedown", handleMouseDown);
         return () => document.removeEventListener("mousedown", handleMouseDown);
+    }, [picker]);
+
+    useEffect(() => {
+        if (!picker) {
+            return undefined;
+        }
+
+        const place = () =>
+            setPicker((current) => (current ? { ...current, ...pickerSpot() } : current));
+
+        window.addEventListener("scroll", place, true);
+        window.addEventListener("resize", place);
+
+        return () => {
+            window.removeEventListener("scroll", place, true);
+            window.removeEventListener("resize", place);
+        };
     }, [picker]);
 
     useEffect(() => {
@@ -1112,19 +1155,21 @@ const SetEditorInner = () => {
                                 plugins={plugins}
                                 toMarkdownOptions={MARKDOWN_EXPORT_OPTIONS}
                             />
-                            {picker && (
-                                <WikilinkPicker
-                                    query={picker.query}
-                                    options={pickerOptions}
-                                    activeIndex={pickerIndex}
-                                    position={picker}
-                                    error={pickerError}
-                                    onPick={handlePick}
-                                    onClose={() => {
-                                        setPicker(null);
-                                    }}
-                                />
-                            )}
+                            {picker &&
+                                createPortal(
+                                    <WikilinkPicker
+                                        query={picker.query}
+                                        options={pickerOptions}
+                                        activeIndex={pickerIndex}
+                                        position={picker}
+                                        error={pickerError}
+                                        onPick={handlePick}
+                                        onClose={() => {
+                                            setPicker(null);
+                                        }}
+                                    />,
+                                    document.body
+                                )}
                         </div>
                     </div>
                 )}

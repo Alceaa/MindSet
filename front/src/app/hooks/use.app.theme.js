@@ -27,19 +27,28 @@ const getTheme = () => {
 
 export const initAppTheme = () => applyTheme(readTheme());
 
+/**
+ * Подтягиваем библиотеку тем: она живёт на сервере, поэтому свои оформления видны на любом
+ * устройстве. Если сети нет или пользователь не вошёл, остаётся кеш из localStorage —
+ * применённая тема не слетает.
+ */
+export const syncUserThemes = async () => {
+    try {
+        const data = await themeService.list();
+        registerThemePackages(data?.themes ?? []);
+    } catch {
+        // Гость или сеть недоступна: работаем с тем, что уже лежит в кеше.
+    }
+};
+
 const loadThemeCatalog = async () => {
     if (catalogRequested) {
         return;
     }
     catalogRequested = true;
 
-    try {
-        const data = await themeService.published();
-        registerThemePackages(data?.themes ?? []);
-        applyTheme(getTheme());
-    } catch {
-        catalogRequested = false;
-    }
+    await syncUserThemes();
+    applyTheme(getTheme());
 };
 
 const setTheme = (key) => {
@@ -69,6 +78,22 @@ export const useAppTheme = () => {
         return () => {
             listeners.delete(setLocalTheme);
         };
+    }, []);
+
+    useEffect(() => {
+        // Аварийный выход: своя тема может получиться нечитаемой, и тогда из интерфейса
+        // до кнопки не добраться — сочетание клавиш возвращает базовую тему.
+        const handleKey = (event) => {
+            if (!event.ctrlKey || !event.altKey || event.code !== "KeyD") {
+                return;
+            }
+
+            event.preventDefault();
+            setTheme(DEFAULT_THEME);
+        };
+
+        window.addEventListener("keydown", handleKey);
+        return () => window.removeEventListener("keydown", handleKey);
     }, []);
 
     const reset = useCallback(() => setTheme(DEFAULT_THEME), []);

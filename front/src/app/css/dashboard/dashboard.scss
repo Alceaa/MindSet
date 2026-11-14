@@ -341,21 +341,15 @@
 /* Окна редактора (ссылка, таблица, вставка картинки) Radix позиционирует по координатам,
    посчитанным в момент открытия: при прокрутке длинной заметки они уезжают за экран.
    Держим их модальным окном по центру — так они всегда на виду. */
+/* Окна редактора (ссылка, таблица, вставка картинки) — обычные поповеры MDXEditor.
+   Позицию не переопределяем: подмена position ломала поведение Radix и окно пропадало
+   при прокрутке. Оставляем подъём по z-index и ограничение высоты. */
 .mdxeditor-popup-container [class*="_linkDialogPopoverContent_"],
 .mdxeditor-popup-container [class*="_tableColumnEditorPopoverContent_"],
 .mdxeditor-popup-container [class*="_dialogContent_"] {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    z-index: 1300 !important;
-    max-width: min(560px, calc(100vw - 24px)) !important;
+    z-index: 1300;
     max-height: min(80vh, 640px);
     overflow-y: auto;
-    transform: translate(-50%, -50%) !important;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    background-color: var(--bg-surface);
-    box-shadow: 0 0 0 100vmax var(--overlay), var(--shadow);
 }
 
 html body[data-scroll-locked] {

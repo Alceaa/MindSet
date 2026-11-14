@@ -150,20 +150,16 @@ type apiAPIToken struct {
 	Expired    bool   `json:"expired"`
 }
 
-type apiThemePackage struct {
+type apiTheme struct {
 	ID          int               `json:"id"`
 	Key         string            `json:"key"`
 	Title       string            `json:"title"`
 	Description string            `json:"description"`
 	Mode        string            `json:"mode"`
 	Base        string            `json:"base"`
-	Variables   map[string]string `json:"variables"`
-	Status      string            `json:"status"`
-	Note        string            `json:"moderation_note"`
-	Author      string            `json:"author"`
+	Roles       map[string]string `json:"roles"`
 	CreatedAt   string            `json:"created_at"`
 	UpdatedAt   string            `json:"updated_at"`
-	PublishedAt string            `json:"published_at"`
 }
 
 type apiResponse struct {
@@ -192,8 +188,9 @@ type apiResponse struct {
 	Token  *apiAPIToken  `json:"token"`
 	Tokens []apiAPIToken `json:"tokens"`
 
-	Theme  *apiThemePackage  `json:"theme"`
-	Themes []apiThemePackage `json:"themes"`
+	Theme  *apiTheme  `json:"theme"`
+	Themes []apiTheme `json:"themes"`
+	Limit  int        `json:"limit"`
 }
 
 type callOptions struct {

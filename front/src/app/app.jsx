@@ -31,6 +31,7 @@ import NewsList from "./components/news/news.list.jsx";
 import UserProfile from "./components/profile/user.profile.jsx";
 import Settings from "./components/settings/settings.jsx";
 import Admin from "./components/admin/admin.jsx";
+import ThemeReset from "./components/settings/theme.reset.jsx";
 
 const SetEditor = React.lazy(() => import("./components/dashboard/sets/set.editor.jsx"));
 
@@ -42,6 +43,11 @@ const routes = [
     {
         path: "s/:slug",
         element: <PublicSet />,
+    },
+    {
+        // Аварийный выход из «сломанной» темы: доступен всем и без авторизации.
+        path: "theme/reset",
+        element: <ThemeReset />,
     },
     {
         element: <AuthLayout />,

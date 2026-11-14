@@ -7,7 +7,6 @@ import AdminUsersPanel from "./admin.users.jsx";
 import AdminSetsPanel from "./admin.sets.jsx";
 import AdminInvitesPanel from "./admin.invites.jsx";
 import AdminReportsPanel from "./admin.reports.jsx";
-import AdminThemesPanel from "./admin.themes.jsx";
 import AdminJournalPanel from "./admin.journal.jsx";
 import "../../css/admin/admin.scss";
 
@@ -16,7 +15,6 @@ const NAV = [
     { key: "users", label: "Пользователи" },
     { key: "sets", label: "Сеты" },
     { key: "invites", label: "Приглашения" },
-    { key: "themes", label: "Темы" },
     { key: "reports", label: "Репорты" },
     { key: "journal", label: "Журнал" },
 ];
@@ -40,8 +38,6 @@ const Admin = () => {
                 return <AdminInvitesPanel />;
             case "reports":
                 return <AdminReportsPanel />;
-            case "themes":
-                return <AdminThemesPanel />;
             case "journal":
                 return <AdminJournalPanel />;
             default:

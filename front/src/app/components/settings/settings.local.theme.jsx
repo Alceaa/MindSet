@@ -6,6 +6,7 @@ import { APP_THEMES, DEFAULT_THEME } from "../../themes/app.themes";
 import {
     LOCAL_THEME_KEY,
     THEME_PRESETS,
+    packageVariables,
 } from "../../themes/theme.roles";
 import ThemeRolesFields from "./theme.roles.fields.jsx";
 import "../../css/settings/settings.scss";
@@ -87,6 +88,60 @@ const LocalThemeSettings = () => {
         }
     };
 
+    /**
+     * Отправка в каталог: конструктор один, поэтому тема для сообщества собирается из этой же
+     * своей темы. Если тема с таким названием уже есть у автора — правим её (опубликованная
+     * правка уходит на модерацию), иначе создаём и сразу отправляем на проверку.
+     */
+    const submitToCatalog = async () => {
+        setBusy(true);
+        setNotice(null);
+
+        const payload = {
+            title: form.title.trim() || "Своя тема",
+            description: "Своя тема: восемь цветов поверх базовой",
+            mode: form.mode,
+            base: form.base,
+            variables: packageVariables(form.roles, form.base),
+        };
+
+        try {
+            await themeService.saveProfileTheme({
+                title: form.title.trim(),
+                mode: form.mode,
+                base: form.base,
+                roles: form.roles,
+            });
+            registerLocalTheme({ title: form.title.trim(), mode: form.mode, base: form.base, roles: form.roles });
+            setTheme(LOCAL_THEME_KEY);
+
+            const own = await themeService.own();
+            const existing = (own?.themes ?? []).find((item) => item.title === payload.title);
+
+            if (!existing) {
+                const created = await themeService.create(payload);
+                await themeService.submit(created?.theme?.id);
+                setNotice({ kind: "success", text: "Тема отправлена на модерацию" });
+            } else if (existing.status === "approved") {
+                await themeService.update(existing.id, payload);
+                setNotice({
+                    kind: "success",
+                    text: "Правка отправлена на модерацию: в каталоге пока прежняя версия",
+                });
+            } else if (existing.status === "pending") {
+                setNotice({ kind: "error", text: "Тема с таким названием уже на модерации" });
+            } else {
+                await themeService.update(existing.id, payload);
+                await themeService.submit(existing.id);
+                setNotice({ kind: "success", text: "Тема отправлена на модерацию" });
+            }
+        } catch (err) {
+            setNotice({ kind: "error", text: parseApiError(err).message });
+        } finally {
+            setBusy(false);
+        }
+    };
+
     const clear = async () => {
         setBusy(true);
         setNotice(null);
@@ -105,11 +160,12 @@ const LocalThemeSettings = () => {
 
     return (
         <section className="card settingsForm">
-            <span className="settingsSectionLabel">Своя тема</span>
+            <span className="settingsSectionLabel">Конструктор темы</span>
             <p className="mutedText">
                 Соберите оформление под себя: восемь цветов, остальное подберётся само. Тема
-                хранится в профиле, не попадает в каталог, а вернуть базовую можно кнопкой
-                «Сбросить» или сочетанием Ctrl+Alt+D.
+                хранится в профиле, а вернуть базовую можно кнопкой «Сбросить» или сочетанием
+                Ctrl+Alt+D. Сохранённая тема появляется в списке выше; когда она понравится —
+                отправьте её на модерацию, и после одобрения её увидят все.
             </p>
 
             {notice && (
@@ -171,6 +227,9 @@ const LocalThemeSettings = () => {
             <div className="settingsActions">
                 <button className="btn btnPrimary" type="button" onClick={save} disabled={busy}>
                     {busy ? "Сохраняем…" : enabled ? "Сохранить" : "Применить и сохранить"}
+                </button>
+                <button className="btn btnGhost" type="button" onClick={submitToCatalog} disabled={busy}>
+                    Отправить на модерацию
                 </button>
                 <button className="btn btnGhost" type="button" onClick={clear} disabled={busy}>
                     Сбросить

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
     THEME_PRESETS,
     THEME_ROLES,
@@ -7,6 +7,52 @@ import {
 } from "../../themes/theme.roles";
 
 const PREVIEW_SWATCHES = ["--bg-canvas", "--bg-surface", "--text", "--accent", "--border"];
+const HEX_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * Цвет роли: системная палитра плюс текстовое поле — в него удобно вставить hex из макета.
+ * Пока в тексте не набрался полный цвет, роли не трогаем, иначе палитра получит мусор.
+ */
+const RoleColor = ({ role, value, onChange }) => {
+    const [draft, setDraft] = useState(value);
+
+    useEffect(() => {
+        setDraft(value);
+    }, [value]);
+
+    const onText = (event) => {
+        const next = event.target.value;
+
+        setDraft(next);
+
+        if (HEX_PATTERN.test(next.trim())) {
+            onChange(next.trim().toLowerCase());
+        }
+    };
+
+    return (
+        <span className="localThemeColorField">
+            <input
+                className="localThemeColor"
+                type="color"
+                value={HEX_PATTERN.test(value) ? value : "#000000"}
+                onChange={(event) => onChange(event.target.value)}
+                aria-label={`${role.label}: палитра`}
+            />
+            <input
+                className="input localThemeColorHex"
+                type="text"
+                value={draft}
+                onChange={onText}
+                onBlur={() => setDraft(value)}
+                maxLength={7}
+                spellCheck={false}
+                placeholder="#rrggbb"
+                aria-label={`${role.label}: цвет в виде #rrggbb`}
+            />
+        </span>
+    );
+};
 
 /**
  * Восемь ролей темы: пресеты, предпросмотр, цветовые поля и предупреждения о контрасте.
@@ -48,12 +94,10 @@ const ThemeRolesFields = ({ roles, base, onRole, onPreset }) => {
                             <span className="settingsFieldLabel">{role.label}</span>
                             <span className="settingsFieldHint">{role.hint}</span>
                         </span>
-                        <input
-                            className="localThemeColor"
-                            type="color"
+                        <RoleColor
+                            role={role}
                             value={roles[role.key]}
-                            onChange={(event) => onRole(role.key, event.target.value)}
-                            aria-label={`${role.label}: цвет`}
+                            onChange={(value) => onRole(role.key, value)}
                         />
                     </label>
                 ))}

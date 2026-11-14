@@ -179,7 +179,7 @@
 
 .localThemeRoles {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: var(--gap-sm);
 }
 
@@ -210,6 +210,22 @@
     border-radius: var(--radius);
     background: none;
     cursor: pointer;
+}
+
+.localThemeColorField {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+}
+
+.localThemeColorHex {
+    width: 100px;
+}
+
+.input.localThemeColorHex {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    text-transform: lowercase;
 }
 
 .localThemeRow {

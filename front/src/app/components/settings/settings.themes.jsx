@@ -1,11 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import themeService from "../../api/theme.service";
 import parseApiError from "../../utils/api.error";
 import { Skeleton } from "../common/skeleton.jsx";
 import { APP_THEMES } from "../../themes/app.themes";
 import { CUSTOM_THEME_PREFIX } from "../../themes/theme.packages";
-import { THEME_PRESETS, packageVariables, rolesFromVariables } from "../../themes/theme.roles";
-import ThemeRolesFields from "./theme.roles.fields.jsx";
 
 const STATUS_LABELS = {
     draft: "черновик",
@@ -21,29 +19,21 @@ const STATUS_CLASSES = {
     rejected: "tokenBadge tokenBadgeRejected",
 };
 
-// Новая тема начинается с пресета: автор правит пару цветов, а не собирает всё с нуля.
-const emptyForm = () => ({
-    id: 0,
-    title: "",
-    description: "",
-    mode: THEME_PRESETS[0].mode,
-    base: THEME_PRESETS[0].base,
-    roles: { ...THEME_PRESETS[0].roles },
-});
-
 const baseThemeOf = (key) => APP_THEMES.find((item) => item.key === key) ?? APP_THEMES[0];
 
+/**
+ * Свои темы в каталоге. Конструктор тут не нужен: он один — блок «Своя тема» выше.
+ * Здесь только состояние тем и действия над ними: применить, снять с публикации, удалить.
+ */
 const ThemesSettings = ({ onApplied }) => {
     const [themes, setThemes] = useState([]);
     const [limit, setLimit] = useState(10);
     const [loading, setLoading] = useState(true);
     const [notice, setNotice] = useState(null);
-    const [form, setForm] = useState(null);
     const [busy, setBusy] = useState(false);
     const [confirming, setConfirming] = useState(0);
 
     const load = useCallback(async () => {
-        setLoading(true);
         try {
             const data = await themeService.own();
             setThemes(data?.themes ?? []);
@@ -59,56 +49,14 @@ const ThemesSettings = ({ onApplied }) => {
         load();
     }, [load]);
 
-    const validation = useMemo(() => {
-        if (!form) {
-            return "";
-        }
-        if (form.title.trim().length < 3) {
-            return "Название темы: минимум 3 символа";
-        }
-
-        // Цвета приходят из color-input, поэтому больше проверять нечего: переменные
-        // для пакета собираются из восьми ролей (packageVariables).
-        return "";
-    }, [form]);
-
-    const setRole = (key, value) =>
-        setForm((current) => ({ ...current, roles: { ...current.roles, [key]: value } }));
-
-    const applyPreset = (preset) =>
-        setForm((current) => ({
-            ...current,
-            mode: preset.mode,
-            base: preset.base,
-            roles: { ...preset.roles },
-        }));
-
-    const save = async (event) => {
-        event.preventDefault();
+    const run = async (action, fallback) => {
         setNotice(null);
-
-        if (validation) {
-            setNotice({ kind: "error", text: validation });
-            return;
-        }
-
-        const payload = {
-            title: form.title.trim(),
-            description: form.description.trim(),
-            mode: form.mode,
-            base: form.base,
-            // В пакет уезжают переменные из восьми ролей: сервер принимает только белый список.
-            variables: packageVariables(form.roles, form.base),
-        };
-
         setBusy(true);
-        try {
-            const data = form.id
-                ? await themeService.update(form.id, payload)
-                : await themeService.create(payload);
 
-            setForm((current) => ({ ...current, id: data?.theme?.id ?? current.id }));
-            setNotice({ kind: "success", text: data?.message || "Тема сохранена" });
+        try {
+            const data = await action();
+            setNotice({ kind: "success", text: data?.message || fallback });
+            setConfirming(0);
             await load();
         } catch (err) {
             setNotice({ kind: "error", text: parseApiError(err).message });
@@ -117,67 +65,14 @@ const ThemesSettings = ({ onApplied }) => {
         }
     };
 
-    const submitForModeration = async (id) => {
-        setNotice(null);
-        try {
-            const data = await themeService.submit(id);
-            setNotice({ kind: "success", text: data?.message || "Тема отправлена на модерацию" });
-            setForm(null);
-            await load();
-        } catch (err) {
-            setNotice({ kind: "error", text: parseApiError(err).message });
-        }
-    };
-
-    const removeTheme = async (id) => {
-        setNotice(null);
-        try {
-            await themeService.remove(id);
-            setConfirming(0);
-            setForm((current) => (current?.id === id ? null : current));
-            setNotice({ kind: "success", text: "Тема удалена" });
-            await load();
-        } catch (err) {
-            setNotice({ kind: "error", text: parseApiError(err).message });
-        }
-    };
-
-    const withdrawTheme = async (id) => {
-        setNotice(null);
-
-        try {
-            const data = await themeService.withdraw(id);
-            setForm((current) => (current?.id === id ? null : current));
-            setNotice({ kind: "success", text: data?.message || "Тема снята с публикации" });
-            await load();
-        } catch (err) {
-            setNotice({ kind: "error", text: parseApiError(err).message });
-        }
-    };
-
-    const startCreate = () => {
-        setNotice(null);
-        setForm(emptyForm());
-    };
-
-    const startEdit = (item) =>
-        setForm({
-            id: item.id,
-            title: item.title,
-            description: item.description,
-            mode: item.mode,
-            base: item.base,
-            // Роли достаём из переменных темы: пакет хранит их, а не восемь исходных цветов.
-            roles: rolesFromVariables(item.variables),
-        });
-
     return (
         <div className="card settingsForm">
-            <h3 className="settingsSectionLabel">Свои темы</h3>
+            <h3 className="settingsSectionLabel">Мои темы в каталоге</h3>
             <p className="mutedText">
-                Тема для каталога собирается так же, как своя: восемь понятных цветов, остальное
-                подберётся само. Отправьте её на модерацию — после одобрения она появится в списке
-                тем у всех, а правки можно будет вносить без админа (они тоже проходят проверку).
+                Соберите тему в блоке «Своя тема» выше и нажмите там «Отправить на модерацию»:
+                одобренная тема появится у всех в списке тем, а правка уже опубликованной подождёт
+                проверки — до неё в каталоге работает прежняя версия. Здесь видно, что стало с
+                вашими темами; снять тему с публикации или удалить её можно без админа.
             </p>
 
             {notice && (
@@ -192,7 +87,7 @@ const ThemesSettings = ({ onApplied }) => {
             {loading ? (
                 <Skeleton variant="row" count={2} label="Загружаем свои темы…" />
             ) : themes.length === 0 ? (
-                <p className="mutedText">Своих тем пока нет.</p>
+                <p className="mutedText">Своих тем в каталоге пока нет.</p>
             ) : (
                 <ul className="tokenList">
                     {themes.map((item) => (
@@ -209,8 +104,7 @@ const ThemesSettings = ({ onApplied }) => {
                                 </span>
                                 <span className="tokenMeta">
                                     <code>{item.key}</code> · база: {baseThemeOf(item.base).label} ·{" "}
-                                    {item.mode === "light" ? "светлый режим" : "тёмный режим"} ·
-                                    переменных: {Object.keys(item.variables).length}
+                                    {item.mode === "light" ? "светлый режим" : "тёмный режим"}
                                 </span>
                                 {item.moderation_note && (
                                     <span className="themeNote">
@@ -221,61 +115,64 @@ const ThemesSettings = ({ onApplied }) => {
                                     </span>
                                 )}
                             </div>
-
                             <div className="tokenRowActions">
                                 {item.status === "approved" && (
-                                    <>
-                                        <button
-                                            className="btn btnGhost btnSmall"
-                                            type="button"
-                                            onClick={() =>
-                                                onApplied(`${CUSTOM_THEME_PREFIX}${item.key}`)
-                                            }
-                                        >
-                                            Применить
-                                        </button>
-                                        <button
-                                            className="btn btnGhost btnSmall"
-                                            type="button"
-                                            onClick={() => startEdit(item)}
-                                        >
-                                            Изменить
-                                        </button>
-                                        <button
-                                            className="btn btnGhost btnSmall"
-                                            type="button"
-                                            onClick={() => withdrawTheme(item.id)}
-                                            disabled={Boolean(item.pending)}
-                                            title="Тема исчезнет из каталога, правки снова станут доступны сразу"
-                                        >
-                                            {item.pending ? "Ждёт модерации" : "Снять с публикации"}
-                                        </button>
-                                    </>
+                                    <button
+                                        className="btn btnGhost btnSmall"
+                                        type="button"
+                                        onClick={() =>
+                                            onApplied(`${CUSTOM_THEME_PREFIX}${item.key}`)
+                                        }
+                                    >
+                                        Применить
+                                    </button>
                                 )}
+
                                 {(item.status === "draft" || item.status === "rejected") && (
-                                    <>
-                                        <button
-                                            className="btn btnGhost btnSmall"
-                                            type="button"
-                                            onClick={() => startEdit(item)}
-                                        >
-                                            Изменить
-                                        </button>
-                                        <button
-                                            className="btn btnPrimary btnSmall"
-                                            type="button"
-                                            onClick={() => submitForModeration(item.id)}
-                                        >
-                                            На модерацию
-                                        </button>
-                                    </>
+                                    <button
+                                        className="btn btnPrimary btnSmall"
+                                        type="button"
+                                        disabled={busy}
+                                        onClick={() =>
+                                            run(
+                                                () => themeService.submit(item.id),
+                                                "Тема отправлена на модерацию"
+                                            )
+                                        }
+                                    >
+                                        На модерацию
+                                    </button>
                                 )}
+
+                                {item.status === "approved" && (
+                                    <button
+                                        className="btn btnGhost btnSmall"
+                                        type="button"
+                                        disabled={busy || Boolean(item.pending)}
+                                        title="Тема исчезнет из каталога, править её можно сразу"
+                                        onClick={() =>
+                                            run(
+                                                () => themeService.withdraw(item.id),
+                                                "Тема снята с публикации"
+                                            )
+                                        }
+                                    >
+                                        {item.pending ? "Ждёт модерации" : "Снять с публикации"}
+                                    </button>
+                                )}
+
                                 {confirming === item.id ? (
                                     <>
                                         <button
                                             className="btn btnDanger btnSmall"
                                             type="button"
-                                            onClick={() => removeTheme(item.id)}
+                                            disabled={busy}
+                                            onClick={() =>
+                                                run(
+                                                    () => themeService.remove(item.id),
+                                                    "Тема удалена"
+                                                )
+                                            }
                                         >
                                             Удалить
                                         </button>
@@ -302,109 +199,9 @@ const ThemesSettings = ({ onApplied }) => {
                 </ul>
             )}
 
-            {!form && (
-                <div className="settingsActions">
-                    <button
-                        className="btn btnPrimary"
-                        type="button"
-                        onClick={startCreate}
-                        disabled={themes.length >= limit}
-                    >
-                        Создать тему
-                    </button>
-                    <span className="mutedText">
-                        Использовано {themes.length} из {limit}.
-                    </span>
-                </div>
-            )}
-
-            {form && (
-                <form className="themeForm" onSubmit={save}>
-                    <div className="themeGrid">
-                        <label className="settingsField">
-                            <span className="settingsFieldLabel">Название</span>
-                            <input
-                                className="input"
-                                value={form.title}
-                                onChange={(event) => setForm({ ...form, title: event.target.value })}
-                                maxLength={60}
-                                placeholder="Северные сумерки"
-                                required
-                            />
-                            <span className="fieldHint">
-                                Ключ темы соберётся из названия сам — придумывать его не нужно.
-                            </span>
-                        </label>
-                        <label className="settingsField">
-                            <span className="settingsFieldLabel">Базовая тема</span>
-                            <select
-                                className="input"
-                                value={form.base}
-                                onChange={(event) => setForm({ ...form, base: event.target.value })}
-                            >
-                                {APP_THEMES.map((item) => (
-                                    <option key={item.key} value={item.key}>
-                                        {item.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                        <label className="settingsField">
-                            <span className="settingsFieldLabel">Режим</span>
-                            <select
-                                className="input"
-                                value={form.mode}
-                                onChange={(event) => setForm({ ...form, mode: event.target.value })}
-                            >
-                                <option value="dark">Тёмный</option>
-                                <option value="light">Светлый</option>
-                            </select>
-                        </label>
-                    </div>
-
-                    <label className="settingsField">
-                        <span className="settingsFieldLabel">Описание</span>
-                        <input
-                            className="input"
-                            value={form.description}
-                            onChange={(event) => setForm({ ...form, description: event.target.value })}
-                            maxLength={200}
-                            placeholder="Чем тема отличается от базовой"
-                        />
-                    </label>
-
-                    <ThemeRolesFields
-                        roles={form.roles}
-                        base={form.base}
-                        onRole={setRole}
-                        onPreset={applyPreset}
-                    />
-
-                {validation && <p className="fieldHint">{validation}</p>}
-
-                    <div className="settingsActions">
-                        <button
-                            className="btn btnPrimary"
-                            type="submit"
-                            disabled={busy || Boolean(validation)}
-                        >
-                            {busy ? "Сохраняем…" : form.id ? "Сохранить" : "Создать черновик"}
-                        </button>
-                        {form.id > 0 && (
-                            <button
-                                className="btn btnGhost"
-                                type="button"
-                                onClick={() => submitForModeration(form.id)}
-                            >
-                                На модерацию
-                            </button>
-                        )}
-                        <button className="btn btnGhost" type="button" onClick={() => setForm(null)}>
-                            Отмена
-                        </button>
-                    </div>
-                </form>
-            )}
+            <span className="mutedText">
+                Использовано {themes.length} из {limit}.
+            </span>
         </div>
     );
 };

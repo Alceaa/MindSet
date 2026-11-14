@@ -383,9 +383,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS notifications_unread_unique
 -- Настройки уведомлений: храним только выключенные категории, пустой объект = включено всё.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_prefs jsonb NOT NULL DEFAULT '{}'::jsonb;
 
--- Своя тема оформления: восемь ролей (canvas, surface, text, border, accent, danger,
--- warning, success) и базовая тема. Модерации нет — тема живёт только у владельца.
-ALTER TABLE users ADD COLUMN IF NOT EXISTS custom_theme jsonb;
+-- Своя тема оформления переехала в отдельную таблицу user_themes (библиотека тем), поэтому
+-- колонка в профиле больше не нужна — см. блок про темы в конце файла.
 
 -- Поиск по своим сетам: подстроку ищем в названии, описании и тексте заметки.
 -- Обычный btree под ILIKE '%...%' не подходит, а pg_trgm + GIN — подходит.
@@ -497,45 +496,37 @@ CREATE UNIQUE INDEX IF NOT EXISTS api_tokens_hash_uq ON api_tokens (token_hash);
 
 CREATE INDEX IF NOT EXISTS api_tokens_user_idx ON api_tokens (user_id, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS theme_packages (
-    id              serial PRIMARY KEY,
-    author_id       integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    theme_key       varchar NOT NULL,
-    title           varchar NOT NULL,
-    description     varchar NOT NULL DEFAULT '',
-    mode            varchar NOT NULL DEFAULT 'dark',
-    base_theme      varchar NOT NULL DEFAULT 'dark',
-    variables       jsonb NOT NULL DEFAULT '{}'::jsonb,
-    status          varchar NOT NULL DEFAULT 'draft',
-    moderation_note varchar NOT NULL DEFAULT '',
-    created_at      timestamptz NOT NULL DEFAULT now(),
-    updated_at      timestamptz NOT NULL DEFAULT now(),
-    published_at    timestamptz
+-- Сохранённые темы: библиотека пользователя, до десяти тем. Храним восемь ролей и базовую
+-- тему — из них выводятся все переменные оформления. Каталога и модерации нет: темами делятся
+-- файлом или текстом, поэтому у темы нет статусов, а ключ уникален только у своего автора.
+CREATE TABLE IF NOT EXISTS user_themes (
+    id          serial PRIMARY KEY,
+    author_id   integer NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+    theme_key   varchar NOT NULL,
+    title       varchar NOT NULL,
+    description varchar NOT NULL DEFAULT '',
+    mode        varchar NOT NULL DEFAULT 'dark',
+    base_theme  varchar NOT NULL DEFAULT 'dark',
+    roles       jsonb NOT NULL DEFAULT '{}'::jsonb,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
 DO $$
 BEGIN
-    ALTER TABLE theme_packages
-        ADD CONSTRAINT theme_packages_status_check
-        CHECK (status IN ('draft', 'pending', 'approved', 'rejected'));
-EXCEPTION
-    WHEN duplicate_object THEN NULL;
-END $$;
-
-DO $$
-BEGIN
-    ALTER TABLE theme_packages
-        ADD CONSTRAINT theme_packages_mode_check
+    ALTER TABLE user_themes
+        ADD CONSTRAINT user_themes_mode_check
         CHECK (mode IN ('light', 'dark'));
 EXCEPTION
     WHEN duplicate_object THEN NULL;
 END $$;
 
-CREATE UNIQUE INDEX IF NOT EXISTS theme_packages_key_uq ON theme_packages (theme_key);
+CREATE UNIQUE INDEX IF NOT EXISTS user_themes_key_uq ON user_themes (author_id, theme_key);
 
-CREATE INDEX IF NOT EXISTS theme_packages_status_idx ON theme_packages (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS user_themes_author_idx ON user_themes (author_id, updated_at DESC);
 
-CREATE INDEX IF NOT EXISTS theme_packages_author_idx ON theme_packages (author_id, updated_at DESC);
+-- Каталог тем сообщества убран: идея не масштабируется (дубли, очередь модерации), темами
+-- делятся файлом. Старая таблица и колонка профиля больше не нужны.
+DROP TABLE IF EXISTS theme_packages;
 
--- Правка опубликованной темы: она ждёт модерации, а в каталоге пока работает прежняя версия.
-ALTER TABLE theme_packages ADD COLUMN IF NOT EXISTS pending_payload jsonb;
+ALTER TABLE users DROP COLUMN IF EXISTS custom_theme;

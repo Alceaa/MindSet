@@ -1,370 +1,212 @@
 package routes
 
 import (
-	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
-	"mindset/models"
 	"mindset/utils"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/jackc/pgx/v5"
 )
 
-func themeDraft(key string) map[string]any {
+func themeRoles(accent string) map[string]string {
+	return map[string]string{
+		"canvas":  "#101010",
+		"surface": "#181c22",
+		"text":    "#e8eaee",
+		"border":  "#2a2f38",
+		"accent":  accent,
+		"danger":  "#e07a7a",
+		"warning": "#d8b06a",
+		"success": "#86c9a2",
+	}
+}
+
+func themeBody(title string, roles map[string]string) map[string]any {
 	return map[string]any{
-		"key":         key,
-		"title":       "Тёплый вечер",
-		"description": "Свой вариант тёмной темы",
+		"title":       title,
+		"description": "Своя тема",
 		"mode":        "dark",
 		"base":        "dark",
-		"variables": map[string]string{
-			"--bg-canvas": "#141018",
-			"--accent":    "rgba(240, 180, 120, 0.9)",
-		},
+		"roles":       roles,
 	}
 }
 
-func TestThemePackageLifecycle(t *testing.T) {
-	app := setupApp(t)
-	cfg := utils.Config()
-
-	suffix := time.Now().UnixNano()
-	authorLogin := fmt.Sprintf("th_%d", suffix)
-	otherLogin := fmt.Sprintf("th_other_%d", suffix)
-	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{authorLogin, otherLogin}) })
-
-	const password = "sup3r-secret-password"
-	cookies := registerForPrivacy(t, app, authorLogin, authorLogin+"@example.com", password)
-	otherCookies := registerForPrivacy(t, app, otherLogin, otherLogin+"@example.com", password)
-
-	resp, _, _ := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/theme-packages"})
-	if resp.StatusCode != fiber.StatusUnauthorized {
-		t.Fatalf("свои темы без сессии = %d, ожидалось 401", resp.StatusCode)
-	}
-
-	key := fmt.Sprintf("theme-%d", suffix)
-
-	// Ключ не задаём и не проверяем: он собирается из названия («Тёплый вечер» →
-	// teplyy-vecher), а занятый ключ база заменит следующим свободным.
-	first := themeDraft("")
-	first["key"] = "Плохой ключ"
-	resp, firstBody, raw := call(t, app, callOptions{
-		Method: fiber.MethodPost, Path: "/theme-packages", Cookies: cookies, Body: first,
-	})
-	if resp.StatusCode != fiber.StatusCreated || firstBody.Theme == nil {
-		t.Fatalf("создание темы без ключа = %d (%s)", resp.StatusCode, raw)
-	}
-	if !strings.HasPrefix(firstBody.Theme.Key, "teplyy-vecher") {
-		t.Errorf("ключ темы = %q, ожидался собранный из названия", firstBody.Theme.Key)
-	}
-
-	second := themeDraft("")
-	resp, secondBody, raw := call(t, app, callOptions{
-		Method: fiber.MethodPost, Path: "/theme-packages", Cookies: cookies, Body: second,
-	})
-	if resp.StatusCode != fiber.StatusCreated || secondBody.Theme == nil {
-		t.Fatalf("вторая тема с тем же названием = %d (%s)", resp.StatusCode, raw)
-	}
-	if secondBody.Theme.Key == firstBody.Theme.Key {
-		t.Errorf("две темы с одним названием получили одинаковый ключ: %q", secondBody.Theme.Key)
-	}
-
-	unknown := themeDraft(key)
-	unknown["variables"] = map[string]string{"--shadow": "#000000"}
-	resp, _, raw = call(t, app, callOptions{
-		Method: fiber.MethodPost, Path: "/theme-packages", Cookies: cookies, Body: unknown,
-	})
-	if resp.StatusCode != fiber.StatusBadRequest {
-		t.Errorf("сложная переменная = %d (%s), ожидалось 400", resp.StatusCode, raw)
-	}
-
-	badColor := themeDraft(key)
-	badColor["variables"] = map[string]string{"--accent": "url(https://example.com/x.png)"}
-	resp, _, raw = call(t, app, callOptions{
-		Method: fiber.MethodPost, Path: "/theme-packages", Cookies: cookies, Body: badColor,
-	})
-	if resp.StatusCode != fiber.StatusBadRequest {
-		t.Errorf("значение с url() = %d (%s), ожидалось 400", resp.StatusCode, raw)
-	}
-
-	resp, body, raw := call(t, app, callOptions{
-		Method: fiber.MethodPost, Path: "/theme-packages", Cookies: cookies, Body: themeDraft(key),
-	})
-	if resp.StatusCode != fiber.StatusCreated {
-		t.Fatalf("создание темы = %d (%s), ожидалось 201", resp.StatusCode, raw)
-	}
-	if body.Theme == nil || body.Theme.ID == 0 {
-		t.Fatalf("ответ создания без темы: %s", raw)
-	}
-	if body.Theme.Status != "draft" {
-		t.Errorf("статус новой темы %q, ожидался draft", body.Theme.Status)
-	}
-	if body.Theme.Author != authorLogin {
-		t.Errorf("автор темы %q, ожидался %q", body.Theme.Author, authorLogin)
-	}
-	if body.Theme.Variables["--bg-canvas"] != "#141018" {
-		t.Errorf("переменные не сохранились: %+v", body.Theme.Variables)
-	}
-
-	themeID := body.Theme.ID
-
-	resp, list, raw := call(t, app, callOptions{
-		Method: fiber.MethodGet, Path: "/theme-packages", Cookies: cookies,
-	})
-	if resp.StatusCode != fiber.StatusOK || len(list.Themes) != 1 {
-		t.Fatalf("свои темы = %d (%s), ожидалась одна", resp.StatusCode, raw)
-	}
-
-	resp, _, raw = call(t, app, callOptions{
-		Method: fiber.MethodPost, Path: "/theme-packages", Cookies: cookies, Body: themeDraft(key),
-	})
-	if resp.StatusCode != fiber.StatusConflict {
-		t.Errorf("повтор ключа = %d (%s), ожидалось 409", resp.StatusCode, raw)
-	}
-
-	resp, published, raw := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/themes"})
-	if resp.StatusCode != fiber.StatusOK || len(published.Themes) != 0 {
-		t.Errorf("черновик попал в опубликованные: %d (%s)", resp.StatusCode, raw)
-	}
-
-	for _, request := range []callOptions{
-		{Method: fiber.MethodPut, Path: fmt.Sprintf("/theme-packages/%d", themeID), Cookies: otherCookies, Body: themeDraft(key)},
-		{Method: fiber.MethodDelete, Path: fmt.Sprintf("/theme-packages/%d", themeID), Cookies: otherCookies},
-		{Method: fiber.MethodPost, Path: fmt.Sprintf("/theme-packages/%d/submit", themeID), Cookies: otherCookies},
-	} {
-		resp, _, _ = call(t, app, request)
-		if resp.StatusCode != fiber.StatusNotFound {
-			t.Errorf("чужая операция %s %s = %d, ожидалось 404", request.Method, request.Path, resp.StatusCode)
-		}
-	}
-}
-
-func TestThemeModerationFlow(t *testing.T) {
-	app := setupApp(t)
-	cfg := utils.Config()
-
-	suffix := time.Now().UnixNano()
-	authorLogin := fmt.Sprintf("thm_%d", suffix)
-	otherLogin := fmt.Sprintf("thm_other_%d", suffix)
-	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{authorLogin, otherLogin}) })
-
-	const password = "sup3r-secret-password"
-	cookies := registerForPrivacy(t, app, authorLogin, authorLogin+"@example.com", password)
-	otherCookies := registerForPrivacy(t, app, otherLogin, otherLogin+"@example.com", password)
-
-	key := fmt.Sprintf("mod-%d", suffix)
-
-	resp, body, raw := call(t, app, callOptions{
-		Method: fiber.MethodPost, Path: "/theme-packages", Cookies: cookies, Body: themeDraft(key),
-	})
-	if resp.StatusCode != fiber.StatusCreated || body.Theme == nil {
-		t.Fatalf("создание темы = %d (%s)", resp.StatusCode, raw)
-	}
-	themeID := body.Theme.ID
-	themeKey := body.Theme.Key
-
-	resp, body, raw = call(t, app, callOptions{
-		Method: fiber.MethodPost, Path: fmt.Sprintf("/theme-packages/%d/submit", themeID), Cookies: cookies,
-	})
-	if resp.StatusCode != fiber.StatusOK || body.Theme.Status != "pending" {
-		t.Fatalf("отправка на модерацию = %d (%s), ожидался статус pending", resp.StatusCode, raw)
-	}
-
-	resp, _, raw = call(t, app, callOptions{
-		Method: fiber.MethodGet, Path: "/themes",
-	})
-	if resp.StatusCode != fiber.StatusOK || len(body.Themes) != 0 {
-		t.Errorf("тема на модерации видна всем: %d (%s)", resp.StatusCode, raw)
-	}
-
-	resp, _, _ = call(t, app, callOptions{
-		Method: fiber.MethodPut, Path: fmt.Sprintf("/theme-packages/%d", themeID), Cookies: cookies, Body: themeDraft(key),
-	})
-	if resp.StatusCode != fiber.StatusConflict {
-		t.Errorf("правка темы на модерации = %d, ожидалось 409", resp.StatusCode)
-	}
-
-	resp, _, _ = call(t, app, callOptions{
-		Method: fiber.MethodPost, Path: fmt.Sprintf("/theme-packages/%d/submit", themeID), Cookies: cookies,
-	})
-	if resp.StatusCode != fiber.StatusConflict {
-		t.Errorf("повторная отправка = %d, ожидалось 409", resp.StatusCode)
-	}
-
-	resp, _, _ = call(t, app, callOptions{
-		Method: fiber.MethodPut, Path: fmt.Sprintf("/admin/themes/%d/status", themeID), Cookies: otherCookies,
-		Body: map[string]string{"status": "approved"},
-	})
-	if resp.StatusCode != fiber.StatusNotFound {
-		t.Errorf("модерация без прав админа = %d, ожидалось 404", resp.StatusCode)
-	}
-
-	setUserRole(t, cfg.DBUrl, authorLogin, "admin")
-
-	resp, _, raw = call(t, app, callOptions{
-		Method: fiber.MethodPut, Path: fmt.Sprintf("/admin/themes/%d/status", themeID), Cookies: cookies,
-		Body: map[string]string{"status": "rejected"},
-	})
-	if resp.StatusCode != fiber.StatusBadRequest {
-		t.Errorf("отказ без причины = %d (%s), ожидалось 400", resp.StatusCode, raw)
-	}
-
-	const note = "Слишком тёмный фон для светлой темы"
-	resp, body, raw = call(t, app, callOptions{
-		Method: fiber.MethodPut, Path: fmt.Sprintf("/admin/themes/%d/status", themeID), Cookies: cookies,
-		Body: map[string]string{"status": "rejected", "note": note},
-	})
-	if resp.StatusCode != fiber.StatusOK || body.Theme.Status != "rejected" {
-		t.Fatalf("отказ = %d (%s), ожидался статус rejected", resp.StatusCode, raw)
-	}
-	if body.Theme.Note != note {
-		t.Errorf("причина отказа не сохранилась: %q", body.Theme.Note)
-	}
-
-	resp, list, raw := call(t, app, callOptions{
-		Method: fiber.MethodGet, Path: "/theme-packages", Cookies: cookies,
-	})
-	if resp.StatusCode != fiber.StatusOK || len(list.Themes) != 1 {
-		t.Fatalf("свои темы после отказа = %d (%s)", resp.StatusCode, raw)
-	}
-	if list.Themes[0].Note != note {
-		t.Errorf("автор не видит причину отказа: %q", list.Themes[0].Note)
-	}
-
-	resp, body, raw = call(t, app, callOptions{
-		Method: fiber.MethodPut, Path: fmt.Sprintf("/theme-packages/%d", themeID), Cookies: cookies, Body: themeDraft(key),
-	})
-	if resp.StatusCode != fiber.StatusOK || body.Theme.Status != "draft" {
-		t.Fatalf("правка после отказа = %d (%s), ожидался статус draft", resp.StatusCode, raw)
-	}
-	if body.Theme.Note != "" {
-		t.Errorf("причина отказа не сброшена: %q", body.Theme.Note)
-	}
-
-	resp, _, raw = call(t, app, callOptions{
-		Method: fiber.MethodPost, Path: fmt.Sprintf("/theme-packages/%d/submit", themeID), Cookies: cookies,
-	})
-	if resp.StatusCode != fiber.StatusOK {
-		t.Fatalf("повторная отправка после отказа = %d (%s)", resp.StatusCode, raw)
-	}
-
-	resp, body, raw = call(t, app, callOptions{
-		Method: fiber.MethodPut, Path: fmt.Sprintf("/admin/themes/%d/status", themeID), Cookies: cookies,
-		Body: map[string]string{"status": "approved"},
-	})
-	if resp.StatusCode != fiber.StatusOK || body.Theme.Status != "approved" {
-		t.Fatalf("одобрение = %d (%s), ожидался статус approved", resp.StatusCode, raw)
-	}
-	if body.Theme.PublishedAt == "" {
-		t.Error("у опубликованной темы нет published_at")
-	}
-
-	resp, published, raw := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/themes"})
-	if resp.StatusCode != fiber.StatusOK {
-		t.Fatalf("каталог тем = %d (%s)", resp.StatusCode, raw)
-	}
-
-	visible := false
-	for _, item := range published.Themes {
-		if item.Key != themeKey {
-			continue
-		}
-		visible = true
-		if item.Variables["--bg-canvas"] != "#141018" {
-			t.Errorf("в каталоге другие переменные: %+v", item.Variables)
-		}
-	}
-	if !visible {
-		t.Errorf("опубликованная тема не видна в каталоге: %s", raw)
-	}
-
-	resp, _, _ = call(t, app, callOptions{
-		Method: fiber.MethodPut, Path: fmt.Sprintf("/theme-packages/%d", themeID), Cookies: cookies, Body: themeDraft(key),
-	})
-	if resp.StatusCode != fiber.StatusConflict {
-		t.Errorf("правка опубликованной темы = %d, ожидалось 409", resp.StatusCode)
-	}
-
-	resp, _, raw = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/admin/actions", Cookies: cookies})
-	if resp.StatusCode != fiber.StatusOK || !strings.Contains(raw, "theme_approved") {
-		t.Errorf("модерация не попала в журнал: %d (%s)", resp.StatusCode, raw)
-	}
-
-	resp, _, raw = call(t, app, callOptions{
-		Method: fiber.MethodDelete, Path: fmt.Sprintf("/theme-packages/%d", themeID), Cookies: cookies,
-	})
-	if resp.StatusCode != fiber.StatusOK {
-		t.Fatalf("удаление темы = %d (%s)", resp.StatusCode, raw)
-	}
-
-	resp, published, _ = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/themes"})
-	for _, item := range published.Themes {
-		if item.Key == themeKey {
-			t.Errorf("удалённая тема осталась в каталоге: %s", item.Key)
-		}
-	}
-}
-
-func TestThemePackageLimit(t *testing.T) {
+// Библиотека тем: пользователь сохраняет несколько оформлений и правит их сам.
+// Каталога и модерации нет, поэтому проверяем CRUD, ключи, лимит и права доступа.
+func TestThemeLibraryLifecycle(t *testing.T) {
 	app := setupApp(t)
 	cfg := utils.Config()
 
 	suffix := time.Now().UnixNano()
 	login := fmt.Sprintf("thl_%d", suffix)
-	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{login}) })
+	otherLogin := fmt.Sprintf("thl_other_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{login, otherLogin}) })
 
 	const password = "sup3r-secret-password"
 	cookies := registerForPrivacy(t, app, login, login+"@example.com", password)
+	otherCookies := registerForPrivacy(t, app, otherLogin, otherLogin+"@example.com", password)
 
-	userID := userIDByLogin(t, cfg.DBUrl, login)
-	seedThemePackages(t, cfg.DBUrl, userID, models.ThemeMaxPackagesPerUser)
+	// Библиотека нового пользователя пуста.
+	resp, body, raw := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/themes", Cookies: cookies})
+	if resp.StatusCode != fiber.StatusOK || len(body.Themes) != 0 {
+		t.Fatalf("пустая библиотека = %d (%s)", resp.StatusCode, raw)
+	}
+
+	// Ключ собирается из названия — придумывать его не нужно.
+	resp, body, raw = call(t, app, callOptions{
+		Method: fiber.MethodPost, Path: "/themes", Cookies: cookies,
+		Body: themeBody("Морская ночь", themeRoles("#5fc4d8")),
+	})
+	if resp.StatusCode != fiber.StatusCreated || body.Theme == nil {
+		t.Fatalf("сохранение темы = %d (%s)", resp.StatusCode, raw)
+	}
+	themeID := body.Theme.ID
+	if body.Theme.Key != "morskaya-noch" {
+		t.Errorf("ключ темы = %q, ожидался morskaya-noch", body.Theme.Key)
+	}
+	if body.Theme.Roles["accent"] != "#5fc4d8" {
+		t.Errorf("роли темы = %v", body.Theme.Roles)
+	}
+
+	// Роли проверяем строго: неизвестная роль и цвет не в виде #rrggbb не проходят.
+	if resp, _, _ := call(t, app, callOptions{
+		Method: fiber.MethodPost, Path: "/themes", Cookies: cookies,
+		Body: themeBody("Лишняя роль", map[string]string{"shadow": "#ffffff"}),
+	}); resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("неизвестная роль = %d, ожидалось 400", resp.StatusCode)
+	}
+	if resp, _, _ := call(t, app, callOptions{
+		Method: fiber.MethodPost, Path: "/themes", Cookies: cookies,
+		Body: themeBody("Короткий цвет", map[string]string{"accent": "#fff"}),
+	}); resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("цвет #fff = %d, ожидалось 400", resp.StatusCode)
+	}
+
+	// Другой автор сохраняет тему с тем же названием: ключи больше не глобальные,
+	// поэтому конфликта между пользователями нет — это и была «каша» прежнего каталога.
+	resp, body, raw = call(t, app, callOptions{
+		Method: fiber.MethodPost, Path: "/themes", Cookies: otherCookies,
+		Body: themeBody("Морская ночь", themeRoles("#a3be8c")),
+	})
+	if resp.StatusCode != fiber.StatusCreated || body.Theme == nil || body.Theme.Key != "morskaya-noch" {
+		t.Fatalf("тема другого автора с тем же названием = %d (%s)", resp.StatusCode, raw)
+	}
+
+	// Чужая тема недоступна: ни правка, ни удаление.
+	resp, _, _ = call(t, app, callOptions{
+		Method: fiber.MethodPut, Path: fmt.Sprintf("/themes/%d", themeID), Cookies: otherCookies,
+		Body: themeBody("Морская ночь", themeRoles("#5fc4d8")),
+	})
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("правка чужой темы = %d, ожидалось 404", resp.StatusCode)
+	}
+	resp, _, _ = call(t, app, callOptions{
+		Method: fiber.MethodDelete, Path: fmt.Sprintf("/themes/%d", themeID), Cookies: otherCookies,
+	})
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Errorf("удаление чужой темы = %d, ожидалось 404", resp.StatusCode)
+	}
+
+	// Своя тема правится на месте: ключ остаётся прежним, чтобы не слетело применённое оформление.
+	resp, body, raw = call(t, app, callOptions{
+		Method: fiber.MethodPut, Path: fmt.Sprintf("/themes/%d", themeID), Cookies: cookies,
+		Body: themeBody("Морская ночь вечер", themeRoles("#b18cff")),
+	})
+	if resp.StatusCode != fiber.StatusOK || body.Theme == nil {
+		t.Fatalf("правка своей темы = %d (%s)", resp.StatusCode, raw)
+	}
+	if body.Theme.Key != "morskaya-noch" || body.Theme.Roles["accent"] != "#b18cff" {
+		t.Errorf("после правки: ключ %q, роли %v", body.Theme.Key, body.Theme.Roles)
+	}
+
+	// Повтор названия у автора: свободный ключ достаётся без приставки, а занятый — с приставкой.
+	resp, body, raw = call(t, app, callOptions{
+		Method: fiber.MethodPost, Path: "/themes", Cookies: cookies,
+		Body: themeBody("Морская ночь вечер", themeRoles("#e2b053")),
+	})
+	if resp.StatusCode != fiber.StatusCreated || body.Theme == nil {
+		t.Fatalf("повтор названия = %d (%s)", resp.StatusCode, raw)
+	}
+	if body.Theme.Key != "morskaya-noch-vecher" {
+		t.Errorf("ключ повтора = %q", body.Theme.Key)
+	}
+	duplicateID := body.Theme.ID
+
+	resp, body, raw = call(t, app, callOptions{
+		Method: fiber.MethodPost, Path: "/themes", Cookies: cookies,
+		Body: themeBody("Морская ночь вечер", themeRoles("#7ecb9d")),
+	})
+	if resp.StatusCode != fiber.StatusCreated || body.Theme == nil {
+		t.Fatalf("второй повтор названия = %d (%s)", resp.StatusCode, raw)
+	}
+	if body.Theme.Key != "morskaya-noch-vecher-2" {
+		t.Errorf("ключ второго повтора = %q", body.Theme.Key)
+	}
+	secondDuplicateID := body.Theme.ID
+
+	// Удаление: свои темы исчезают, соседняя остаётся.
+	for _, id := range []int{duplicateID, secondDuplicateID} {
+		resp, _, raw = call(t, app, callOptions{
+			Method: fiber.MethodDelete, Path: fmt.Sprintf("/themes/%d", id), Cookies: cookies,
+		})
+		if resp.StatusCode != fiber.StatusOK {
+			t.Fatalf("удаление темы %d = %d (%s)", id, resp.StatusCode, raw)
+		}
+	}
+
+	resp, body, raw = call(t, app, callOptions{Method: fiber.MethodGet, Path: "/themes", Cookies: cookies})
+	if resp.StatusCode != fiber.StatusOK || len(body.Themes) != 1 || body.Themes[0].ID != themeID {
+		t.Errorf("после удаления библиотека = %d (%s)", resp.StatusCode, raw)
+	}
+	if body.Limit != 10 {
+		t.Errorf("лимит библиотеки = %d, ожидалось 10", body.Limit)
+	}
+}
+
+// В библиотеке помещается десять тем: одиннадцатая не сохраняется с понятной ошибкой.
+func TestThemeLibraryLimit(t *testing.T) {
+	app := setupApp(t)
+	cfg := utils.Config()
+
+	suffix := time.Now().UnixNano()
+	login := fmt.Sprintf("thl_limit_%d", suffix)
+	t.Cleanup(func() { deleteUsers(t, cfg.DBUrl, []string{login}) })
+
+	cookies := registerForPrivacy(t, app, login, login+"@example.com", "sup3r-secret-password")
+
+	for index := 0; index < 10; index++ {
+		resp, _, raw := call(t, app, callOptions{
+			Method: fiber.MethodPost, Path: "/themes", Cookies: cookies,
+			Body: themeBody(fmt.Sprintf("Тема номер %d", index), themeRoles("#5fc4d8")),
+		})
+		if resp.StatusCode != fiber.StatusCreated {
+			t.Fatalf("сохранение темы %d = %d (%s)", index, resp.StatusCode, raw)
+		}
+	}
 
 	resp, _, raw := call(t, app, callOptions{
-		Method: fiber.MethodPost, Path: "/theme-packages", Cookies: cookies,
-		Body: themeDraft(fmt.Sprintf("limit-%d", suffix)),
+		Method: fiber.MethodPost, Path: "/themes", Cookies: cookies,
+		Body: themeBody("Лишняя тема", themeRoles("#5fc4d8")),
 	})
 	if resp.StatusCode != fiber.StatusConflict {
-		t.Errorf("тема сверх лимита = %d (%s), ожидалось 409", resp.StatusCode, raw)
+		t.Fatalf("одиннадцатая тема = %d (%s), ожидалось 409", resp.StatusCode, raw)
 	}
 }
 
-func setUserRole(t *testing.T, url, login, role string) {
-	t.Helper()
+func TestThemeLibraryRequiresAuth(t *testing.T) {
+	app := setupApp(t)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	conn, err := pgx.Connect(ctx, url)
-	if err != nil {
-		t.Fatalf("подключение к БД: %v", err)
+	resp, _, _ := call(t, app, callOptions{Method: fiber.MethodGet, Path: "/themes"})
+	if resp.StatusCode != fiber.StatusUnauthorized {
+		t.Errorf("библиотека без авторизации = %d, ожидалось 401", resp.StatusCode)
 	}
-	defer conn.Close(ctx)
 
-	if _, err := conn.Exec(ctx, `UPDATE users SET role = $1 WHERE login = $2`, role, login); err != nil {
-		t.Fatalf("смена роли %s: %v", login, err)
-	}
-}
-
-func seedThemePackages(t *testing.T, url string, authorID, count int) {
-	t.Helper()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	conn, err := pgx.Connect(ctx, url)
-	if err != nil {
-		t.Fatalf("подключение к БД: %v", err)
-	}
-	defer conn.Close(ctx)
-
-	_, err = conn.Exec(ctx, `INSERT INTO theme_packages (author_id, theme_key, title, variables)
-		SELECT $1::int, 'seed-' || $1 || '-' || value, 'Заготовка ' || value, '{"--accent": "#ffffff"}'::jsonb
-		FROM generate_series(1, $2::int) AS value`, authorID, count)
-	if err != nil {
-		t.Fatalf("подготовка тем: %v", err)
+	resp, _, _ = call(t, app, callOptions{
+		Method: fiber.MethodPost, Path: "/themes", Body: themeBody("Гостевая тема", themeRoles("#5fc4d8")),
+	})
+	if resp.StatusCode != fiber.StatusUnauthorized {
+		t.Errorf("сохранение без авторизации = %d, ожидалось 401", resp.StatusCode)
 	}
 }
